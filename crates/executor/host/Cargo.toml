@@ -1,0 +1,53 @@
+[package]
+name = "rsp-host-executor"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+eyre.workspace = true
+serde_json.workspace = true
+url.workspace = true
+serde.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# workspace
+rsp-rpc-db.workspace = true
+rsp-witness-db.workspace = true
+rsp-guest-executor.workspace = true
+rsp-mpt.workspace = true
+rsp-primitives.workspace = true
+
+# reth
+reth-primitives.workspace = true
+reth-storage-errors.workspace = true
+reth-trie.workspace = true
+reth-evm.workspace = true
+reth-evm-ethereum.workspace = true
+reth-execution-types.workspace = true
+reth-errors.workspace = true
+reth-chainspec.workspace = true
+
+# revm
+revm.workspace = true
+revm-primitives.workspace = true
+
+# alloy
+alloy-primitives.workspace = true
+alloy-rlp.workspace = true
+alloy-provider.workspace = true
+alloy-transport.workspace = true
+itertools = "0.13.0"
+futures.workspace = true
+alloy-rpc-types.workspace = true
+
+[dev-dependencies]
+tracing-subscriber = "0.3.18"
+dotenv = "0.15.0"

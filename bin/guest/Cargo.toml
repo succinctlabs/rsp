@@ -1,0 +1,17 @@
+[package]
+name = "rsp-guest"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+# workspace
+rsp-guest-executor.workspace = true
+
+# sp1
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1.git" }

@@ -1,0 +1,25 @@
+[package]
+version = "0.1.0"
+name = "rsp-host"
+edition = "2021"
+
+[dependencies]
+tokio.workspace = true
+eyre.workspace = true
+url.workspace = true
+tracing-subscriber = "0.3.18"
+dotenv = "0.15.0"
+clap = { version = "4.5.7", features = ["derive", "env"] }
+serde_json.workspace = true
+
+# workspace
+rsp-host-executor.workspace = true
+
+# alloy
+alloy-provider.workspace = true
+
+# sp1
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git" }
+
+[build-dependencies]
+sp1-helper = { git = "https://github.com/succinctlabs/sp1.git" }
