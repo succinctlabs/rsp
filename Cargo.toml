@@ -1,0 +1,96 @@
+[workspace]
+members = [
+    "bin/guest",
+    "bin/host",
+    "crates/executor/guest",
+    "crates/executor/host",
+    "crates/mpt",
+    "crates/primitives",
+    "crates/storage/rpc-db",
+    "crates/storage/witness-db", 
+]
+exclude = []
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["puma314", "jtguibas", "rkrasiuk"]
+repository = "https://github.com/moongate-forks/minimal-reth"
+homepage = "https://github.com/moongate-forks/minimal-reth"
+exclude = ["**/target"]
+version = "0.1.0"
+
+[workspace.dependencies]
+eyre = "0.6"
+anyhow = { version = "1.0.86", default-features = false }
+tracing = { version = "0.1.40", default-features = false }
+cfg-if = "1.0.0"
+spin = { version = "0.9.8", features = ["mutex"] }
+async-trait = "0.1.80"
+tokio = { version = "1.21", default-features = false, features = ["rt", "rt-multi-thread"] }
+serde_json = "1.0.94"
+serde = { version = "1.0", default-features = false }
+futures = "0.3"
+url = "2.3"
+thiserror = "1.0.61"
+
+# workspace
+rsp-rpc-db = { path = "./crates/storage/rpc-db" }
+rsp-witness-db = { path = "./crates/storage/witness-db" }
+rsp-guest-executor = { path = "./crates/executor/guest" }
+rsp-host-executor = { path = "./crates/executor/host" }
+rsp-mpt = { path = "./crates/mpt" }
+rsp-primitives = { path = "./crates/primitives" }
+
+# reth
+reth-primitives = { path = "../reth/crates/primitives", default-features = false, features = ["alloy-compat", "std", "k256"]}
+reth-consensus = { path = "../reth/crates/consensus/consensus", default-features = false }
+reth-evm = { path = "../reth/crates/evm", default-features = false }
+reth-revm = { path = "../reth/crates/revm", default-features = false, features = ["std"] }
+reth-node-ethereum = { path = "../reth/crates/ethereum/node", default-features = false }
+reth-evm-ethereum = { path = "../reth/crates/ethereum/evm", default-features = false, features = ["std"] }
+reth-storage-errors = { path = "../reth/crates/storage/errors", default-features = false, features = ["std"] }
+reth-trie = { path = "../reth/crates/trie/trie", default-features = false }
+reth-trie-common = { path = "../reth/crates/trie/common", default-features = false }
+reth-chainspec = { path = "../reth/crates/chainspec", default-features = false }
+reth-execution-errors = { path = "../reth/crates/evm/execution-errors", default-features = false }
+reth-execution-types = { path = "../reth/crates/evm/execution-types", default-features = false }
+reth-db = { path = "../reth/crates/storage/db", default-features = false }
+reth-errors = { path = "../reth/crates/errors", default-features = false }
+
+# revm
+revm = { path = "../bluealloy-revm/crates/revm", features = [
+    "std",
+    "serde",
+], default-features = false }
+revm-primitives = { path = "../bluealloy-revm/crates/primitives", features = [
+    "std",
+    "serde",
+], default-features = false }
+revm-inspectors = "0.1"
+
+# alloy
+alloy-primitives = "0.7.2"
+alloy-provider = { version = "0.1", default-features = false, features = [
+    "reqwest",
+    "reqwest-rustls-tls"
+] }
+alloy-rpc-types = { version = "0.1", default-features = false, features = [
+    "eth",
+] }
+alloy-rlp = "0.3.4"
+alloy-consensus = { version = "0.1", default-features = false }
+alloy-transport = { version = "0.1" }
+alloy-transport-http = { version = "0.1", features = [
+    "reqwest-rustls-tls",
+], default-features = false }
+alloy-eips = { version = "0.1", default-features = false }
+
+[workspace.lints]
+rust.missing_debug_implementations = "warn"
+# rust.missing_docs = "warn"
+rust.unreachable_pub = "warn"
+rust.unused_must_use = "deny"
+rust.rust_2018_idioms = { level = "deny", priority = -1 }
+rustdoc.all = "warn"

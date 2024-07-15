@@ -1,0 +1,26 @@
+[package]
+name = "rsp-primitives"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+eyre.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+tracing.workspace = true
+
+# reth
+reth-primitives.workspace = true
+reth-revm.workspace = true
+reth-trie.workspace = true
+reth-chainspec.workspace = true
+
+# revm
+revm-primitives.workspace = true
+
+# alloy
+alloy-rpc-types.workspace = true

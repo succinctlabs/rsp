@@ -1,0 +1,31 @@
+[package]
+name = "rsp-mpt"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+eyre.workspace = true
+itertools = "0.13.0"
+
+# reth
+reth-primitives.workspace = true
+reth-trie.workspace = true
+reth-execution-types.workspace = true
+
+# revm
+revm-primitives.workspace = true
+
+# alloy
+alloy-primitives.workspace = true
+alloy-rlp.workspace = true
+alloy-rpc-types.workspace = true
+
+[dev-dependencies]
+tracing-subscriber = "0.3.18"
