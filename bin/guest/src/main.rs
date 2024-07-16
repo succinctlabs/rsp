@@ -6,9 +6,13 @@ use rsp_guest_executor::{io::GuestExecutorInput, GuestExecutor};
 pub fn main() {
     // Read the input.
     let input = sp1_zkvm::io::read_vec();
-    let input: GuestExecutorInput = serde_json::from_slice(&input).unwrap();
+    let input = bincode::deserialize::<GuestExecutorInput>(&input).unwrap();
 
     // Execute the block.
     let executor = GuestExecutor;
-    executor.execute(input).expect("failed to execute guest");
+    let header = executor.execute(input).expect("failed to execute guest");
+    let block_hash = header.hash_slow();
+
+    // Commit the block hash.
+    sp1_zkvm::io::commit(&block_hash);
 }

@@ -13,7 +13,6 @@ use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::{HashMap, HashSet};
 use rsp_primitives::account_proof::AccountProofWithBytecode;
 use rsp_witness_db::WitnessDb;
-use tracing::instrument;
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]
@@ -58,8 +57,9 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     }
 
     /// Fetch the [AccountInfo] for an [Address].
-    #[instrument(name = "fetch_account_info", skip(self))]
     pub async fn fetch_account_info(&self, address: Address) -> Result<AccountInfo, RpcDbError> {
+        tracing::info!("fetching account info for address: {}", address);
+
         // Fetch the proof for the account.
         let proof = self
             .provider
@@ -92,12 +92,13 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     }
 
     /// Fetch the storage value at an [Address] and [U256] index.
-    #[instrument(name = "fetch_storage_at", skip(self))]
     pub async fn fetch_storage_at(
         &self,
         address: Address,
         index: U256,
     ) -> Result<U256, RpcDbError> {
+        tracing::info!("fetching storage value at address: {}, index: {}", address, index);
+
         // Fetch the storage value.
         let value = self
             .provider
@@ -115,8 +116,9 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     }
 
     /// Fetch the block hash for a block number.
-    #[instrument(name = "fetch_block_hash", skip(self))]
     pub async fn fetch_block_hash(&self, number: u64) -> Result<B256, RpcDbError> {
+        tracing::info!("fetching block hash for block number: {}", number);
+
         // Fetch the block.
         let block = self
             .provider
@@ -134,10 +136,11 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
 
     /// Fetches the [AccountProof] for every account that was used during the lifetime of the
     /// [RpcDb].
-    #[instrument(name = "fetch_used_account_proofs", skip(self))]
     pub async fn fetch_used_accounts_and_proofs(
         &self,
     ) -> HashMap<Address, AccountProofWithBytecode> {
+        tracing::info!("fetching used account proofs");
+
         let futures: Vec<_> = {
             let accounts = self.accounts.borrow();
             let storage = self.storage.borrow();

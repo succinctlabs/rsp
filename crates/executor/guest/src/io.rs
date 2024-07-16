@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use alloy_rpc_types::EIP1186AccountProofResponse;
 use eyre::Result;
 use reth_primitives::{revm_primitives::AccountInfo, Address, Block, B256, U256};
+use reth_trie::AccountProof;
 use rsp_primitives::account_proof::AccountProofWithBytecode;
 use rsp_witness_db::WitnessDb;
 use serde::{Deserialize, Serialize};
@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 ///
 /// Instead of passing in the entire state, we only pass in the state roots along with merkle proofs
 /// for the storage slots that were modified and accessed.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GuestExecutorInput {
     /// The current block (which will be executed inside the guest).
     pub current_block: Block,
     /// The previous block.
     pub previous_block: Block,
     /// The dirty storage proofs for the storage slots that were modified.
-    pub dirty_storage_proofs: Vec<EIP1186AccountProofResponse>,
+    pub dirty_storage_proofs: Vec<AccountProof>,
     /// The storage proofs for the storage slots that were accessed.
     pub used_storage_proofs: HashMap<Address, AccountProofWithBytecode>,
     /// The block hashes.

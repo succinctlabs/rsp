@@ -1,12 +1,13 @@
 use alloy_provider::ReqwestProvider;
 use clap::Parser;
+use reth_primitives::B256;
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{ProverClient, SP1Stdin};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
-/// The arguments for the host executable
+/// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
 struct HostArgs {
     /// The block number of the block to execute.
@@ -43,17 +44,13 @@ async fn main() -> eyre::Result<()> {
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
-    let buffer = serde_json::to_vec(&guest_input).unwrap();
+    let buffer = bincode::serialize(&guest_input).unwrap();
     stdin.write_vec(buffer);
-    client.execute(&pk.elf, stdin).unwrap();
+    let (mut public_values, _) = client.execute(&pk.elf, stdin).run().unwrap();
 
-    // // Generate the proof.
-    // let mut stdin = SP1Stdin::new();
-    // stdin.write(&guest_input);
-    // let proof = client.prove(&pk, stdin).unwrap();
-
-    // // Verify the proof.
-    // client.verify(&proof, &vk).unwrap();
+    // Read the block hash.
+    let block_hash = public_values.read::<B256>();
+    println!("success: block_hash={block_hash}");
 
     Ok(())
 }
