@@ -2,14 +2,14 @@ use std::collections::{BTreeMap, HashSet};
 
 use alloy_primitives::Bytes;
 use alloy_rlp::{Decodable, Encodable};
-use alloy_rpc_types::EIP1186AccountProofResponse;
 use eyre::Ok;
 use itertools::Either;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{Address, B256};
 use reth_trie::{
     nodes::{TrieNode, CHILD_INDEX_RANGE},
-    HashBuilder, HashedPostState, HashedStorage, Nibbles, TrieAccount, EMPTY_ROOT_HASH,
+    AccountProof, HashBuilder, HashedPostState, HashedStorage, Nibbles, TrieAccount,
+    EMPTY_ROOT_HASH,
 };
 use revm_primitives::{keccak256, HashMap};
 
@@ -17,7 +17,7 @@ use revm_primitives::{keccak256, HashMap};
 /// of [EIP1186AccountProofResponse] storage proofs.
 pub fn compute_state_root(
     execution_outcome: &ExecutionOutcome,
-    storage_proofs: &[EIP1186AccountProofResponse],
+    storage_proofs: &[AccountProof],
 ) -> eyre::Result<B256> {
     // Reconstruct prefix sets manually to record pre-images for subsequent lookups.
     let mut hashed_state = HashedPostState::default();
@@ -51,13 +51,13 @@ pub fn compute_state_root(
             prefix_sets.storage_prefix_sets.get(&hashed_address).cloned().unwrap_or_default();
 
         let proof = storage_proofs.iter().find(|x| x.address == address).unwrap();
-        let root = if proof.storage_proof.is_empty() {
-            proof.storage_hash
+        let root = if proof.storage_proofs.is_empty() {
+            proof.storage_root
         } else {
             compute_root_from_proofs(storage_prefix_sets.keys.iter().map(|storage_nibbles| {
                 let hashed_slot = B256::from_slice(&storage_nibbles.pack());
                 let slot = storage_reverse_lookup.get(&hashed_slot).unwrap();
-                let storage_proof = proof.storage_proof.iter().find(|x| &x.key.0 == slot).unwrap();
+                let storage_proof = proof.storage_proofs.iter().find(|x| x.key.0 == slot).unwrap();
                 let encoded = Some(
                     hashed_state
                         .storages
@@ -90,7 +90,7 @@ pub fn compute_state_root(
             TrieAccount::from((account, storage_root)).encode(&mut rlp_buf);
             Some(rlp_buf.clone())
         };
-        (account_nibbles.clone(), encoded, proof.account_proof.clone())
+        (account_nibbles.clone(), encoded, proof.proof.clone())
     }))
 }
 

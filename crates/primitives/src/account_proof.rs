@@ -5,7 +5,7 @@ use revm_primitives::keccak256;
 use serde::{Deserialize, Serialize};
 
 /// The account proof with the bytecode.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AccountProofWithBytecode {
     /// The account proof.
     pub proof: AccountProof,

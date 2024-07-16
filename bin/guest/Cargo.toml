@@ -8,7 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde_json.workspace = true
+bincode = "1.3.3"
 
 # workspace
 rsp-guest-executor.workspace = true

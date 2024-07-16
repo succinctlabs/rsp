@@ -26,7 +26,8 @@ rsp-mpt.workspace = true
 rsp-primitives.workspace = true
 
 # reth
-reth-primitives.workspace = true
+reth-codecs.workspace = true
+reth-primitives = { workspace = true, features = ["secp256k1"] }
 reth-storage-errors.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true
@@ -34,6 +35,7 @@ reth-evm-ethereum.workspace = true
 reth-execution-types.workspace = true
 reth-errors.workspace = true
 reth-chainspec.workspace = true
+reth-ethereum-consensus.workspace = true
 
 # revm
 revm.workspace = true
@@ -49,5 +51,7 @@ futures.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]
+alloy-primitives.workspace = true
 tracing-subscriber = "0.3.18"
+bincode = "1.3.3"
 dotenv = "0.15.0"
