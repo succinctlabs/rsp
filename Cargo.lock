@@ -2925,7 +2925,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5688,7 +5688,8 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git#dd032eb23949828d244d1ad1f1569aa78155837c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63f0edef8848ee5e5e4f2b5891ddd93e644fed394b64d2de3c97deedfb178d8f"
 dependencies = [
  "anyhow",
  "cargo_metadata",
@@ -5697,8 +5698,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-core"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d0fb585eb8a6d9fbec006278e4ba8aa1af9dbae655944a8635eaee0424cafd2"
 dependencies = [
  "anyhow",
  "arrayref",
@@ -5745,7 +5747,6 @@ dependencies = [
  "snowbridge-amcl",
  "sp1-derive",
  "sp1-primitives",
- "static_assertions",
  "strum",
  "strum_macros",
  "tempfile",
@@ -5759,8 +5760,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e0ac64c524b9f79073622218698103585a46209d343ef1cba6f8dac73e35bb8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5770,7 +5772,8 @@ dependencies = [
 [[package]]
 name = "sp1-helper"
 version = "1.0.1"
-source = "git+https://github.com/succinctlabs/sp1.git#dd032eb23949828d244d1ad1f1569aa78155837c"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "721a60f0ebfac764fd68edfcb3cbe44d4c2fad71a110701306428968a3596cd2"
 dependencies = [
  "cargo_metadata",
  "chrono",
@@ -5779,8 +5782,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bb8d5ca92c185781e3b91d333217f1204a8ab0e9e8327641245c5fb685b168a"
 dependencies = [
  "itertools 0.13.0",
  "lazy_static",
@@ -5792,8 +5796,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-prover"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaf125b5df27e81706b79de5a4ee3ef587a4a504ab799a1b1b774b537d1a1820"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5828,8 +5833,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-circuit"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53af2e0dc0c9455896db5c014266391b515fe17f33141acb1ba194585bae4973"
 dependencies = [
  "bincode",
  "itertools 0.13.0",
@@ -5851,8 +5857,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-compiler"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a85ad294534013954b975e0516eedd13722406291ddaaa064feee48441920251"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -5876,8 +5883,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-core"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ead6647708c6d931b0069b3823f36e57232dc627dddc21c82775e3e78cdd395"
 dependencies = [
  "arrayref",
  "backtrace",
@@ -5911,8 +5919,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-derive"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42289ce113de57cb1f2b163688021ce7bdbe2c6cdbc96d5e2b1c85b1108c4199"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5921,8 +5930,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-gnark-ffi"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76b9c84925c075eac095deac8f2ab48258be35a662339e386d76ac5b21c60bdc"
 dependencies = [
  "anyhow",
  "bincode",
@@ -5946,8 +5956,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-recursion-program"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d460db3d03dd185e4d338c4c6d1b3fd174063f561219f98abc26532eecdc6ad2"
 dependencies = [
  "itertools 0.13.0",
  "p3-air",
@@ -5975,8 +5986,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "1.0.0-rc.1"
-source = "git+https://github.com/succinctlabs/sp1.git?branch=dev#05a913ed0d7032c481df97cfcbb1688b24693e46"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d491b27caebd3f331dcb3ce1186bb37970a1e78440ecd34fd3ab74b108af23a"
 dependencies = [
  "alloy-sol-types",
  "anyhow",
