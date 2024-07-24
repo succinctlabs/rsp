@@ -1,13 +1,12 @@
 [workspace]
 members = [
-    "bin/guest",
     "bin/host",
     "crates/executor/guest",
     "crates/executor/host",
     "crates/mpt",
     "crates/primitives",
     "crates/storage/rpc-db",
-    "crates/storage/witness-db", 
+    "crates/storage/witness-db",
 ]
 exclude = []
 resolver = "2"
@@ -28,7 +27,10 @@ tracing = { version = "0.1.40", default-features = false }
 cfg-if = "1.0.0"
 spin = { version = "0.9.8", features = ["mutex"] }
 async-trait = "0.1.80"
-tokio = { version = "1.21", default-features = false, features = ["rt", "rt-multi-thread"] }
+tokio = { version = "1.21", default-features = false, features = [
+    "rt",
+    "rt-multi-thread",
+] }
 serde_json = "1.0.94"
 serde = { version = "1.0", default-features = false }
 futures = "0.3"
@@ -44,29 +46,62 @@ rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 
 # reth
-reth-primitives = { path = "../reth/crates/primitives", default-features = false, features = ["alloy-compat", "std"]}
-reth-codecs = { path = "../reth/crates/storage/codecs", default-features = false }
-reth-consensus = { path = "../reth/crates/consensus/consensus", default-features = false }
-reth-evm = { path = "../reth/crates/evm", default-features = false }
-reth-revm = { path = "../reth/crates/revm", default-features = false, features = ["std"] }
-reth-node-ethereum = { path = "../reth/crates/ethereum/node", default-features = false }
-reth-evm-ethereum = { path = "../reth/crates/ethereum/evm", default-features = false, features = ["std"] }
-reth-storage-errors = { path = "../reth/crates/storage/errors", default-features = false, features = ["std"] }
-reth-trie = { path = "../reth/crates/trie/trie", default-features = false }
-reth-trie-common = { path = "../reth/crates/trie/common", default-features = false }
-reth-chainspec = { path = "../reth/crates/chainspec", default-features = false }
-reth-execution-errors = { path = "../reth/crates/evm/execution-errors", default-features = false }
-reth-execution-types = { path = "../reth/crates/evm/execution-types", default-features = false }
-reth-db = { path = "../reth/crates/storage/db", default-features = false }
-reth-errors = { path = "../reth/crates/errors", default-features = false }
-reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus", default-features = false }
+# reth-primitives = { path = "../reth/crates/primitives", default-features = false, features = ["alloy-compat", "std"]}
+# reth-codecs = { path = "../reth/crates/storage/codecs", default-features = false }
+# reth-consensus = { path = "../reth/crates/consensus/consensus", default-features = false }
+# reth-evm = { path = "../reth/crates/evm", default-features = false }
+# reth-revm = { path = "../reth/crates/revm", default-features = false, features = ["std"] }
+# reth-node-ethereum = { path = "../reth/crates/ethereum/node", default-features = false }
+# reth-evm-ethereum = { path = "../reth/crates/ethereum/evm", default-features = false, features = ["std"] }
+# reth-storage-errors = { path = "../reth/crates/storage/errors", default-features = false, features = ["std"] }
+# reth-trie = { path = "../reth/crates/trie/trie", default-features = false }
+# reth-trie-common = { path = "../reth/crates/trie/common", default-features = false }
+# reth-chainspec = { path = "../reth/crates/chainspec", default-features = false }
+# reth-execution-errors = { path = "../reth/crates/evm/execution-errors", default-features = false }
+# reth-execution-types = { path = "../reth/crates/evm/execution-types", default-features = false }
+# reth-db = { path = "../reth/crates/storage/db", default-features = false }
+# reth-errors = { path = "../reth/crates/errors", default-features = false }
+# reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus", default-features = false }
+reth-primitives = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "alloy-compat",
+    "std",
+] }
+reth-codecs = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-evm = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-revm = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "std",
+] }
+reth-node-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "std",
+] }
+reth-storage-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "std",
+] }
+reth-trie = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-trie-common = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-chainspec = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-execution-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-execution-types = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-db = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
 
 # revm
-revm = { path = "../bluealloy-revm/crates/revm", features = [
+# revm = { path = "../bluealloy-revm/crates/revm", features = [
+#     "std",
+#     "serde",
+# ], default-features = false }
+# revm-primitives = { path = "../bluealloy-revm/crates/primitives", features = [
+#     "std",
+#     "serde",
+# ], default-features = false }
+revm = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
     "std",
     "serde",
 ], default-features = false }
-revm-primitives = { path = "../bluealloy-revm/crates/primitives", features = [
+revm-primitives = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
     "std",
     "serde",
 ], default-features = false }
@@ -76,7 +111,7 @@ revm-inspectors = "0.1"
 alloy-primitives = "0.7.2"
 alloy-provider = { version = "0.1", default-features = false, features = [
     "reqwest",
-    "reqwest-rustls-tls"
+    "reqwest-rustls-tls",
 ] }
 alloy-rpc-types = { version = "0.1", default-features = false, features = [
     "eth",
@@ -90,8 +125,10 @@ alloy-transport-http = { version = "0.1", features = [
 alloy-eips = { version = "0.1", default-features = false }
 
 [patch.crates-io]
-alloy-eips = { path = "../alloy/crates/eips" }
-alloy-serde = { path = "../alloy/crates/serde" }
+# alloy-eips = { path = "../alloy/crates/eips" }
+# alloy-serde = { path = "../alloy/crates/serde" }
+alloy-eips = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
+alloy-serde = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
 tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" }
 
 [workspace.lints]

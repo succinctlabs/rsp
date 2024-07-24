@@ -1,3 +1,4 @@
+[workspace]
 [package]
 name = "rsp-guest"
 description = ""
