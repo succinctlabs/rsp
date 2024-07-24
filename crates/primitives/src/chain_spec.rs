@@ -1,8 +1,7 @@
 use reth_chainspec::{ChainSpec, ChainSpecBuilder};
 
 /// The genesis json for Ethereum Mainnet.
-pub const MAINNET_GENESIS_JSON: &str =
-    include_str!("../../../../reth/crates/ethereum/node/tests/assets/genesis.json");
+pub const MAINNET_GENESIS_JSON: &str = include_str!("genesis.json");
 
 /// Returns the [ChainSpec] for Ethereum mainnet.
 pub fn mainnet() -> eyre::Result<ChainSpec> {
