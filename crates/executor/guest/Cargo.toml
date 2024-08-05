@@ -23,12 +23,14 @@ rsp-mpt.workspace = true
 
 # reth
 reth-ethereum-consensus.workspace = true
+reth-optimism-consensus.workspace = true
 reth-execution-types.workspace = true
 reth-primitives = { workspace = true, features = ["k256"] }
 reth-storage-errors.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true
 reth-evm-ethereum.workspace = true
+reth-evm-optimism.workspace = true
 reth-errors.workspace = true
 reth-chainspec.workspace = true
 
@@ -42,6 +44,5 @@ alloy-rlp.workspace = true
 itertools = "0.13.0"
 url.workspace = true
 futures.workspace = true
-alloy-rpc-types.workspace = true
 
 [dev-dependencies]

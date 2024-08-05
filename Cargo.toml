@@ -64,6 +64,7 @@ rsp-primitives = { path = "./crates/primitives" }
 # reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus", default-features = false }
 reth-primitives = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
     "alloy-compat",
+    "optimism",
     "std",
 ] }
 reth-codecs = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
@@ -76,6 +77,9 @@ reth-node-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "j
 reth-evm-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
     "std",
 ] }
+reth-evm-optimism = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "optimism",
+] }
 reth-storage-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
     "std",
 ] }
@@ -87,6 +91,9 @@ reth-execution-types = { git = "https://github.com/jtguibas/reth.git", branch = 
 reth-db = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
 reth-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
 reth-ethereum-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
+reth-optimism-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+    "optimism",
+] }
 
 # revm
 # revm = { path = "../bluealloy-revm/crates/revm", features = [
@@ -98,6 +105,7 @@ reth-ethereum-consensus = { git = "https://github.com/jtguibas/reth.git", branch
 #     "serde",
 # ], default-features = false }
 revm = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
+    "optimism",
     "std",
     "serde",
 ], default-features = false }

@@ -4,28 +4,66 @@ pub mod io;
 #[macro_use]
 pub mod utils;
 
+use std::fmt::Display;
+
 use eyre::eyre;
 use io::GuestExecutorInput;
-use reth_ethereum_consensus::validate_block_post_execution;
-use reth_evm::execute::{BlockExecutorProvider, Executor};
-use reth_evm_ethereum::execute::EthExecutorProvider;
+use reth_chainspec::ChainSpec;
+use reth_errors::ProviderError;
+use reth_ethereum_consensus::validate_block_post_execution as validate_block_post_execution_ethereum;
+use reth_evm::execute::{BlockExecutionOutput, BlockExecutorProvider, Executor};
+use reth_evm_ethereum::{execute::EthExecutorProvider, EthEvmConfig};
+use reth_evm_optimism::{OpExecutorProvider, OptimismEvmConfig};
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives::{proofs, Bloom, Header, Receipts};
-use revm::db::CacheDB;
+use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
+use reth_primitives::{proofs, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
+use revm::{db::CacheDB, Database};
+use revm_primitives::U256;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
 pub struct GuestExecutor;
 
+/// Trait for representing different execution/validation rules of different chain variants. This
+/// allows for dead code elimination to minimize the ELF size for each variant.
+pub trait Variant {
+    fn spec() -> ChainSpec;
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>;
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()>;
+}
+
+/// Implementation for Ethereum-specific execution/validation logic.
+#[derive(Debug)]
+pub struct EthereumVariant;
+
+/// Implementation for Optimism-specific execution/validation logic.
+#[derive(Debug)]
+pub struct OptimismVariant;
+
 impl GuestExecutor {
-    pub fn execute(&self, mut input: GuestExecutorInput) -> eyre::Result<Header> {
+    pub fn execute<V>(&self, mut input: GuestExecutorInput) -> eyre::Result<Header>
+    where
+        V: Variant,
+    {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = input.witness_db()?;
         let cache_db = CacheDB::new(witness_db);
 
         // Execute the block.
-        let spec = rsp_primitives::chain_spec::mainnet()?;
-        let executor = EthExecutorProvider::ethereum(spec.clone().into()).executor(cache_db);
+        let spec = V::spec();
         let executor_block_input = profile!("recover senders", {
             input
                 .current_block
@@ -35,12 +73,12 @@ impl GuestExecutor {
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
         let executor_output = profile!("execute", {
-            executor.execute((&executor_block_input, executor_difficulty).into())
+            V::execute(&executor_block_input, executor_difficulty, cache_db)
         })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
-            validate_block_post_execution(
+            V::validate_block_post_execution(
                 &executor_block_input,
                 &spec,
                 &executor_output.receipts,
@@ -91,5 +129,61 @@ impl GuestExecutor {
             input.current_block.requests.as_ref().map(|r| proofs::calculate_requests_root(&r.0));
 
         Ok(header)
+    }
+}
+
+impl Variant for EthereumVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::mainnet().unwrap()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(EthExecutorProvider::new(Self::spec().into(), EthEvmConfig::default())
+            .executor(cache_db)
+            .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+}
+
+impl Variant for OptimismVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::op_mainnet().unwrap()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(OpExecutorProvider::new(Self::spec().into(), OptimismEvmConfig::default())
+            .executor(cache_db)
+            .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        _requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_optimism(block, chain_spec, receipts)?)
     }
 }
