@@ -1,6 +1,6 @@
 [workspace.package]
 [package]
-name = "rsp-guest"
+name = "rsp-guest-op"
 description = ""
 edition = "2021"
 

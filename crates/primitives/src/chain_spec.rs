@@ -1,12 +1,11 @@
-use reth_chainspec::{ChainSpec, ChainSpecBuilder};
-
-/// The genesis json for Ethereum Mainnet.
-pub const MAINNET_GENESIS_JSON: &str = include_str!("genesis.json");
+use reth_chainspec::{ChainSpec, ChainSpecBuilder, OP_MAINNET};
 
 /// Returns the [ChainSpec] for Ethereum mainnet.
 pub fn mainnet() -> eyre::Result<ChainSpec> {
-    Ok(ChainSpecBuilder::mainnet()
-        .genesis(serde_json::from_str(MAINNET_GENESIS_JSON)?)
-        .shanghai_activated()
-        .build())
+    Ok(ChainSpecBuilder::mainnet().shanghai_activated().build())
+}
+
+/// Returns the [ChainSpec] for OP Mainnet.
+pub fn op_mainnet() -> eyre::Result<ChainSpec> {
+    Ok((*OP_MAINNET.clone()).clone())
 }

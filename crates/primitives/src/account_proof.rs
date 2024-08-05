@@ -1,6 +1,6 @@
 use alloy_rpc_types::EIP1186AccountProofResponse;
 use reth_primitives::{revm_primitives::Bytecode, Account, B256};
-use reth_trie::{AccountProof, StorageProof};
+use reth_trie::{AccountProof, StorageProof, EMPTY_ROOT_HASH};
 use revm_primitives::keccak256;
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +21,10 @@ impl AccountProofWithBytecode {
     /// Verifies the account proof against the provided state root.
     pub fn verify(&self, state_root: B256) -> eyre::Result<()> {
         self.proof.verify(state_root)?;
-        let code_hash = keccak256(self.code.bytes());
-        if self.proof.info.unwrap().bytecode_hash.unwrap() != code_hash {
-            return Err(eyre::eyre!("Code hash does not match the code"));
+        if let Some(info) = &self.proof.info {
+            if info.bytecode_hash.unwrap() != keccak256(self.code.bytes()) {
+                return Err(eyre::eyre!("Code hash does not match the code"));
+            }
         }
         Ok(())
     }
@@ -37,7 +38,6 @@ pub fn eip1186_proof_to_account_proof(proof: EIP1186AccountProofResponse) -> Acc
     let nonce = proof.nonce.as_limbs()[0];
     let storage_root = proof.storage_hash;
     let account_proof = proof.account_proof;
-    let account_info = Account { nonce, balance, bytecode_hash: code_hash.into() };
     let storage_proofs = proof
         .storage_proof
         .into_iter()
@@ -51,11 +51,14 @@ pub fn eip1186_proof_to_account_proof(proof: EIP1186AccountProofResponse) -> Acc
             sp
         })
         .collect();
-    AccountProof {
-        address,
-        info: Some(account_info),
-        proof: account_proof,
-        storage_root,
-        storage_proofs,
-    }
+
+    let (storage_root, info) =
+        if nonce == 0 && balance.is_zero() && storage_root.is_zero() && code_hash.is_zero() {
+            // Account does not exist in state. Return `None` here to prevent proof verification.
+            (EMPTY_ROOT_HASH, None)
+        } else {
+            (storage_root, Some(Account { nonce, balance, bytecode_hash: code_hash.into() }))
+        };
+
+    AccountProof { address, info, proof: account_proof, storage_root, storage_proofs }
 }

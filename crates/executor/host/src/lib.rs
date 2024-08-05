@@ -3,15 +3,18 @@ use std::marker::PhantomData;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Ok};
-use reth_ethereum_consensus::validate_block_post_execution;
-use reth_evm::execute::{BlockExecutorProvider, Executor};
-use reth_evm_ethereum::{execute::EthExecutorProvider, EthEvmConfig};
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
-use rsp_guest_executor::io::GuestExecutorInput;
+use rsp_guest_executor::{io::GuestExecutorInput, EthereumVariant, OptimismVariant, Variant};
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
+
+/// Chain ID for Ethereum Mainnet.
+const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
+
+/// Chain ID for OP Mainnnet.
+const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [GuestExecutor].
 #[derive(Debug, Clone)]
@@ -22,6 +25,15 @@ pub struct HostExecutor<T: Transport + Clone, P: Provider<T> + Clone> {
     pub phantom: PhantomData<T>,
 }
 
+/// EVM chain variants that implement different execution/validation rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChainVariant {
+    /// Ethereum networks.
+    Ethereum,
+    /// OP stack networks.
+    Optimism,
+}
+
 impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
     /// Create a new [`HostExecutor`] with a specific [Provider] and [Transport].
     pub fn new(provider: P) -> Self {
@@ -29,7 +41,32 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
     }
 
     /// Executes the block with the given block number.
-    pub async fn execute(&self, block_number: u64) -> eyre::Result<GuestExecutorInput> {
+    pub async fn execute(
+        &self,
+        block_number: u64,
+    ) -> eyre::Result<(GuestExecutorInput, ChainVariant)> {
+        tracing::info!("fetching chain ID to identify chain variant");
+        let chain_id = self.provider.get_chain_id().await?;
+        let variant = match chain_id {
+            CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
+            CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
+            _ => {
+                eyre::bail!("unknown chain ID: {}", chain_id);
+            }
+        };
+
+        let guest_input = match variant {
+            ChainVariant::Ethereum => self.execute_variant::<EthereumVariant>(block_number).await,
+            ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
+        }?;
+
+        Ok((guest_input, variant))
+    }
+
+    async fn execute_variant<V>(&self, block_number: u64) -> eyre::Result<GuestExecutorInput>
+    where
+        V: Variant,
+    {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
         let current_block = self
@@ -47,7 +84,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
 
         // Setup the spec for the block executor.
         tracing::info!("setting up the spec for the block executor");
-        let spec = rsp_primitives::chain_spec::mainnet()?;
+        let spec = V::spec();
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
@@ -64,19 +101,16 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             block_number,
             current_block.body.len()
         );
-        let executor = EthExecutorProvider::new(spec.clone().into(), EthEvmConfig::default())
-            .executor(cache_db);
         let executor_block_input = current_block
             .clone()
             .with_recovered_senders()
             .ok_or(eyre!("failed to recover senders"))?;
         let executor_difficulty = current_block.header.difficulty;
-        let executor_output =
-            executor.execute((&executor_block_input, executor_difficulty).into())?;
+        let executor_output = V::execute(&executor_block_input, executor_difficulty, cache_db)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        validate_block_post_execution(
+        V::validate_block_post_execution(
             &executor_block_input,
             &spec,
             &executor_output.receipts,
@@ -174,50 +208,61 @@ mod tests {
     use url::Url;
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_e2e() {
+    async fn test_e2e_ethereum() {
+        run_e2e::<EthereumVariant>("RPC_1", 18884864, "guest_input_ethereum.json").await;
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_e2e_optimism() {
+        run_e2e::<OptimismVariant>("RPC_10", 122853660, "guest_input_optimism.json").await;
+    }
+
+    #[test]
+    fn test_input_bincode_roundtrip() {
+        let file = std::fs::File::open("guest_input_ethereum.json").unwrap();
+        let guest_input: GuestExecutorInput = serde_json::from_reader(file).unwrap();
+        let serialized = bincode::serialize(&guest_input).unwrap();
+        let deserialized = bincode::deserialize::<GuestExecutorInput>(&serialized).unwrap();
+        assert_eq!(guest_input, deserialized);
+    }
+
+    async fn run_e2e<V>(env_var_key: &str, block_number: u64, input_file: &str)
+    where
+        V: Variant,
+    {
         // Intialize the environment variables.
         dotenv::dotenv().ok();
 
         // Initialize the logger.
-        tracing_subscriber::registry()
+        let _ = tracing_subscriber::registry()
             .with(fmt::layer())
             .with(EnvFilter::from_default_env())
-            .init();
+            .try_init();
 
         // Setup the provider.
         let rpc_url =
-            Url::parse(std::env::var("RPC_1").unwrap().as_str()).expect("invalid rpc url");
+            Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
         let provider = ReqwestProvider::new_http(rpc_url);
 
         // Setup the host executor.
         let host_executor = HostExecutor::new(provider);
 
         // Execute the host.
-        let block_number = 18884864u64;
-        let guest_input =
+        let (guest_input, _) =
             host_executor.execute(block_number).await.expect("failed to execute host");
 
         // Setup the guest executor.
         let guest_executor = GuestExecutor;
 
         // Execute the guest.
-        guest_executor.execute(guest_input.clone()).expect("failed to execute guest");
+        guest_executor.execute::<V>(guest_input.clone()).expect("failed to execute guest");
 
         // Save the guest input to a file.
-        let file = std::fs::File::create("guest_input.json").unwrap();
+        let file = std::fs::File::create(input_file).unwrap();
         serde_json::to_writer_pretty(file, &guest_input).unwrap();
 
         // Load the guest input from a file.
-        let file = std::fs::File::open("guest_input.json").unwrap();
+        let file = std::fs::File::open(input_file).unwrap();
         let _: GuestExecutorInput = serde_json::from_reader(file).unwrap();
-    }
-
-    #[test]
-    fn test_input_bincode_roundtrip() {
-        let file = std::fs::File::open("guest_input.json").unwrap();
-        let guest_input: GuestExecutorInput = serde_json::from_reader(file).unwrap();
-        let serialized = bincode::serialize(&guest_input).unwrap();
-        let deserialized = bincode::deserialize::<GuestExecutorInput>(&serialized).unwrap();
-        assert_eq!(guest_input, deserialized);
     }
 }

@@ -1,7 +1,7 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use rsp_guest_executor::{io::GuestExecutorInput, GuestExecutor};
+use rsp_guest_executor::{io::GuestExecutorInput, GuestExecutor, OptimismVariant};
 
 pub fn main() {
     // Read the input.
@@ -10,7 +10,7 @@ pub fn main() {
 
     // Execute the block.
     let executor = GuestExecutor;
-    let header = executor.execute(input).expect("failed to execute guest");
+    let header = executor.execute::<OptimismVariant>(input).expect("failed to execute guest");
     let block_hash = header.hash_slow();
 
     // Commit the block hash.
