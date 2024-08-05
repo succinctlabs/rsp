@@ -1,7 +1,7 @@
 use alloy_provider::ReqwestProvider;
 use clap::Parser;
 use reth_primitives::B256;
-use rsp_host_executor::HostExecutor;
+use rsp_host_executor::{ChainVariant, HostExecutor};
 use sp1_sdk::{ProverClient, SP1Stdin};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -33,14 +33,17 @@ async fn main() -> eyre::Result<()> {
     let host_executor = HostExecutor::new(provider);
 
     // Execute the host.
-    let guest_input =
+    let (guest_input, variant) =
         host_executor.execute(args.block_number).await.expect("failed to execute host");
 
     // Generate the proof.
     let client = ProverClient::new();
 
     // Setup the proving key and verification key.
-    let (pk, _) = client.setup(include_bytes!("../../../elf/riscv32im-succinct-zkvm-elf"));
+    let (pk, _) = client.setup(match variant {
+        ChainVariant::Ethereum => include_bytes!("../../guest-eth/elf/riscv32im-succinct-zkvm-elf"),
+        ChainVariant::Optimism => include_bytes!("../../guest-op/elf/riscv32im-succinct-zkvm-elf"),
+    });
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();

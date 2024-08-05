@@ -42,12 +42,14 @@ impl GuestExecutorInput {
             proof.verify(state_root)?;
 
             // Update the accounts.
-            let account_info = proof.proof.info.unwrap();
-            let account_info = AccountInfo {
-                nonce: account_info.nonce,
-                balance: account_info.balance,
-                code_hash: account_info.bytecode_hash.unwrap(),
-                code: Some(proof.code),
+            let account_info = match proof.proof.info {
+                Some(account_info) => AccountInfo {
+                    nonce: account_info.nonce,
+                    balance: account_info.balance,
+                    code_hash: account_info.bytecode_hash.unwrap(),
+                    code: Some(proof.code),
+                },
+                None => AccountInfo::default(),
             };
             accounts.insert(address, account_info);
 
