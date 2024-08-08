@@ -44,7 +44,8 @@ pub fn compute_state_root(
     // Compute the storage roots for each account.
     let mut storage_roots = HashMap::<B256, B256>::default();
     let prefix_sets = hashed_state.construct_prefix_sets();
-    for account_nibbles in prefix_sets.account_prefix_set.keys.iter() {
+    let account_prefix_set = prefix_sets.account_prefix_set.freeze();
+    for account_nibbles in account_prefix_set.iter() {
         let hashed_address = B256::from_slice(&account_nibbles.pack());
         let address = *account_reverse_lookup.get(&hashed_address).unwrap();
         let storage_prefix_sets =
@@ -54,7 +55,7 @@ pub fn compute_state_root(
         let root = if proof.storage_proofs.is_empty() {
             proof.storage_root
         } else {
-            compute_root_from_proofs(storage_prefix_sets.keys.iter().map(|storage_nibbles| {
+            compute_root_from_proofs(storage_prefix_sets.freeze().iter().map(|storage_nibbles| {
                 let hashed_slot = B256::from_slice(&storage_nibbles.pack());
                 let slot = storage_reverse_lookup.get(&hashed_slot).unwrap();
                 let storage_proof = proof.storage_proofs.iter().find(|x| x.key.0 == slot).unwrap();
@@ -75,7 +76,7 @@ pub fn compute_state_root(
 
     // Compute the state root of the entire trie.
     let mut rlp_buf = Vec::with_capacity(128);
-    compute_root_from_proofs(prefix_sets.account_prefix_set.keys.iter().map(|account_nibbles| {
+    compute_root_from_proofs(account_prefix_set.iter().map(|account_nibbles| {
         let hashed_address = B256::from_slice(&account_nibbles.pack());
         let address = *account_reverse_lookup.get(&hashed_address).unwrap();
         let proof = storage_proofs.iter().find(|x| x.address == address).unwrap();
