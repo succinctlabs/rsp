@@ -66,7 +66,7 @@ impl GuestExecutor {
 
         // Verify the state root.
         let state_root = profile!("compute state root", {
-            rsp_mpt::compute_state_root(&executor_outcome, &input.dirty_storage_proofs)
+            rsp_mpt::compute_state_root(&executor_outcome, &input.dirty_storage_proofs, witness_db)
         })?;
         if state_root != input.current_block.state_root {
             eyre::bail!("mismatched state root");

@@ -11,7 +11,7 @@ use reth_primitives::{
 use reth_revm::DatabaseRef;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::{HashMap, HashSet};
-use rsp_primitives::account_proof::AccountProofWithBytecode;
+use rsp_primitives::{account_proof::AccountProofWithBytecode, DebugGet};
 use rsp_witness_db::WitnessDb;
 
 /// A database that fetches data from a [Provider] over a [Transport].
@@ -243,5 +243,18 @@ impl<T: Transport + Clone, P: Provider<T>> From<RpcDb<T, P>> for WitnessDb {
             storage: value.storage.borrow().clone(),
             block_hashes: value.block_hashes.borrow().clone(),
         }
+    }
+}
+
+impl<T: Transport + Clone, P: Provider<T>> DebugGet for RpcDb<T, P> {
+    fn debug_get(&self, key: &[u8]) -> Option<&[u8]> {
+        // TODO: I think this tokio runtime stuff can be cleaned up significantly.
+        let handle = tokio::runtime::Handle::try_current().map_err(|_| {
+            ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
+        })?;
+        let result = tokio::task::block_in_place(|| handle.block_on(self.fetch_debug_get(key)));
+        let value =
+            result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
+        Ok(value)
     }
 }

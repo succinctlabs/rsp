@@ -116,7 +116,8 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
 
         // Verify the state root.
         tracing::info!("verifying the state root");
-        let state_root = rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs)?;
+        let state_root =
+            rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs, rpc_db)?;
         if state_root != current_block.state_root {
             eyre::bail!("mismatched state root");
         }

@@ -18,6 +18,7 @@ use revm_primitives::{keccak256, HashMap};
 pub fn compute_state_root(
     execution_outcome: &ExecutionOutcome,
     storage_proofs: &[AccountProof],
+    debug_get: impl DebugGet,
 ) -> eyre::Result<B256> {
     // Reconstruct prefix sets manually to record pre-images for subsequent lookups.
     let mut hashed_state = HashedPostState::default();
@@ -165,8 +166,8 @@ fn compute_root_from_proofs(
                 {
                     hash_builder.add_branch(path, branch_hash, false);
                 } else {
-                    // parent is a branch node that needs to be turned into extension
-                    todo!()
+                    // parent is a branch node that needs to be turned into extension.
+                    debug_get(...)
                 }
             }
             Either::Right(leaf_value) => {

@@ -4,6 +4,7 @@ use reth_primitives::{
 };
 use reth_storage_errors::provider::ProviderError;
 use revm_primitives::{Address, HashMap, U256};
+use rsp_primitives::DebugGet;
 use serde::{Deserialize, Serialize};
 
 /// A database used to witness state inside the zkVM.
@@ -36,5 +37,11 @@ impl DatabaseRef for WitnessDb {
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         Ok(*self.block_hashes.get(&number).unwrap())
+    }
+}
+
+impl DebugGet for WitnessDb {
+    fn debug_get(&self, key: &[u8]) -> Option<&[u8]> {
+        self.storage.get(&key.into()).map(|v| v.as_slice())
     }
 }
