@@ -103,7 +103,9 @@ fn compute_root_from_proofs(
 
     for (key, value, proof) in items {
         let mut path = Nibbles::default();
-        for encoded in proof {
+        let mut proof_iter = proof.iter().peekable();
+
+        while let Some(encoded) = proof_iter.next() {
             let mut next_path = path.clone();
             match TrieNode::decode(&mut &encoded[..])? {
                 TrieNode::Branch(branch) => {
@@ -126,6 +128,18 @@ fn compute_root_from_proofs(
                 }
                 TrieNode::Extension(extension) => {
                     next_path.extend_from_slice(&extension.key);
+
+                    // Add the extended branch node if this is the last proof item. This can happen
+                    // when proving the previous absence of a new node that shares the prefix with
+                    // the extension node.
+                    if proof_iter.peek().is_none() {
+                        trie_nodes.insert(
+                            next_path.clone(),
+                            // NOTE: same assumption as above that the value is always a hash
+                            // TODO: remove this assumption
+                            Either::Left(B256::from_slice(&extension.child[1..])),
+                        );
+                    }
                 }
                 TrieNode::Leaf(leaf) => {
                     next_path.extend_from_slice(&leaf.key);
