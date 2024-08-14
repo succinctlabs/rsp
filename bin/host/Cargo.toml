@@ -1,6 +1,6 @@
 [package]
 version = "0.1.0"
-name = "rsp-host"
+name = "rsp"
 edition = "2021"
 
 [dependencies]
