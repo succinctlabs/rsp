@@ -2772,7 +2772,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsp-guest-executor"
+name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
@@ -2803,11 +2803,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsp-guest-op"
+name = "rsp-client-op"
 version = "0.0.0"
 dependencies = [
  "bincode",
- "rsp-guest-executor",
+ "rsp-client-executor",
  "sp1-zkvm",
 ]
 

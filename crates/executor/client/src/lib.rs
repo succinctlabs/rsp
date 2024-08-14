@@ -7,7 +7,7 @@ pub mod utils;
 use std::fmt::Display;
 
 use eyre::eyre;
-use io::GuestExecutorInput;
+use io::ClientExecutorInput;
 use reth_chainspec::ChainSpec;
 use reth_errors::ProviderError;
 use reth_ethereum_consensus::validate_block_post_execution as validate_block_post_execution_ethereum;
@@ -22,7 +22,7 @@ use revm_primitives::U256;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
-pub struct GuestExecutor;
+pub struct ClientExecutor;
 
 /// Trait for representing different execution/validation rules of different chain variants. This
 /// allows for dead code elimination to minimize the ELF size for each variant.
@@ -53,8 +53,8 @@ pub struct EthereumVariant;
 #[derive(Debug)]
 pub struct OptimismVariant;
 
-impl GuestExecutor {
-    pub fn execute<V>(&self, mut input: GuestExecutorInput) -> eyre::Result<Header>
+impl ClientExecutor {
+    pub fn execute<V>(&self, mut input: ClientExecutorInput) -> eyre::Result<Header>
     where
         V: Variant,
     {

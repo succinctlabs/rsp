@@ -8,13 +8,14 @@ use rsp_primitives::account_proof::AccountProofWithBytecode;
 use rsp_witness_db::WitnessDb;
 use serde::{Deserialize, Serialize};
 
-/// The input for the guest to execute a block and fully verify the STF (state transition function).
+/// The input for the client to execute a block and fully verify the STF (state transition
+/// function).
 ///
 /// Instead of passing in the entire state, we only pass in the state roots along with merkle proofs
 /// for the storage slots that were modified and accessed.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct GuestExecutorInput {
-    /// The current block (which will be executed inside the guest).
+pub struct ClientExecutorInput {
+    /// The current block (which will be executed inside the client).
     pub current_block: Block,
     /// The previous block.
     pub previous_block: Block,
@@ -28,8 +29,8 @@ pub struct GuestExecutorInput {
     pub trie_nodes: Vec<Bytes>,
 }
 
-impl GuestExecutorInput {
-    /// Creates a [WitnessDb] from a [GuestExecutorInput]. To do so, it verifies the used storage
+impl ClientExecutorInput {
+    /// Creates a [WitnessDb] from a [ClientExecutorInput]. To do so, it verifies the used storage
     /// proofs and constructs the account and storage values.
     ///
     /// Note: This mutates the input and takes ownership of used storage proofs and block hashes

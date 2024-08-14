@@ -21,7 +21,7 @@ tracing.workspace = true
 # workspace
 rsp-rpc-db.workspace = true
 rsp-witness-db.workspace = true
-rsp-guest-executor.workspace = true
+rsp-client-executor.workspace = true
 rsp-mpt.workspace = true
 rsp-primitives.workspace = true
 

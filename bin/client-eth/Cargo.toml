@@ -1,6 +1,6 @@
 [workspace.package]
 [package]
-name = "rsp-guest-op"
+name = "rsp-client-eth"
 description = ""
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 bincode = "1.3.3"
 
 # workspace
-rsp-guest-executor = { path = "../../crates/executor/guest" }
+rsp-client-executor = { path = "../../crates/executor/client" }
 
 # sp1
 sp1-zkvm = "1.0.1"

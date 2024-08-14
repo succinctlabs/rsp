@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "bin/host",
-    "crates/executor/guest",
+    "crates/executor/client",
     "crates/executor/host",
     "crates/mpt",
     "crates/primitives",
@@ -40,7 +40,7 @@ thiserror = "1.0.61"
 # workspace
 rsp-rpc-db = { path = "./crates/storage/rpc-db" }
 rsp-witness-db = { path = "./crates/storage/witness-db" }
-rsp-guest-executor = { path = "./crates/executor/guest" }
+rsp-client-executor = { path = "./crates/executor/client" }
 rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
