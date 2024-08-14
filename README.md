@@ -14,6 +14,19 @@ cd ../guest-op
 cargo prove build
 ```
 
+## RPC Node Requirement
+
+In certain cases, the host needs to recover the preimage of a [Merkle Patricia Trie](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/) node that's referenced by hash. To do this, the host utilizes the [`debug_dbGet` endpoint](https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugdbget) of a Geth node running with options `--state.scheme=hash`, which is the default, and `--gcmode=archive`. An example command for running the node would be:
+
+```bash
+geth \
+  --gcmode=archive \
+  --http \
+  --http.api=eth,debug
+```
+
+Therefore, when running the host CLI or integration tests, make sure to use an RPC URL pointing to a Geth node running with said options, or errors will arise when preimage recovery is needed.
+
 ## Run
 
 The host CLI automatically identifies the underlying chain type based on chain ID. Simply suppply a block number and an RPC URL to run the `rps-host` target:
