@@ -32,7 +32,7 @@ In the root directory of this repository, run:
 cargo install --locked --path bin/host
 ```
 
-and the command `rsp-host` will be installed.
+and the command `rsp` will be installed.
 
 ### RPC Node Requirement
 
@@ -52,7 +52,7 @@ Therefore, when running the host CLI or integration tests, make sure to use an R
 The host CLI automatically identifies the underlying chain type based on chain ID. Simply suppply a block number and an RPC URL:
 
 ```console
-rsp-host --block-number 18884864 --rpc-url <RPC>
+rsp --block-number 18884864 --rpc-url <RPC>
 ```
 
 which outputs logs similar to:

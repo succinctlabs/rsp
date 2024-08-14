@@ -5083,6 +5083,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsp"
+version = "0.1.0"
+dependencies = [
+ "alloy-provider",
+ "bincode",
+ "clap",
+ "dotenv",
+ "eyre",
+ "reth-primitives",
+ "rsp-host-executor",
+ "serde_json",
+ "sp1-helper",
+ "sp1-sdk",
+ "tokio",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
@@ -5110,25 +5129,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "url",
-]
-
-[[package]]
-name = "rsp-host"
-version = "0.1.0"
-dependencies = [
- "alloy-provider",
- "bincode",
- "clap",
- "dotenv",
- "eyre",
- "reth-primitives",
- "rsp-host-executor",
- "serde_json",
- "sp1-helper",
- "sp1-sdk",
- "tokio",
- "tracing-subscriber",
  "url",
 ]
 
