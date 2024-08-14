@@ -1058,14 +1058,17 @@ checksum = "0d6ef0072f8a535281e4876be788938b528e9a1d43900b82c2569af7da799125"
 [[package]]
 name = "ecdsa"
 version = "0.16.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee27f32b5c5292967d2d4a9d7f1e0b0aed2c15daded5a60300e4abb9d8020bca"
+source = "git+https://github.com/sp1-patches/signatures?branch=patch-ecdsa-v0.16.9#1caae137b2b2c458b8a542b1c4e9fb40293c67a3"
 dependencies = [
+ "anyhow",
+ "cfg-if",
  "der",
  "digest 0.10.7",
  "elliptic-curve",
+ "hex-literal",
  "rfc6979",
  "signature",
+ "sp1-lib",
  "spki",
 ]
 
@@ -2726,8 +2729,7 @@ dependencies = [
 [[package]]
 name = "rfc6979"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8dd2a808d456c4a54e300a23e9f5a67e122c3024119acbfd73e3bf664491cb2"
+source = "git+https://github.com/sp1-patches/signatures?branch=patch-ecdsa-v0.16.9#1caae137b2b2c458b8a542b1c4e9fb40293c67a3"
 dependencies = [
  "hmac",
  "subtle",
@@ -3092,8 +3094,7 @@ dependencies = [
 [[package]]
 name = "sha2"
 version = "0.10.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+source = "git+https://github.com/sp1-patches/RustCrypto-hashes?branch=patch-v0.10.8#1f224388fdede7cef649bce0d63876d1a9e3f515"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -3159,9 +3160,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-lib"
-version = "1.0.1"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01c4a9c8d029e57349b2b124595b2dc7a70d3dd8431d0e63348a2a271a894b8e"
+checksum = "839009d6aab5876710e2bc35170d1f328bc70f38992f0037b938623dadfcc61f"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3171,9 +3172,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "1.0.1"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0708c2369deb682e57bfe33bb5a405188d825511b31e22af5722e1ace79c1840"
+checksum = "1b0d9d1829e7c86862f00d40106111b63ef38ac73e107c40c8d1e88b8f2328a5"
 dependencies = [
  "bincode",
  "cfg-if",
