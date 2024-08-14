@@ -131,10 +131,38 @@ where
 
                         if branch.state_mask.is_bit_set(index) {
                             if !key.starts_with(&branch_child_path) {
-                                trie_nodes.insert(
-                                    branch_child_path,
-                                    Either::Left(B256::from_slice(&branch.stack[stack_ptr][1..])),
-                                );
+                                let child = &branch.stack[stack_ptr];
+                                if child.len() == B256::len_bytes() + 1 {
+                                    // The child node is referred to by hash.
+                                    trie_nodes.insert(
+                                        branch_child_path,
+                                        Either::Left(B256::from_slice(&child[1..])),
+                                    );
+                                } else {
+                                    // The child node is encoded in-place. This can happen when the
+                                    // encoded child itself is shorter than 32 bytes:
+                                    //
+                                    // https://github.com/ethereum/ethereum-org-website/blob/6eed7bcfd708ca605447dd9b8fde8f74cfcaf8d9/public/content/developers/docs/data-structures-and-encoding/patricia-merkle-trie/index.md?plain=1#L186
+                                    if let TrieNode::Leaf(child_leaf) =
+                                        TrieNode::decode(&mut &child[..])?
+                                    {
+                                        branch_child_path.extend_from_slice(&child_leaf.key);
+                                        trie_nodes.insert(
+                                            branch_child_path,
+                                            Either::Right(child_leaf.value),
+                                        );
+                                    } else {
+                                        // Same as the case for an extension node's child below,
+                                        // this is possible in theory but extremely unlikely (even
+                                        // more unlikely than the extension node's case as the node
+                                        // header takes up extra space), making it impractical to
+                                        // find proper test cases. It's better to be left
+                                        // unimplemented.
+                                        unimplemented!(
+                                            "branch child is a non-leaf node encoded in place"
+                                        );
+                                    }
+                                }
                             }
                             stack_ptr += 1;
                         }
@@ -147,12 +175,34 @@ where
                     // when proving the previous absence of a new node that shares the prefix with
                     // the extension node.
                     if proof_iter.peek().is_none() {
-                        trie_nodes.insert(
-                            next_path.clone(),
-                            // NOTE: same assumption as above that the value is always a hash
-                            // TODO: remove this assumption
-                            Either::Left(B256::from_slice(&extension.child[1..])),
-                        );
+                        let child = &extension.child;
+                        if child.len() == B256::len_bytes() + 1 {
+                            // The extension child is referenced by hash.
+                            trie_nodes.insert(
+                                next_path.clone(),
+                                Either::Left(B256::from_slice(&child[1..])),
+                            );
+                        } else {
+                            // An extension's child can only be a branch. Since here it's also not a
+                            // hash, it can only be a branch node encoded in place. This could
+                            // happen in theory when two leaf nodes share a very long common prefix
+                            // and both have very short values.
+                            //
+                            // In practice, since key paths are Keccak hashes, it's extremely
+                            // difficult to get two slots like this for testing. Since this cannot
+                            // be properly tested, it's more preferable to leave it unimplemented to
+                            // be alerted when this is hit (which is extremely unlikely).
+                            //
+                            // Using `unimplemented!` instead of `todo!` because of this.
+                            //
+                            // To support this, the underlying `alloy-trie` crate (which is
+                            // currently faulty for not supported in-place encoded nodes) must first
+                            // be patched to support adding in-place nodes to the hash builder.
+                            // Relevant PR highlighting the issue:
+                            //
+                            // https://github.com/alloy-rs/trie/pull/27
+                            unimplemented!("extension child is a branch node encoded in place")
+                        }
                     }
                 }
                 TrieNode::Leaf(leaf) => {
