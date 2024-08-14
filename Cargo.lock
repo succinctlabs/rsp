@@ -5083,7 +5083,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsp-guest-executor"
+name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",
@@ -5155,7 +5155,7 @@ dependencies = [
  "reth-trie",
  "revm",
  "revm-primitives",
- "rsp-guest-executor",
+ "rsp-client-executor",
  "rsp-mpt",
  "rsp-primitives",
  "rsp-rpc-db",

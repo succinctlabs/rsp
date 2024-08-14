@@ -6,7 +6,7 @@ use eyre::{eyre, Ok};
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
-use rsp_guest_executor::{io::GuestExecutorInput, EthereumVariant, OptimismVariant, Variant};
+use rsp_client_executor::{io::ClientExecutorInput, EthereumVariant, OptimismVariant, Variant};
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
 
@@ -16,7 +16,7 @@ const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
 /// Chain ID for OP Mainnnet.
 const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 
-/// An executor that fetches data from a [Provider] to execute blocks in the [GuestExecutor].
+/// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
 pub struct HostExecutor<T: Transport + Clone, P: Provider<T> + Clone> {
     /// The provider which fetches data.
@@ -44,7 +44,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
     pub async fn execute(
         &self,
         block_number: u64,
-    ) -> eyre::Result<(GuestExecutorInput, ChainVariant)> {
+    ) -> eyre::Result<(ClientExecutorInput, ChainVariant)> {
         tracing::info!("fetching chain ID to identify chain variant");
         let chain_id = self.provider.get_chain_id().await?;
         let variant = match chain_id {
@@ -55,15 +55,15 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             }
         };
 
-        let guest_input = match variant {
+        let client_input = match variant {
             ChainVariant::Ethereum => self.execute_variant::<EthereumVariant>(block_number).await,
             ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
         }?;
 
-        Ok((guest_input, variant))
+        Ok((client_input, variant))
     }
 
-    async fn execute_variant<V>(&self, block_number: u64) -> eyre::Result<GuestExecutorInput>
+    async fn execute_variant<V>(&self, block_number: u64) -> eyre::Result<ClientExecutorInput>
     where
         V: Variant,
     {
@@ -184,8 +184,8 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             state_root
         );
 
-        // Create the guest input.
-        let guest_input = GuestExecutorInput {
+        // Create the client input.
+        let client_input = ClientExecutorInput {
             previous_block,
             current_block,
             dirty_storage_proofs,
@@ -193,7 +193,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             block_hashes: rpc_db.block_hashes.borrow().clone(),
             trie_nodes: rpc_db.trie_nodes.borrow().values().cloned().collect(),
         };
-        Ok(guest_input)
+        Ok(client_input)
     }
 }
 
@@ -202,7 +202,7 @@ mod tests {
     use super::*;
 
     use alloy_provider::ReqwestProvider;
-    use rsp_guest_executor::GuestExecutor;
+    use rsp_client_executor::ClientExecutor;
     use tracing_subscriber::{
         filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt,
         util::SubscriberInitExt,
@@ -211,21 +211,21 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_e2e_ethereum() {
-        run_e2e::<EthereumVariant>("RPC_1", 18884864, "guest_input_ethereum.json").await;
+        run_e2e::<EthereumVariant>("RPC_1", 18884864, "client_input_ethereum.json").await;
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_e2e_optimism() {
-        run_e2e::<OptimismVariant>("RPC_10", 122853660, "guest_input_optimism.json").await;
+        run_e2e::<OptimismVariant>("RPC_10", 122853660, "client_input_optimism.json").await;
     }
 
     #[test]
     fn test_input_bincode_roundtrip() {
-        let file = std::fs::File::open("guest_input_ethereum.json").unwrap();
-        let guest_input: GuestExecutorInput = serde_json::from_reader(file).unwrap();
-        let serialized = bincode::serialize(&guest_input).unwrap();
-        let deserialized = bincode::deserialize::<GuestExecutorInput>(&serialized).unwrap();
-        assert_eq!(guest_input, deserialized);
+        let file = std::fs::File::open("client_input_ethereum.json").unwrap();
+        let client_input: ClientExecutorInput = serde_json::from_reader(file).unwrap();
+        let serialized = bincode::serialize(&client_input).unwrap();
+        let deserialized = bincode::deserialize::<ClientExecutorInput>(&serialized).unwrap();
+        assert_eq!(client_input, deserialized);
     }
 
     async fn run_e2e<V>(env_var_key: &str, block_number: u64, input_file: &str)
@@ -250,21 +250,21 @@ mod tests {
         let host_executor = HostExecutor::new(provider);
 
         // Execute the host.
-        let (guest_input, _) =
+        let (client_input, _) =
             host_executor.execute(block_number).await.expect("failed to execute host");
 
-        // Setup the guest executor.
-        let guest_executor = GuestExecutor;
+        // Setup the client executor.
+        let client_executor = ClientExecutor;
 
-        // Execute the guest.
-        guest_executor.execute::<V>(guest_input.clone()).expect("failed to execute guest");
+        // Execute the client.
+        client_executor.execute::<V>(client_input.clone()).expect("failed to execute client");
 
-        // Save the guest input to a file.
+        // Save the client input to a file.
         let file = std::fs::File::create(input_file).unwrap();
-        serde_json::to_writer_pretty(file, &guest_input).unwrap();
+        serde_json::to_writer_pretty(file, &client_input).unwrap();
 
-        // Load the guest input from a file.
+        // Load the client input from a file.
         let file = std::fs::File::open(input_file).unwrap();
-        let _: GuestExecutorInput = serde_json::from_reader(file).unwrap();
+        let _: ClientExecutorInput = serde_json::from_reader(file).unwrap();
     }
 }
