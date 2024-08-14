@@ -20,6 +20,10 @@ struct HostArgs {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+
     // Initialize the logger.
     tracing_subscriber::registry().with(fmt::layer()).with(EnvFilter::from_default_env()).init();
 
@@ -33,7 +37,7 @@ async fn main() -> eyre::Result<()> {
     let host_executor = HostExecutor::new(provider);
 
     // Execute the host.
-    let (guest_input, variant) =
+    let (client_input, variant) =
         host_executor.execute(args.block_number).await.expect("failed to execute host");
 
     // Generate the proof.
@@ -41,13 +45,15 @@ async fn main() -> eyre::Result<()> {
 
     // Setup the proving key and verification key.
     let (pk, _) = client.setup(match variant {
-        ChainVariant::Ethereum => include_bytes!("../../guest-eth/elf/riscv32im-succinct-zkvm-elf"),
-        ChainVariant::Optimism => include_bytes!("../../guest-op/elf/riscv32im-succinct-zkvm-elf"),
+        ChainVariant::Ethereum => {
+            include_bytes!("../../client-eth/elf/riscv32im-succinct-zkvm-elf")
+        }
+        ChainVariant::Optimism => include_bytes!("../../client-op/elf/riscv32im-succinct-zkvm-elf"),
     });
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
-    let buffer = bincode::serialize(&guest_input).unwrap();
+    let buffer = bincode::serialize(&client_input).unwrap();
     stdin.write_vec(buffer);
     let (mut public_values, _) = client.execute(&pk.elf, stdin).run().unwrap();
 
