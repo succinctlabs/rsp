@@ -1,9 +1,10 @@
 use reth_primitives::{
     revm_primitives::{db::DatabaseRef, AccountInfo, Bytecode},
-    B256,
+    Bytes, B256,
 };
 use reth_storage_errors::provider::ProviderError;
 use revm_primitives::{Address, HashMap, U256};
+use rsp_primitives::storage::ExtDatabaseRef;
 use serde::{Deserialize, Serialize};
 
 /// A database used to witness state inside the zkVM.
@@ -17,6 +18,8 @@ pub struct WitnessDb {
     pub storage: HashMap<Address, HashMap<U256, U256>>,
     /// The block hashes, indexed by block number.
     pub block_hashes: HashMap<u64, B256>,
+    /// The trie node preimages, indexed by Keccak hash.
+    pub trie_nodes: HashMap<B256, Bytes>,
 }
 
 impl DatabaseRef for WitnessDb {
@@ -36,5 +39,14 @@ impl DatabaseRef for WitnessDb {
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
         Ok(*self.block_hashes.get(&number).unwrap())
+    }
+}
+
+impl ExtDatabaseRef for WitnessDb {
+    type Error = ProviderError;
+
+    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
+        // TODO: avoid cloning
+        Ok(self.trie_nodes.get(&hash).unwrap().to_owned())
     }
 }

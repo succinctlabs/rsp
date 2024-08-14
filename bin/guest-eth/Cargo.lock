@@ -2825,6 +2825,7 @@ dependencies = [
  "reth-primitives",
  "reth-trie",
  "revm-primitives",
+ "rsp-primitives",
 ]
 
 [[package]]
@@ -2850,6 +2851,7 @@ dependencies = [
  "reth-primitives",
  "reth-storage-errors",
  "revm-primitives",
+ "rsp-primitives",
  "serde",
 ]
 

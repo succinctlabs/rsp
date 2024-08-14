@@ -150,7 +150,8 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
 
         // Verify the state root.
         tracing::info!("verifying the state root");
-        let state_root = rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs)?;
+        let state_root =
+            rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs, &rpc_db)?;
         if state_root != current_block.state_root {
             eyre::bail!("mismatched state root");
         }
@@ -190,6 +191,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             dirty_storage_proofs,
             used_storage_proofs: rpc_db.fetch_used_accounts_and_proofs().await,
             block_hashes: rpc_db.block_hashes.borrow().clone(),
+            trie_nodes: rpc_db.trie_nodes.borrow().values().cloned().collect(),
         };
         Ok(guest_input)
     }

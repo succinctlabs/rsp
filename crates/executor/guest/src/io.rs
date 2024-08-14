@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use eyre::Result;
-use reth_primitives::{revm_primitives::AccountInfo, Address, Block, B256, U256};
+use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Bytes, B256, U256};
 use reth_trie::AccountProof;
+use revm_primitives::keccak256;
 use rsp_primitives::account_proof::AccountProofWithBytecode;
 use rsp_witness_db::WitnessDb;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,8 @@ pub struct GuestExecutorInput {
     pub used_storage_proofs: HashMap<Address, AccountProofWithBytecode>,
     /// The block hashes.
     pub block_hashes: HashMap<u64, B256>,
+    /// The trie node preimages.
+    pub trie_nodes: Vec<Bytes>,
 }
 
 impl GuestExecutorInput {
@@ -63,11 +66,18 @@ impl GuestExecutorInput {
             storage.insert(address, storage_values);
         }
 
+        let mut trie_nodes = HashMap::new();
+        for preimage in self.trie_nodes.iter() {
+            // TODO: refactor witness db building to avoid cloning and `mem::take`.
+            trie_nodes.insert(keccak256(preimage), preimage.to_owned());
+        }
+
         Ok(WitnessDb {
             accounts,
             storage,
             block_hashes: std::mem::take(&mut self.block_hashes),
             state_root: self.current_block.state_root,
+            trie_nodes,
         })
     }
 }

@@ -60,7 +60,7 @@ impl GuestExecutor {
     {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = input.witness_db()?;
-        let cache_db = CacheDB::new(witness_db);
+        let cache_db = CacheDB::new(&witness_db);
 
         // Execute the block.
         let spec = V::spec();
@@ -104,7 +104,7 @@ impl GuestExecutor {
 
         // Verify the state root.
         let state_root = profile!("compute state root", {
-            rsp_mpt::compute_state_root(&executor_outcome, &input.dirty_storage_proofs)
+            rsp_mpt::compute_state_root(&executor_outcome, &input.dirty_storage_proofs, &witness_db)
         })?;
         if state_root != input.current_block.state_root {
             eyre::bail!("mismatched state root");

@@ -6,12 +6,12 @@ use alloy_transport::Transport;
 use futures::future::join_all;
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
-    Address, B256, U256,
+    Address, Bytes, B256, U256,
 };
 use reth_revm::DatabaseRef;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::{HashMap, HashSet};
-use rsp_primitives::account_proof::AccountProofWithBytecode;
+use rsp_primitives::{account_proof::AccountProofWithBytecode, storage::ExtDatabaseRef};
 use rsp_witness_db::WitnessDb;
 
 /// A database that fetches data from a [Provider] over a [Transport].
@@ -29,6 +29,8 @@ pub struct RpcDb<T, P> {
     pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
     /// The cached block hashes.
     pub block_hashes: RefCell<HashMap<u64, B256>>,
+    /// The cached trie node values.
+    pub trie_nodes: RefCell<HashMap<B256, Bytes>>,
     /// A phantom type to make the struct generic over the transport.
     pub _phantom: PhantomData<T>,
 }
@@ -52,6 +54,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
             accounts: RefCell::new(HashMap::new()),
             storage: RefCell::new(HashMap::new()),
             block_hashes: RefCell::new(HashMap::new()),
+            trie_nodes: RefCell::new(HashMap::new()),
             _phantom: PhantomData,
         }
     }
@@ -132,6 +135,24 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
         self.block_hashes.borrow_mut().insert(number, hash);
 
         Ok(hash)
+    }
+
+    /// Fetch a trie node based on its Keccak hash using the `debug_dbGet` method.
+    pub async fn fetch_trie_node(&self, hash: B256) -> Result<Bytes, RpcDbError> {
+        tracing::info!("fetching trie node {}", hash);
+
+        // Fetch the trie node value from a geth node with `state.scheme=hash`.
+        let value = self
+            .provider
+            .client()
+            .request::<_, Bytes>("debug_dbGet", (hash,))
+            .await
+            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+
+        // Record the trie node value to the state.
+        self.trie_nodes.borrow_mut().insert(hash, value.clone());
+
+        Ok(value)
     }
 
     /// Fetches the [AccountProof] for every account that was used during the lifetime of the
@@ -235,6 +256,20 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
     }
 }
 
+impl<T: Transport + Clone, P: Provider<T> + Clone> ExtDatabaseRef for RpcDb<T, P> {
+    type Error = ProviderError;
+
+    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
+        let handle = tokio::runtime::Handle::try_current().map_err(|_| {
+            ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
+        })?;
+        let result = tokio::task::block_in_place(|| handle.block_on(self.fetch_trie_node(hash)));
+        let value =
+            result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
+        Ok(value)
+    }
+}
+
 impl<T: Transport + Clone, P: Provider<T>> From<RpcDb<T, P>> for WitnessDb {
     fn from(value: RpcDb<T, P>) -> Self {
         Self {
@@ -242,6 +277,7 @@ impl<T: Transport + Clone, P: Provider<T>> From<RpcDb<T, P>> for WitnessDb {
             accounts: value.accounts.borrow().clone(),
             storage: value.storage.borrow().clone(),
             block_hashes: value.block_hashes.borrow().clone(),
+            trie_nodes: value.trie_nodes.borrow().clone(),
         }
     }
 }
