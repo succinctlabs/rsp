@@ -4,21 +4,30 @@ pub mod io;
 #[macro_use]
 pub mod utils;
 
+pub mod custom;
+
 use std::fmt::Display;
 
+use custom::CustomEvmConfig;
 use eyre::eyre;
 use io::ClientExecutorInput;
 use reth_chainspec::ChainSpec;
 use reth_errors::ProviderError;
 use reth_ethereum_consensus::validate_block_post_execution as validate_block_post_execution_ethereum;
 use reth_evm::execute::{BlockExecutionOutput, BlockExecutorProvider, Executor};
-use reth_evm_ethereum::{execute::EthExecutorProvider, EthEvmConfig};
-use reth_evm_optimism::{OpExecutorProvider, OptimismEvmConfig};
+use reth_evm_ethereum::execute::EthExecutorProvider;
+use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
 use reth_primitives::{proofs, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
 use revm::{db::CacheDB, Database};
 use revm_primitives::U256;
+
+/// Chain ID for Ethereum Mainnet.
+pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
+
+/// Chain ID for OP Mainnnet.
+pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
@@ -52,6 +61,25 @@ pub struct EthereumVariant;
 /// Implementation for Optimism-specific execution/validation logic.
 #[derive(Debug)]
 pub struct OptimismVariant;
+
+/// EVM chain variants that implement different execution/validation rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ChainVariant {
+    /// Ethereum networks.
+    Ethereum,
+    /// OP stack networks.
+    Optimism,
+}
+
+impl ChainVariant {
+    /// Returns the chain ID for the given variant.
+    pub fn chain_id(&self) -> u64 {
+        match self {
+            ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
+            ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
+        }
+    }
+}
 
 impl ClientExecutor {
     pub fn execute<V>(&self, mut input: ClientExecutorInput) -> eyre::Result<Header>
@@ -145,9 +173,12 @@ impl Variant for EthereumVariant {
     where
         DB: Database<Error: Into<ProviderError> + Display>,
     {
-        Ok(EthExecutorProvider::new(Self::spec().into(), EthEvmConfig::default())
-            .executor(cache_db)
-            .execute((executor_block_input, executor_difficulty).into())?)
+        Ok(EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Ethereum),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
     }
 
     fn validate_block_post_execution(
@@ -173,9 +204,12 @@ impl Variant for OptimismVariant {
     where
         DB: Database<Error: Into<ProviderError> + Display>,
     {
-        Ok(OpExecutorProvider::new(Self::spec().into(), OptimismEvmConfig::default())
-            .executor(cache_db)
-            .execute((executor_block_input, executor_difficulty).into())?)
+        Ok(OpExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Optimism),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
     }
 
     fn validate_block_post_execution(

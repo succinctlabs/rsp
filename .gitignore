@@ -20,3 +20,5 @@ pgo-data.profdata
 
 # SP1 ELF files
 **/riscv32im-succinct-zkvm-elf
+
+**.csv
