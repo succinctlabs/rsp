@@ -17,3 +17,5 @@ pgo-data.profdata
 
 # Env
 .env
+
+**.csv

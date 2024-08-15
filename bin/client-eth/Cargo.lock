@@ -2800,6 +2800,7 @@ dependencies = [
  "reth-execution-types",
  "reth-optimism-consensus",
  "reth-primitives",
+ "reth-revm",
  "reth-storage-errors",
  "reth-trie",
  "revm",

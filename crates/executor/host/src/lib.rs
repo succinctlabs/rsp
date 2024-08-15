@@ -6,15 +6,12 @@ use eyre::{eyre, Ok};
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
-use rsp_client_executor::{io::ClientExecutorInput, EthereumVariant, OptimismVariant, Variant};
+use rsp_client_executor::{
+    io::ClientExecutorInput, ChainVariant, EthereumVariant, OptimismVariant, Variant,
+    CHAIN_ID_ETH_MAINNET, CHAIN_ID_OP_MAINNET,
+};
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
-
-/// Chain ID for Ethereum Mainnet.
-const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
-
-/// Chain ID for OP Mainnnet.
-const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
@@ -23,15 +20,6 @@ pub struct HostExecutor<T: Transport + Clone, P: Provider<T> + Clone> {
     pub provider: P,
     /// A phantom type to make the struct generic over the transport.
     pub phantom: PhantomData<T>,
-}
-
-/// EVM chain variants that implement different execution/validation rules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ChainVariant {
-    /// Ethereum networks.
-    Ethereum,
-    /// OP stack networks.
-    Optimism,
 }
 
 impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
