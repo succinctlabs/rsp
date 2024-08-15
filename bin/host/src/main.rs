@@ -5,7 +5,7 @@ use reth_primitives::B256;
 use rsp_client_executor::ChainVariant;
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{ProverClient, SP1Stdin};
-use std::{fs::OpenOptions, path::Path};
+use std::{fs::OpenOptions, path::PathBuf};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -20,15 +20,15 @@ struct HostArgs {
     /// The rpc url used to fetch data about the block. If not provided, will use the
     /// RPC_{chain_id} env var.
     #[clap(long)]
-    rpc_url: Option<String>,
+    rpc_url: Option<Url>,
     /// The chain ID. If not provided, requires the rpc_url argument to be provided.
     #[clap(long)]
     chain_id: Option<u64>,
     /// Whether to generate a proof or just execute the block.
     proof: bool,
     /// The path to the CSV file containing the execution data.
-    #[clap(long)]
-    report_path: Option<String>,
+    #[clap(long, default_value = "report.csv")]
+    report_path: PathBuf,
 }
 
 #[tokio::main]
@@ -46,15 +46,14 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
 
-    let rpc_url = if args.rpc_url.is_none() {
+    let rpc_url = if let Some(rpc_url) = args.rpc_url {
+        rpc_url
+    } else {
         let chain_id = args.chain_id.expect("If rpc_url is not provided, chain_id must be.");
         let env_var_key =
             std::env::var(format!("RPC_{}", chain_id)).expect("Could not find RPC_{} in .env");
         let rpc_url = Url::parse(env_var_key.as_str()).expect("invalid rpc url");
         rpc_url
-    } else {
-        let rpc_url = args.rpc_url.unwrap();
-        rpc_url.parse()?
     };
 
     // Setup the provider.
@@ -93,8 +92,6 @@ async fn main() -> eyre::Result<()> {
 
         println!("\nExecution report:\n{}", execution_report);
 
-        let report_path = args.report_path.unwrap_or("report.csv".to_string());
-
         let chain_id = variant.chain_id();
         let executed_block = client_input.current_block;
         let block_number = executed_block.header.number;
@@ -112,16 +109,15 @@ async fn main() -> eyre::Result<()> {
         // let secp256k1_decompress_count =
         //     execution_report.syscall_counts.get(SyscallCode::SECP256K1_DECOMPRESS);
 
-        // Check if the file exists
-        let file_exists = Path::new(&report_path).exists();
+        let report_file_exists = args.report_path.exists();
 
         // Open the file for appending or create it if it doesn't exist
-        let file = OpenOptions::new().append(true).create(true).open(report_path)?;
+        let file = OpenOptions::new().append(true).create(true).open(&args.report_path)?;
 
         let mut writer = Writer::from_writer(file);
 
         // Write the header if the file doesn't exist
-        if !file_exists {
+        if !report_file_exists {
             writer.write_record([
                 "chain_id",
                 "block_number",

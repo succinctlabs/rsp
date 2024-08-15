@@ -73,7 +73,7 @@ The host CLI executes the block while fetching additional data necessary for off
 You can also run the CLI directly by running the following command:
 
 ```bash
-cargo run --bin rsp --release -- --block-number 18884864 --rpc-url <RPC> --proof
+cargo run --bin rsp --release -- --block-number 18884864 --rpc-url <RPC>
 ```
 
 ## Running Tests
