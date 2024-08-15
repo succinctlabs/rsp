@@ -5200,6 +5200,7 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types",
  "eyre",
+ "hex-literal",
  "itertools 0.13.0",
  "reth-execution-types",
  "reth-primitives",
