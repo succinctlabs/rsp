@@ -1,6 +1,6 @@
 # Reth Succinct Processor (RSP)
 
-A minimal implementation of a zkEVM using [Reth](https://github.com/paradigmxyz/reth). Supports both Ethereum and OP Stack.
+A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports both Ethereum and OP Stack.
 
 ## Getting Started
 
@@ -36,7 +36,9 @@ and the command `rsp` will be installed.
 
 ### RPC Node Requirement
 
-RSP fetches block and state data from a JSON-RPC node. However, not all JSON-RPC nodes are compatible. In certain cases, the host needs to recover the preimage of a [Merkle Patricia Trie](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/) node that's referenced by hash. To do this, the host utilizes the [`debug_dbGet` endpoint](https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugdbget) of a Geth node running with options `--state.scheme=hash`, which is the default, and `--gcmode=archive`. An example command for running the node would be:
+RSP fetches block and state data from a JSON-RPC node. **But, you must use a RPC node that supports the `debug_dbGet` endpoint.**
+
+This is required because in some cases the host needs to recover the preimage of a [Merkle Patricia Trie](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/) node that's referenced by hash. To do this, the host utilizes the [`debug_dbGet` endpoint](https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugdbget) of a Geth node running with options `--state.scheme=hash`, which is the default, and `--gcmode=archive`. An example command for running the node is:
 
 ```bash
 geth \
@@ -45,7 +47,7 @@ geth \
   --http.api=eth,debug
 ```
 
-Therefore, when running the host CLI or integration tests, make sure to use an RPC URL pointing to a Geth node running with said options, or errors will arise when preimage recovery is needed, which is rather common.
+When running the host CLI or integration tests, **make sure to use an RPC URL pointing to a Geth node running with said options**, or errors will arise when preimage recovery is needed. You can reach out to the Succinct team to access an RPC URL that supports this endpoint.
 
 ### Running the CLI
 
@@ -67,6 +69,12 @@ which outputs logs similar to:
 ```
 
 The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command.
+
+You can also run the CLI directly by running the following command:
+
+```bash
+cargo run --bin rsp --release -- --block-number 18884864 --rpc-url <RPC> --proof
+```
 
 ## Running Tests
 
