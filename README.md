@@ -37,7 +37,7 @@ When running the host CLI or integration tests, **make sure to use an RPC URL po
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type using the RPC (with the chain ID call). Simply suppply a block number and an RPC URL:
+The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
@@ -54,7 +54,7 @@ which outputs logs similar to:
 ...
 ```
 
-The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report and statistics on the # of cycles to a CSV file (can be specified by the `report_path` argument).
+The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report and statistics on the # of cycles to a CSV file (can be specified by the `--report-path` argument).
 
 You can also run the CLI directly by running the following command:
 
