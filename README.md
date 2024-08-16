@@ -37,7 +37,7 @@ When running the host CLI or integration tests, **make sure to use an RPC URL po
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type based on chain ID. Simply suppply a block number and an RPC URL:
+The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
@@ -54,7 +54,7 @@ which outputs logs similar to:
 ...
 ```
 
-The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command.
+The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report and statistics on the # of cycles to a CSV file (can be specified by the `--report-path` argument).
 
 You can also run the CLI directly by running the following command:
 
@@ -84,6 +84,35 @@ Then execute:
 ```bash
 RUST_LOG=info cargo test -p rsp-host-executor --release e2e -- --nocapture
 ```
+
+### Generating Proofs
+
+If you want to actually generate proofs, you can run the CLI using the `--prove` argument, like this:
+
+```bash
+cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id> --prove
+```
+
+This will generate proofs locally on your machine. Given how large these programs are, it might take a while for the proof to generate.
+
+**Run with prover network**
+
+If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/generating-proofs/prover-network.html), follow the sign-up instructions, and run the command with the following environment variables prefixed:
+
+```bash
+SP1_PROVER=network SP1_PRIVATE_KEY=
+```
+
+To specify a custom prover network RPC, you can use the `PROVER_NETWORK_RPC` environment variable.
+
+<!-- TODO: merge in this section when this PR gets merged: https://github.com/succinctlabs/sp1/pull/1301/files# -->
+<!-- **Run with GPU**
+
+To generate proofs locally on a GPU, you can enable the `cuda` feature in the CLI, which will enable it in the SDK. Make sure to read the instructions [here](...) to make sure you have all required dependencies installed. You can run it with a command like this:
+
+```bash
+cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain-id <chain-id> --prove
+``` -->
 
 ## FAQ
 
