@@ -114,6 +114,7 @@ where
     DB: ExtDatabaseRef<Error: std::fmt::Debug>,
 {
     let mut trie_nodes = BTreeMap::default();
+    let mut ignored_keys = HashSet::<Nibbles>::default();
 
     for (key, value, proof) in items {
         let mut path = Nibbles::default();
@@ -207,7 +208,22 @@ where
                 }
                 TrieNode::Leaf(leaf) => {
                     next_path.extend_from_slice(&leaf.key);
-                    if next_path != key {
+                    if next_path == key {
+                        if value.is_none() {
+                            // The proof points to the node of interest, meaning the node previously
+                            // exists. The node does not exist now, so the parent pointing to this
+                            // child needs to be eliminated too.
+
+                            // Recover the path before the extensions. We either have to clone
+                            // before the extension or recover here. Recovering here is probably
+                            // more efficient as long as deletion is not the majority of the
+                            // updates.
+                            ignored_keys
+                                .insert(next_path.slice(0..(next_path.len() - leaf.key.len())));
+                        }
+                    } else {
+                        // The proof points to a neighbour. This happens when proving the previous
+                        // absence of the node of interest.
                         trie_nodes.insert(next_path.clone(), Either::Right(leaf.value.clone()));
                     }
                 }
@@ -222,7 +238,6 @@ where
 
     // Ignore branch child hashes in the path of leaves or lower child hashes.
     let mut keys = trie_nodes.keys().peekable();
-    let mut ignored_keys = HashSet::<Nibbles>::default();
     while let Some(key) = keys.next() {
         if keys.peek().map_or(false, |next| next.starts_with(key)) {
             ignored_keys.insert(key.clone());
@@ -296,4 +311,269 @@ where
     }
     let root = hash_builder.root();
     Ok(root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use hex_literal::hex;
+
+    /// Leaf node A:
+    ///
+    /// e1 => list len = 33
+    ///    3a => odd leaf with path `a`
+    ///    9f => string len = 31
+    ///       9e => string len = 30
+    ///          888888888888888888888888888888888888888888888888888888888888 => value
+    ///
+    /// Flattened:
+    /// e13a9f9e888888888888888888888888888888888888888888888888888888888888
+    ///
+    /// Trie node hash:
+    /// c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421
+    const LEAF_A: Bytes = Bytes::from_static(&hex!(
+        "e13a9f9e888888888888888888888888888888888888888888888888888888888888"
+    ));
+
+    struct TestTrieDb {
+        preimages: Vec<Bytes>,
+    }
+
+    impl TestTrieDb {
+        fn new() -> Self {
+            Self { preimages: vec![LEAF_A] }
+        }
+    }
+
+    impl ExtDatabaseRef for TestTrieDb {
+        type Error = std::convert::Infallible;
+
+        fn trie_node_ref(&self, hash: B256) -> std::result::Result<Bytes, Self::Error> {
+            for preimage in self.preimages.iter() {
+                if keccak256(preimage) == hash {
+                    return std::result::Result::Ok(preimage.to_owned());
+                }
+            }
+
+            panic!("missing preimage for test")
+        }
+    }
+
+    #[test]
+    fn test_delete_single_leaf() {
+        // Trie before with nodes
+        //
+        // - `1a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `3a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // Root:
+        //
+        // f8 => list len of len = 1
+        //    71 => list len = 113
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //
+        // Flattened:
+        // f87180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c7
+        // 2d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5a
+        // cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb42180808080808080808080808080
+        //
+        // Root hash
+        // 929a169d86a02de55457b8928bd3cdae55b24fe2771f7a3edaa992c0500c4427
+
+        // Deleting node `2a`:
+        //
+        // - `1a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `3a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // New root:
+        //
+        // f8 => list len of len = 1
+        //    51 => list len = 81
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //
+        // Flattened:
+        // f85180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb42180a0c2c2
+        // c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb42180808080808080808080
+        // 808080
+        //
+        // Root hash
+        // ff07cbbe26d25f65cf2ff08dc127e71b8cb238bee5da9df515422ff7eaa8d67e
+
+        let root = compute_root_from_proofs(
+            [(
+                Nibbles::from_nibbles([0x2, 0xa]),
+                None,
+                vec![
+                    Bytes::from_static(&hex!(
+                        "\
+f87180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c7\
+2d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5a\
+cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb42180808080808080808080808080"
+                    )),
+                    LEAF_A,
+                ],
+            )],
+            &TestTrieDb::new(),
+        )
+        .unwrap();
+
+        assert_eq!(root, hex!("ff07cbbe26d25f65cf2ff08dc127e71b8cb238bee5da9df515422ff7eaa8d67e"));
+    }
+
+    #[test]
+    fn test_delete_multiple_leaves() {
+        // Trie before with nodes
+        //
+        // - `1a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `3a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `4a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // Root:
+        //
+        // f8 => list len of len = 1
+        //    91 => list len = 145
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //
+        // Flattened:
+        // f89180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c7
+        // 2d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5a
+        // cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5acb10a951f0e82c
+        // f2e461b98c4e5afb0348ccab5bb421808080808080808080808080
+        //
+        // Root hash
+        // d34c1443edf7e282fcfd056db2ec24bcaf797dc3a039e0628473b069a2e8b1be
+
+        // Deleting node `2a` and `3a`:
+        //
+        // - `1a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // New root:
+        //
+        // f8 => list len of len = 1
+        //    51 => list len = 81
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       80
+        //       a0 => branch hash
+        //          c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421 => leaf node A
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //       80
+        //
+        // Flattened:
+        // f85180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb4218080a0c2
+        // c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421808080808080808080
+        // 808080
+        //
+        // Root hash
+        // 4a2aa1a2188e9bf279d51729b0c5789e4f0605c85752f9ca47760fcbe0f80244
+
+        let root = compute_root_from_proofs(
+            [
+                (
+                    Nibbles::from_nibbles([0x2, 0xa]),
+                    None,
+                    vec![
+                        Bytes::from_static(&hex!(
+                            "\
+f89180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c7\
+2d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5a\
+cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5acb10a951f0e82c\
+f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
+                        )),
+                        LEAF_A,
+                    ],
+                ),
+                (
+                    Nibbles::from_nibbles([0x3, 0xa]),
+                    None,
+                    vec![
+                        Bytes::from_static(&hex!(
+                            "\
+f89180a0c2c2c72d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c7\
+2d0c79d673ad5acb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5a\
+cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb421a0c2c2c72d0c79d673ad5acb10a951f0e82c\
+f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
+                        )),
+                        LEAF_A,
+                    ],
+                ),
+            ],
+            &TestTrieDb::new(),
+        )
+        .unwrap();
+
+        assert_eq!(root, hex!("4a2aa1a2188e9bf279d51729b0c5789e4f0605c85752f9ca47760fcbe0f80244"));
+    }
 }

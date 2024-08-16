@@ -36,6 +36,7 @@ serde = { version = "1.0", default-features = false }
 futures = "0.3"
 url = "2.3"
 thiserror = "1.0.61"
+hex-literal = "0.4.1"
 
 # workspace
 rsp-rpc-db = { path = "./crates/storage/rpc-db" }
