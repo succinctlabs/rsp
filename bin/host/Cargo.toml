@@ -24,8 +24,8 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-# We use the dev version because it has the "cycle report tracker" feature that we need.
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1", branch = "dev" }
+# We use the experimental version because it has the "cycle report tracker" feature that we need.
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1", branch = "experimental" }
 
 [build-dependencies]
 sp1-helper = "1.0.1"
