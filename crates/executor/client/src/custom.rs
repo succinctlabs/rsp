@@ -18,7 +18,9 @@ use reth_revm::{
     handler::register::EvmHandler, precompile::PrecompileSpecId, primitives::Env,
     ContextPrecompiles, Database, Evm, EvmBuilder,
 };
-use revm::precompile::{bn128, secp256k1, Precompile, PrecompileResult, PrecompileWithAddress};
+use revm::precompile::{
+    bn128, kzg_point_evaluation, secp256k1, Precompile, PrecompileResult, PrecompileWithAddress,
+};
 use std::sync::Arc;
 
 /// Create an annotated precompile that tracks the cycle count of a precompile.
@@ -43,6 +45,27 @@ macro_rules! create_annotated_precompile {
         )
     };
 }
+
+// An annotated version of the KZG point evaluation precompile. Because this is a stateful
+// precompile we cannot use the `create_annotated_precompile` macro
+pub(crate) const ANNOTATED_KZG_PROOF: PrecompileWithAddress = PrecompileWithAddress(
+    kzg_point_evaluation::POINT_EVALUATION.0,
+    Precompile::Env(|input: &Bytes, gas_limit: u64, env: &Env| -> PrecompileResult {
+        let precompile = kzg_point_evaluation::POINT_EVALUATION.precompile();
+        match precompile {
+            Precompile::Env(precompile) => {
+                println!(concat!(
+                    "cycle-tracker-report-start: precompile-",
+                    "kzg-point-evaluation"
+                ));
+                let result = precompile(input, gas_limit, env);
+                println!(concat!("cycle-tracker-report-end: precompile-", "kzg-point-evaluation"));
+                result
+            }
+            _ => panic!("Annotated precompile must be a env precompile."),
+        }
+    }),
+);
 
 pub(crate) const ANNOTATED_ECRECOVER: PrecompileWithAddress =
     create_annotated_precompile!(secp256k1::ECRECOVER, "ecrecover");
@@ -80,6 +103,7 @@ impl CustomEvmConfig {
                 ANNOTATED_BN_ADD,
                 ANNOTATED_BN_MUL,
                 ANNOTATED_BN_PAIR,
+                ANNOTATED_KZG_PROOF,
             ]);
 
             loaded_precompiles

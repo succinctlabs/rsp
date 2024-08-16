@@ -109,6 +109,7 @@ revm = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/
     "optimism",
     "std",
     "serde",
+    "kzg-rs",
 ], default-features = false }
 revm-primitives = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
     "std",

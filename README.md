@@ -2,27 +2,13 @@
 
 A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports both Ethereum and OP Stack.
 
+> [!CAUTION]
+>
+> This repository is still an active work-in-progress and is not audited or meant for production usage. In particular, there are some edge cases in Ethereum state root computation due to complications with the Merkle Patricia Trie (MPT) that result in the state root computation being slightly incorrect (we're actively working on fixing this). However, the prover time should still be an accurate estimate of proving costs in practice.
+
 ## Getting Started
 
-To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed. Then follow the instructions below.
-
-### (Optional) Build ELF Files
-
-SP1 client programs are RISC-V ELF files. To make it easier to get started, the ELF binary files for [Ethereum](./bin/client-op/elf/riscv32im-succinct-zkvm-elf) and [Optimism](./bin/client-eth/elf/riscv32im-succinct-zkvm-elf) are version controlled and updated on releases (instead of every commit to keep repo size manageable). So technically it isn't always necessary to build the ELF files, which is why this step has been marked as optional.
-
-However, there are cases where rebuilding them is necessary, such as when breaking changes have been made since the last release. To build the ELF files, make sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed. Then run `cargo prove build` _inside the client binary target folder_. For example, to build the Ethereum client ELF program:
-
-```console
-cd ./bin/client-eth
-cargo prove build
-```
-
-Or to build the Optimism client ELF program:
-
-```console
-cd ./bin/client-op
-cargo prove build
-```
+To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/getting-started/install.html) installed to build the client programs. Then follow the instructions below.
 
 ### Installing the CLI
 
@@ -76,6 +62,12 @@ You can also run the CLI directly by running the following command:
 cargo run --bin rsp --release -- --block-number 18884864 --rpc-url <RPC>
 ```
 
+or by providing the RPC URL in the `.env` file and specifying the chain id in the CLI command like this:
+
+```bash
+cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id>
+```
+
 ## Running Tests
 
 End-to-end integration tests are available. To run these tests, utilize the `.env` file (see [example](./.env.example)) or manually set these environment variables:
@@ -92,3 +84,29 @@ Then execute:
 ```bash
 RUST_LOG=info cargo test -p rsp-host-executor --release e2e -- --nocapture
 ```
+
+## FAQ
+
+**Building the client programs manually**
+
+By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
+
+```console
+cd ./bin/client-eth
+cargo prove build
+```
+
+To build the Optimism client ELF program:
+
+```console
+cd ./bin/client-op
+cargo prove build
+```
+
+**Why does the program say "The state root doesn't match"?**
+
+As mentioned in the introduction, this repository is still a work in progress and some edge cases in the Ethereum MPT result in the state root computation being slightly incorrect for certain blocks. We're actively working on fixing this, but running these client programs on Ethereum and Optimism blocks still provides a very good estimate of realistic cycle count and proving workloads.
+
+**What are good testing blocks**
+
+A good small block to test on for Ethereum mainnet is: `20526624`.
