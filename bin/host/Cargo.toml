@@ -29,3 +29,6 @@ sp1-sdk = { git = "https://github.com/succinctlabs/sp1", branch = "experimental"
 
 [build-dependencies]
 sp1-helper = "1.0.1"
+
+[features]
+# cuda = ["sp1-sdk/cuda"]

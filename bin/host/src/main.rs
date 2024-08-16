@@ -27,6 +27,7 @@ struct HostArgs {
     #[clap(long)]
     chain_id: Option<u64>,
     /// Whether to generate a proof or just execute the block.
+    #[clap(long)]
     prove: bool,
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
@@ -72,7 +73,7 @@ async fn main() -> eyre::Result<()> {
     let client = ProverClient::new();
 
     // Setup the proving key and verification key.
-    let (pk, _) = client.setup(match variant {
+    let (pk, vk) = client.setup(match variant {
         ChainVariant::Ethereum => {
             include_bytes!("../../client-eth/elf/riscv32im-succinct-zkvm-elf")
         }
@@ -100,8 +101,10 @@ async fn main() -> eyre::Result<()> {
         // Actually generate the proof. It is strongly recommended you use the network prover
         // given the size of these programs.
         println!("Starting proof generation.");
-        let _ = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
+        let proof = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
         println!("Proof generation finished.");
+
+        client.verify(&proof, &vk).expect("proof verification should succeed");
     }
 
     Ok(())
