@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{btree_map::Entry, BTreeMap, HashSet};
 
 use alloy_primitives::Bytes;
 use alloy_rlp::{Decodable, Encodable};
@@ -224,7 +224,12 @@ where
                     } else {
                         // The proof points to a neighbour. This happens when proving the previous
                         // absence of the node of interest.
-                        trie_nodes.insert(next_path.clone(), Either::Right(leaf.value.clone()));
+                        //
+                        // We insert this neighbour node only if it's vacant to avoid overwriting
+                        // it when the neighbour node itself is being updated.
+                        if let Entry::Vacant(entry) = trie_nodes.entry(next_path.clone()) {
+                            entry.insert(Either::Right(leaf.value.clone()));
+                        }
                     }
                 }
             };
@@ -317,6 +322,7 @@ where
 mod tests {
     use super::*;
 
+    use alloy_trie::proof::ProofRetainer;
     use hex_literal::hex;
 
     /// Leaf node A:
@@ -575,5 +581,71 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
         .unwrap();
 
         assert_eq!(root, hex!("4a2aa1a2188e9bf279d51729b0c5789e4f0605c85752f9ca47760fcbe0f80244"));
+    }
+
+    #[test]
+    fn test_insert_with_updated_neighbour() {
+        let value_1 = hex!("9e888888888888888888888888888888888888888888888888888888888888");
+        let value_2 = hex!("9e999999999999999999999999999999999999999999999999999999999999");
+
+        // Trie before as a branch with 2 nodes:
+        //
+        // - `11a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+
+        let mut hash_builder =
+            HashBuilder::default().with_proof_retainer(ProofRetainer::new(vec![
+                Nibbles::from_nibbles([0x1, 0x1, 0xa]),
+                Nibbles::from_nibbles([0x1, 0x1, 0xb]),
+            ]));
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0x1, 0xa]), &value_1);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value_1);
+
+        hash_builder.root();
+        let proofs = hash_builder.take_proofs();
+
+        // Trie after updating `11a` and inserting `11b`:
+        //
+        // - `11a`: 999999999999999999999999999999999999999999999999999999999999
+        // - `11b`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // Root branch child slot 1 turns from a leaf to another branch.
+
+        let mut hash_builder = HashBuilder::default();
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0x1, 0xa]), &value_2);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0x1, 0xb]), &value_1);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value_1);
+
+        let root = compute_root_from_proofs(
+            [
+                (
+                    Nibbles::from_nibbles([0x1, 0x1, 0xa]),
+                    Some(
+                        hex!("9e999999999999999999999999999999999999999999999999999999999999")
+                            .to_vec(),
+                    ),
+                    vec![
+                        proofs.get(&Nibbles::default()).unwrap().to_owned(),
+                        proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
+                    ],
+                ),
+                (
+                    Nibbles::from_nibbles([0x1, 0x1, 0xb]),
+                    Some(
+                        hex!("9e888888888888888888888888888888888888888888888888888888888888")
+                            .to_vec(),
+                    ),
+                    vec![
+                        proofs.get(&Nibbles::default()).unwrap().to_owned(),
+                        proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
+                    ],
+                ),
+            ],
+            &TestTrieDb::new(),
+        )
+        .unwrap();
+
+        assert_eq!(root, hash_builder.root());
     }
 }
