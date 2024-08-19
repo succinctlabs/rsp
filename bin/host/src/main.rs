@@ -2,7 +2,8 @@ use alloy_provider::ReqwestProvider;
 use clap::Parser;
 use reth_primitives::B256;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_OP_MAINNET,
+    io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
+    CHAIN_ID_OP_MAINNET,
 };
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{ProverClient, SP1Stdin};
@@ -56,6 +57,7 @@ async fn main() -> eyre::Result<()> {
     let variant = match provider_config.chain_id {
         CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
+        CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
         _ => {
             eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
@@ -111,6 +113,7 @@ async fn main() -> eyre::Result<()> {
             include_bytes!("../../client-eth/elf/riscv32im-succinct-zkvm-elf")
         }
         ChainVariant::Optimism => include_bytes!("../../client-op/elf/riscv32im-succinct-zkvm-elf"),
+        ChainVariant::Linea => include_bytes!("../../client-linea/elf/riscv32im-succinct-zkvm-elf"),
     });
 
     // Execute the block inside the zkVM.

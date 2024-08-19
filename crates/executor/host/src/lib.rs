@@ -8,7 +8,7 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, EthereumVariant, OptimismVariant, Variant,
+    io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant, Variant,
 };
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
@@ -37,6 +37,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
         let client_input = match variant {
             ChainVariant::Ethereum => self.execute_variant::<EthereumVariant>(block_number).await,
             ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
+            ChainVariant::Linea => self.execute_variant::<LineaVariant>(block_number).await,
         }?;
 
         Ok(client_input)
@@ -80,8 +81,8 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             block_number,
             current_block.body.len()
         );
-        let executor_block_input = current_block
-            .clone()
+
+        let executor_block_input = V::pre_process_block(&current_block)
             .with_recovered_senders()
             .ok_or(eyre!("failed to recover senders"))?;
         let executor_difficulty = current_block.header.difficulty;
@@ -158,7 +159,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
 
         // Log the result.
         tracing::info!(
-            "sucessfully executed block: block_number={}, block_hash={}, state_root={}",
+            "successfully executed block: block_number={}, block_hash={}, state_root={}",
             current_block.header.number,
             header.hash_slow(),
             state_root
@@ -167,7 +168,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
         // Create the client input.
         let client_input = ClientExecutorInput {
             previous_block: previous_block.header,
-            current_block,
+            current_block: V::pre_process_block(&current_block),
             dirty_storage_proofs,
             used_storage_proofs: rpc_db.fetch_used_accounts_and_proofs().await,
             block_hashes: rpc_db.block_hashes.borrow().clone(),
