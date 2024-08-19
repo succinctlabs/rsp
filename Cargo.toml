@@ -134,12 +134,18 @@ alloy-transport-http = { version = "0.1", features = [
 ], default-features = false }
 alloy-eips = { version = "0.1", default-features = false }
 
+# Using the fork until https://github.com/alloy-rs/trie/pull/27 is merged and released
+alloy-trie = { git = "https://github.com/xJonathanLEI/trie.git", rev = "fb57b642278fd4213f244a2ab217be831a51abc9" }
+
 [patch.crates-io]
 # alloy-eips = { path = "../alloy/crates/eips" }
 # alloy-serde = { path = "../alloy/crates/serde" }
 alloy-eips = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
 alloy-serde = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
 tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" }
+
+# Using the fork until https://github.com/alloy-rs/trie/pull/27 is merged and released
+alloy-trie = { git = "https://github.com/xJonathanLEI/trie.git", rev = "fb57b642278fd4213f244a2ab217be831a51abc9" }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"

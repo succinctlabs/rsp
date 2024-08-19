@@ -447,8 +447,7 @@ dependencies = [
 [[package]]
 name = "alloy-trie"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03704f265cbbb943b117ecb5055fd46e8f41e7dc8a58b1aed20bcd40ace38c15"
+source = "git+https://github.com/xJonathanLEI/trie.git?rev=fb57b642278fd4213f244a2ab217be831a51abc9#fb57b642278fd4213f244a2ab217be831a51abc9"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
@@ -5202,6 +5201,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types",
+ "alloy-trie",
  "eyre",
  "hex-literal",
  "itertools 0.13.0",
