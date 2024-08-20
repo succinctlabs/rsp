@@ -24,11 +24,11 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-# We use the experimental version because it has the "cycle report tracker" feature that we need.
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1", branch = "experimental" }
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1", rev = "fb967e8c409b318d18985f8f92353e93d38c7cda" }
 
 [build-dependencies]
 sp1-helper = "1.0.1"
 
 [features]
-# cuda = ["sp1-sdk/cuda"]
+default = []
+cuda = ["sp1-sdk/cuda"]
