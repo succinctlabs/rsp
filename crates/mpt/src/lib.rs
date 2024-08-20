@@ -265,11 +265,13 @@ where
         match value {
             Either::Left(branch_hash) => {
                 let parent_branch_path = path.slice(..path.len() - 1);
-                if hash_builder.key.starts_with(&parent_branch_path) ||
+                let has_neighbour = (!hash_builder.key.is_empty() &&
+                    hash_builder.key.starts_with(&parent_branch_path)) ||
                     trie_nodes
                         .peek()
-                        .map_or(false, |next| next.0.starts_with(&parent_branch_path))
-                {
+                        .map_or(false, |next| next.0.starts_with(&parent_branch_path));
+
+                if has_neighbour {
                     hash_builder.add_branch(path, branch_hash, false);
                 } else {
                     // Parent was a branch node but now all but one children are gone. We
@@ -710,6 +712,50 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                     ],
                 ),
             ],
+            &TestTrieDb::new(),
+        )
+        .unwrap();
+
+        assert_eq!(root, hash_builder.root());
+    }
+
+    #[test]
+    fn test_only_root_node_left() {
+        let value = hex!("9e888888888888888888888888888888888888888888888888888888888888");
+
+        // Trie before as a branch with 2 nodes:
+        //
+        // - `1a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+
+        let mut hash_builder = HashBuilder::default()
+            .with_proof_retainer(ProofRetainer::new(vec![Nibbles::from_nibbles([0x1, 0xa])]));
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0xa]), &value);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value);
+
+        hash_builder.root();
+        let proofs = hash_builder.take_proofs();
+
+        dbg!(&proofs);
+
+        // Trie after deleting `1a`:
+        //
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // Root branch child slot 1 turns from a leaf to another branch.
+
+        let mut hash_builder = HashBuilder::default();
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value);
+
+        let root = compute_root_from_proofs(
+            [(
+                Nibbles::from_nibbles([0x1, 0xa]),
+                None,
+                vec![
+                    proofs.get(&Nibbles::default()).unwrap().to_owned(),
+                    proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
+                ],
+            )],
             &TestTrieDb::new(),
         )
         .unwrap();
