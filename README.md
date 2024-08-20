@@ -105,14 +105,13 @@ SP1_PROVER=network SP1_PRIVATE_KEY=
 
 To specify a custom prover network RPC, you can use the `PROVER_NETWORK_RPC` environment variable.
 
-<!-- TODO: merge in this section when this PR gets merged: https://github.com/succinctlabs/sp1/pull/1301/files# -->
-<!-- **Run with GPU**
+**Run with GPU**
 
-To generate proofs locally on a GPU, you can enable the `cuda` feature in the CLI, which will enable it in the SDK. Make sure to read the instructions [here](...) to make sure you have all required dependencies installed. You can run it with a command like this:
+To generate proofs locally on a GPU, you can enable the `cuda` feature in the CLI, which will enable it in the SDK. Make sure to read the instructions [here](https://github.com/succinctlabs/sp1/blob/fb967e8c409b318d18985f8f92353e93d38c7cda/book/generating-proofs/hardware-acceleration/cuda.md) to make sure you have all required dependencies installed. You can run it with a command like this:
 
 ```bash
 cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain-id <chain-id> --prove
-``` -->
+```
 
 ## FAQ
 
