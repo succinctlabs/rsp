@@ -237,7 +237,15 @@ where
         }
 
         if let Some(value) = value {
+            // This overwrites any value that might have been inserted during proof walking, which
+            // can happen when an immediate upper neighbour is inserted where the already inserted
+            // value would be outdated.
             trie_nodes.insert(key, Either::Right(value));
+        } else {
+            // This is a node deletion. If this key is not ignored then an insertion of an immediate
+            // upper neighbour would result in this node being added (and thus treated as not
+            // deleted) as part of the proof walking process.
+            ignored_keys.insert(key);
         }
     }
 
@@ -625,6 +633,66 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                         hex!("9e999999999999999999999999999999999999999999999999999999999999")
                             .to_vec(),
                     ),
+                    vec![
+                        proofs.get(&Nibbles::default()).unwrap().to_owned(),
+                        proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
+                    ],
+                ),
+                (
+                    Nibbles::from_nibbles([0x1, 0x1, 0xb]),
+                    Some(
+                        hex!("9e888888888888888888888888888888888888888888888888888888888888")
+                            .to_vec(),
+                    ),
+                    vec![
+                        proofs.get(&Nibbles::default()).unwrap().to_owned(),
+                        proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
+                    ],
+                ),
+            ],
+            &TestTrieDb::new(),
+        )
+        .unwrap();
+
+        assert_eq!(root, hash_builder.root());
+    }
+
+    #[test]
+    fn test_insert_with_deleted_neighbour() {
+        let value = hex!("9e888888888888888888888888888888888888888888888888888888888888");
+
+        // Trie before as a branch with 2 nodes:
+        //
+        // - `11a`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+
+        let mut hash_builder =
+            HashBuilder::default().with_proof_retainer(ProofRetainer::new(vec![
+                Nibbles::from_nibbles([0x1, 0x1, 0xa]),
+                Nibbles::from_nibbles([0x1, 0x1, 0xb]),
+            ]));
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0x1, 0xa]), &value);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value);
+
+        hash_builder.root();
+        let proofs = hash_builder.take_proofs();
+
+        // Trie after deleting `11a` and inserting `11b`:
+        //
+        // - `11b`: 888888888888888888888888888888888888888888888888888888888888
+        // - `2a`: 888888888888888888888888888888888888888888888888888888888888
+        //
+        // Root branch child slot 1 turns from a leaf to another branch.
+
+        let mut hash_builder = HashBuilder::default();
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x1, 0x1, 0xb]), &value);
+        hash_builder.add_leaf(Nibbles::from_nibbles([0x2, 0xa]), &value);
+
+        let root = compute_root_from_proofs(
+            [
+                (
+                    Nibbles::from_nibbles([0x1, 0x1, 0xa]),
+                    None,
                     vec![
                         proofs.get(&Nibbles::default()).unwrap().to_owned(),
                         proofs.get(&Nibbles::from_nibbles([0x1])).unwrap().to_owned(),
