@@ -19,8 +19,8 @@ sp1-zkvm = { git = "https://github.com/succinctlabs/sp1", branch = "experimental
 alloy-eips = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
 alloy-serde = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
 
-# Using the fork until https://github.com/alloy-rs/trie/pull/27 is merged and released
-alloy-trie = { git = "https://github.com/xJonathanLEI/trie.git", rev = "fb57b642278fd4213f244a2ab217be831a51abc9" }
+# Using GitHub until https://github.com/alloy-rs/trie/pull/27 is released
+alloy-trie = { git = "https://github.com/alloy-rs/trie.git", rev = "28ebb7cc70cbef9e894e5b36c99e28412525ac1a" }
 
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", branch = "patch-v0.10.8", package = "sha2" }
