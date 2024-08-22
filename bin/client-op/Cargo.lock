@@ -3260,6 +3260,19 @@ dependencies = [
 [[package]]
 name = "sp1-lib"
 version = "1.1.1"
+source = "git+https://github.com/succinctlabs/sp1?branch=dev#8d5c103703415ffd944de62c44ba6e9e8d2cc83c"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cfg-if",
+ "hex",
+ "serde",
+ "snowbridge-amcl",
+]
+
+[[package]]
+name = "sp1-lib"
+version = "1.1.1"
 source = "git+https://github.com/succinctlabs/sp1?branch=experimental#33bfaaa2d5b5ee91ec06ad361a35f53accb10a75"
 dependencies = [
  "anyhow",
@@ -3340,7 +3353,7 @@ dependencies = [
 [[package]]
 name = "substrate-bn"
 version = "0.6.0"
-source = "git+https://github.com/0xWOLAND/bn?branch=main#4970e22d001de8fcc46b07d93308c5f6cd9b1e26"
+source = "git+https://github.com/sp1-patches/bn?branch=patch-v0.6.0#238968cfe18d2aa9d66fd58d8efd6c6511993c03"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -3349,7 +3362,7 @@ dependencies = [
  "lazy_static",
  "rand",
  "rustc-hex",
- "sp1-lib 1.1.1 (git+https://github.com/succinctlabs/sp1?branch=experimental)",
+ "sp1-lib 1.1.1 (git+https://github.com/succinctlabs/sp1?branch=dev)",
 ]
 
 [[package]]
@@ -4006,3 +4019,8 @@ dependencies = [
  "quote",
  "syn 2.0.72",
 ]
+
+[[patch.unused]]
+name = "bls12_381"
+version = "0.8.0"
+source = "git+https://github.com/sp1-patches/bls12_381?branch=patch-v0.8.0#0c37e2976d3c55a5be5e5dd17e5aba444711ecd7"
