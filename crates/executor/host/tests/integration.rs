@@ -1,6 +1,7 @@
 use alloy_provider::ReqwestProvider;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ClientExecutor, EthereumVariant, OptimismVariant, Variant,
+    io::ClientExecutorInput, ChainVariant, ClientExecutor, EthereumVariant, OptimismVariant,
+    Variant,
 };
 use rsp_host_executor::HostExecutor;
 use tracing_subscriber::{
@@ -10,15 +11,15 @@ use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
-    run_e2e::<EthereumVariant>("RPC_1", 18884864).await;
+    run_e2e::<EthereumVariant>(ChainVariant::Ethereum, "RPC_1", 18884864).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
-    run_e2e::<OptimismVariant>("RPC_10", 122853660).await;
+    run_e2e::<OptimismVariant>(ChainVariant::Optimism, "RPC_10", 122853660).await;
 }
 
-async fn run_e2e<V>(env_var_key: &str, block_number: u64)
+async fn run_e2e<V>(variant: ChainVariant, env_var_key: &str, block_number: u64)
 where
     V: Variant,
 {
@@ -40,8 +41,8 @@ where
     let host_executor = HostExecutor::new(provider);
 
     // Execute the host.
-    let (client_input, _) =
-        host_executor.execute(block_number).await.expect("failed to execute host");
+    let client_input =
+        host_executor.execute(block_number, variant).await.expect("failed to execute host");
 
     // Setup the client executor.
     let client_executor = ClientExecutor;

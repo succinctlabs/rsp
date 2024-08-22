@@ -1,7 +1,9 @@
-use alloy_provider::ReqwestProvider;
+use alloy_provider::{network::AnyNetwork, Provider, ReqwestProvider};
 use clap::Parser;
 use reth_primitives::B256;
-use rsp_client_executor::ChainVariant;
+use rsp_client_executor::{
+    io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_OP_MAINNET,
+};
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{ProverClient, SP1Stdin};
 use std::path::PathBuf;
@@ -29,6 +31,10 @@ struct HostArgs {
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
     prove: bool,
+    /// Optional path to the directory containing cached client input. A new cache file will be
+    /// created from RPC data if it doesn't already exist.
+    #[clap(long)]
+    cache_dir: Option<PathBuf>,
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     report_path: PathBuf,
@@ -49,25 +55,94 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
 
-    let rpc_url = if let Some(rpc_url) = args.rpc_url {
-        rpc_url
-    } else {
-        let chain_id = args.chain_id.expect("If rpc_url is not provided, chain_id must be.");
-        let env_var_key =
-            std::env::var(format!("RPC_{}", chain_id)).expect("Could not find RPC_{} in .env");
-        let rpc_url = Url::parse(env_var_key.as_str()).expect("invalid rpc url");
-        rpc_url
+    // We don't need RPC when using cache with known chain ID, so we leave it as `Option<Url>` here
+    // and decide on whether to panic later.
+    //
+    // On the other hand chain ID is always needed.
+    let (rpc_url, chain_id) = match (args.rpc_url, args.chain_id) {
+        (Some(rpc_url), Some(chain_id)) => (Some(rpc_url), chain_id),
+        (None, Some(chain_id)) => {
+            match std::env::var(format!("RPC_{}", chain_id)) {
+                Ok(rpc_env_var) => {
+                    // We don't always need it but if the value exists it has to be valid.
+                    (Some(Url::parse(rpc_env_var.as_str()).expect("invalid rpc url")), chain_id)
+                }
+                Err(_) => {
+                    // Not having RPC is okay because we know chain ID.
+                    (None, chain_id)
+                }
+            }
+        }
+        (Some(rpc_url), None) => {
+            // We can find out about chain ID from RPC.
+            let provider: ReqwestProvider<AnyNetwork> = ReqwestProvider::new_http(rpc_url.clone());
+            let chain_id = provider.get_chain_id().await?;
+
+            (Some(rpc_url), chain_id)
+        }
+        (None, None) => {
+            eyre::bail!("either --rpc-url or --chain-id must be used")
+        }
     };
 
-    // Setup the provider.
-    let provider = ReqwestProvider::new_http(rpc_url);
+    let variant = match chain_id {
+        CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
+        CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
+        _ => {
+            eyre::bail!("unknown chain ID: {}", chain_id);
+        }
+    };
 
-    // Setup the host executor.
-    let host_executor = HostExecutor::new(provider);
+    let client_input_from_cache = if let Some(cache_dir) = args.cache_dir.as_ref() {
+        let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, args.block_number));
 
-    // Execute the host.
-    let (client_input, variant) =
-        host_executor.execute(args.block_number).await.expect("failed to execute host");
+        if cache_path.exists() {
+            // TODO: prune the cache if invalid instead
+            let mut cache_file = std::fs::File::open(cache_path)?;
+            let client_input: ClientExecutorInput = bincode::deserialize_from(&mut cache_file)?;
+
+            Some(client_input)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let client_input = match (client_input_from_cache, rpc_url) {
+        (Some(client_input_from_cache), _) => client_input_from_cache,
+        (None, Some(rpc_url)) => {
+            // Cache not found but we have RPC
+            // Setup the provider.
+            let provider = ReqwestProvider::new_http(rpc_url);
+
+            // Setup the host executor.
+            let host_executor = HostExecutor::new(provider);
+
+            // Execute the host.
+            let client_input = host_executor
+                .execute(args.block_number, variant)
+                .await
+                .expect("failed to execute host");
+
+            if let Some(cache_dir) = args.cache_dir {
+                let input_folder = cache_dir.join(format!("input/{}", chain_id));
+                if !input_folder.exists() {
+                    std::fs::create_dir_all(&input_folder)?;
+                }
+
+                let input_path = input_folder.join(format!("{}.bin", args.block_number));
+                let mut cache_file = std::fs::File::create(input_path)?;
+
+                bincode::serialize_into(&mut cache_file, &client_input)?;
+            }
+
+            client_input
+        }
+        (None, None) => {
+            eyre::bail!("cache not found and RPC URL not provided")
+        }
+    };
 
     // Generate the proof.
     let client = ProverClient::new();
