@@ -1,0 +1,34 @@
+name: "PR"
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  lock-files:
+    name: "Check lock files"
+    runs-on: ["runs-on", "runner=8cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+
+      - name: "Update lock files"
+        run: |
+          cargo tree
+          (cd ./bin/client-eth && cargo tree)
+          (cd ./bin/client-op && cargo tree)
+
+      - name: "Assert no changes"
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then 
+            echo "Lock files not up to date"
+            exit 1
+          fi
