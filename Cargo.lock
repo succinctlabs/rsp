@@ -5248,6 +5248,7 @@ dependencies = [
  "reth-primitives",
  "rsp-client-executor",
  "rsp-host-executor",
+ "serde",
  "serde_json",
  "sp1-helper",
  "sp1-sdk",
