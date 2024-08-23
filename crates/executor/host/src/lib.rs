@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Ok};
+use itertools::Itertools;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
@@ -121,10 +122,11 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
         );
 
         // For every account we touched, fetch the storage proofs for all the slots we touched.
+        tracing::info!("fetching modified storage proofs");
         let mut dirty_storage_proofs = Vec::new();
         for (address, account) in executor_outcome.bundle_accounts_iter() {
             let mut storage_keys = Vec::new();
-            for key in account.storage.keys() {
+            for key in account.storage.keys().sorted() {
                 let slot = B256::new(key.to_be_bytes());
                 storage_keys.push(slot);
             }
