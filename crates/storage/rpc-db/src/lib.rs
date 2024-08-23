@@ -182,14 +182,23 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
 
                     // Fetch the proof for the address + storage keys.
                     async move {
-                        match self
-                            .provider
-                            .get_proof(address, storage_keys_for_address)
-                            .block_id(self.block)
-                            .await
-                        {
-                            Ok(proof) => Some((address, proof)),
-                            Err(_) => None,
+                        loop {
+                            match self
+                                .provider
+                                .get_proof(address, storage_keys_for_address.clone())
+                                .block_id(self.block)
+                                .await
+                            {
+                                Ok(proof) => break (address, proof),
+                                Err(err) => {
+                                    tracing::info!(
+                                        "error fetching account proof for {}: {}. Retrying in 1s",
+                                        address,
+                                        err
+                                    );
+                                    tokio::time::sleep(std::time::Duration::from_secs(1)).await
+                                }
+                            }
                         }
                     }
                 })
@@ -198,7 +207,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
 
         // Get the EIP-1186 proofs for the accounts that were touched.
         let results = join_all(futures).await;
-        let eip1186_proofs: Vec<_> = results.into_iter().flatten().collect();
+        let eip1186_proofs: Vec<_> = results.into_iter().collect();
 
         // Convert the EIP-1186 proofs to [AccountProofWithBytecode].
         let accounts = self.accounts.borrow();
