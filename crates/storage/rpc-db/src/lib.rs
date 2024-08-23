@@ -175,10 +175,11 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
                 .into_iter()
                 .map(|address| {
                     // Get all of the storage keys for the address.
-                    let storage_keys_for_address: Vec<B256> = storage
+                    let mut storage_keys_for_address: Vec<B256> = storage
                         .get(&address)
                         .map(|storage_map| storage_map.keys().map(|k| (*k).into()).collect())
                         .unwrap_or_default();
+                    storage_keys_for_address.sort();
 
                     // Fetch the proof for the address + storage keys.
                     async move {
