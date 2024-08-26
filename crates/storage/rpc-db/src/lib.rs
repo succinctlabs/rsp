@@ -1,18 +1,27 @@
-use std::{cell::RefCell, marker::PhantomData};
+use std::{cell::RefCell, iter::once, marker::PhantomData};
 
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockId;
 use alloy_transport::Transport;
 use futures::future::join_all;
+use rayon::prelude::*;
 use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
     Address, Bytes, B256, U256,
 };
 use reth_revm::DatabaseRef;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
-use revm_primitives::{HashMap, HashSet};
-use rsp_primitives::{account_proof::AccountProofWithBytecode, storage::ExtDatabaseRef};
+use reth_trie::Nibbles;
+use revm_primitives::{keccak256, HashMap, HashSet};
+use rsp_primitives::{
+    account_proof::AccountProofWithBytecode,
+    storage::{ExtDatabaseRef, PreimageContext},
+};
 use rsp_witness_db::WitnessDb;
+
+/// The maximum number of addresses/slots to attempt for brute-forcing the key to be used for
+/// fetching trie node preimage via `eth_getProof`.
+const BRUTE_FORCE_LIMIT: u64 = 0xffffffff_u64;
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]
@@ -42,6 +51,8 @@ pub enum RpcDbError {
     RpcError(String),
     #[error("failed to find block")]
     BlockNotFound,
+    #[error("failed to find trie node preimage")]
+    PreimageNotFound,
 }
 
 impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
@@ -138,16 +149,30 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     }
 
     /// Fetch a trie node based on its Keccak hash using the `debug_dbGet` method.
-    pub async fn fetch_trie_node(&self, hash: B256) -> Result<Bytes, RpcDbError> {
+    pub async fn fetch_trie_node(
+        &self,
+        hash: B256,
+        context: PreimageContext<'_>,
+    ) -> Result<Bytes, RpcDbError> {
         tracing::info!("fetching trie node {}", hash);
 
         // Fetch the trie node value from a geth node with `state.scheme=hash`.
-        let value = self
-            .provider
-            .client()
-            .request::<_, Bytes>("debug_dbGet", (hash,))
-            .await
-            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+        let value = match self.provider.client().request::<_, Bytes>("debug_dbGet", (hash,)).await {
+            Ok(value) => value,
+            Err(_) => {
+                // The `debug_dbGet` method failed for some reason. Fall back to brute-forcing the
+                // slot/address needed to recover the preimage via the `eth_getProof` method
+                // instead.
+                tracing::debug!(
+                    "failed to fetch preimage from debug_dbGet; \
+                    falling back to using eth_getProof: address={:?}, prefix={:?}",
+                    context.address,
+                    context.branch_path
+                );
+
+                self.fetch_trie_node_via_proof(hash, context).await?
+            }
+        };
 
         // Record the trie node value to the state.
         self.trie_nodes.borrow_mut().insert(hash, value.clone());
@@ -224,6 +249,68 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
 
         account_proofs
     }
+
+    /// Fetches a trie node via `eth_getProof` with a hacky workaround when `debug_dbGet` is not
+    /// available.
+    async fn fetch_trie_node_via_proof(
+        &self,
+        hash: B256,
+        context: PreimageContext<'_>,
+    ) -> Result<Bytes, RpcDbError> {
+        let (address, storage_keys) = match context.address {
+            Some(address) => {
+                // Computing storage root. Brute force the slot.
+                let slot = Self::find_key_preimage::<32>(context.branch_path)
+                    .ok_or(RpcDbError::PreimageNotFound)?;
+
+                (address.to_owned(), vec![slot.into()])
+            }
+            None => {
+                // Computing state root. Brute force the address.
+                let address = Self::find_key_preimage::<20>(context.branch_path)
+                    .ok_or(RpcDbError::PreimageNotFound)?;
+
+                (address.into(), vec![])
+            }
+        };
+
+        let account_proof = self
+            .provider
+            .get_proof(address, storage_keys)
+            .block_id(self.block)
+            .await
+            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+
+        for proof in account_proof
+            .storage_proof
+            .into_iter()
+            .map(|storage_proof| storage_proof.proof)
+            .chain(once(account_proof.account_proof))
+        {
+            // The preimage we're looking for is more likely to be at the end of the proof.
+            for node in proof.into_iter().rev() {
+                if hash == keccak256(&node) {
+                    return Ok(node)
+                }
+            }
+        }
+
+        Err(RpcDbError::PreimageNotFound)
+    }
+
+    /// Uses brute force to locate a key path preimage that contains a certain prefix.
+    fn find_key_preimage<const BYTES: usize>(prefix: &Nibbles) -> Option<[u8; BYTES]> {
+        (0..BRUTE_FORCE_LIMIT).into_par_iter().find_map_any(|nonce| {
+            let mut buffer = [0u8; BYTES];
+            buffer[(BYTES - 8)..].copy_from_slice(&nonce.to_be_bytes());
+
+            if Nibbles::unpack(keccak256(buffer)).starts_with(prefix) {
+                Some(buffer)
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
@@ -269,11 +356,12 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
 impl<T: Transport + Clone, P: Provider<T> + Clone> ExtDatabaseRef for RpcDb<T, P> {
     type Error = ProviderError;
 
-    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
+    fn trie_node_ref(&self, hash: B256, context: PreimageContext) -> Result<Bytes, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
-        let result = tokio::task::block_in_place(|| handle.block_on(self.fetch_trie_node(hash)));
+        let result =
+            tokio::task::block_in_place(|| handle.block_on(self.fetch_trie_node(hash, context)));
         let value =
             result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
         Ok(value)

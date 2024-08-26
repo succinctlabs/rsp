@@ -12,7 +12,7 @@ use reth_trie::{
     EMPTY_ROOT_HASH,
 };
 use revm_primitives::{keccak256, HashMap};
-use rsp_primitives::storage::ExtDatabaseRef;
+use rsp_primitives::storage::{ExtDatabaseRef, PreimageContext};
 
 /// Computes the state root of a block's Merkle Patricia Trie given an [ExecutionOutcome] and a list
 /// of [EIP1186AccountProofResponse] storage proofs.
@@ -76,6 +76,7 @@ where
                     (storage_nibbles.clone(), encoded, storage_proof.proof.clone())
                 }),
                 db,
+                Some(address),
             )?
         };
         storage_roots.insert(hashed_address, root);
@@ -102,6 +103,7 @@ where
             (account_nibbles.clone(), encoded, proof.proof.clone())
         }),
         db,
+        None,
     )
 }
 
@@ -109,6 +111,7 @@ where
 fn compute_root_from_proofs<DB>(
     items: impl IntoIterator<Item = (Nibbles, Option<Vec<u8>>, Vec<Bytes>)>,
     db: &DB,
+    root_context: Option<Address>,
 ) -> eyre::Result<B256>
 where
     DB: ExtDatabaseRef<Error: std::fmt::Debug>,
@@ -278,7 +281,12 @@ where
                     // technically have to modify this branch node, but the `alloy-trie` hash
                     // builder handles this automatically when supplying child nodes.
 
-                    let preimage = db.trie_node_ref(branch_hash).unwrap();
+                    let preimage = db
+                        .trie_node_ref(
+                            branch_hash,
+                            PreimageContext { address: &root_context, branch_path: &path },
+                        )
+                        .unwrap();
                     match TrieNode::decode(&mut &preimage[..]).unwrap() {
                         TrieNode::Branch(_) => {
                             // This node is a branch node that's referenced by hash. There's no need
@@ -365,7 +373,11 @@ mod tests {
     impl ExtDatabaseRef for TestTrieDb {
         type Error = std::convert::Infallible;
 
-        fn trie_node_ref(&self, hash: B256) -> std::result::Result<Bytes, Self::Error> {
+        fn trie_node_ref(
+            &self,
+            hash: B256,
+            _context: PreimageContext<'_>,
+        ) -> std::result::Result<Bytes, Self::Error> {
             for preimage in self.preimages.iter() {
                 if keccak256(preimage) == hash {
                     return std::result::Result::Ok(preimage.to_owned());
@@ -469,6 +481,7 @@ cb10a951f0e82cf2e461b98c4e5afb0348ccab5bb42180808080808080808080808080"
                 ],
             )],
             &TestTrieDb::new(),
+            None,
         )
         .unwrap();
 
@@ -587,6 +600,7 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                 ),
             ],
             &TestTrieDb::new(),
+            None,
         )
         .unwrap();
 
@@ -653,6 +667,7 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                 ),
             ],
             &TestTrieDb::new(),
+            None,
         )
         .unwrap();
 
@@ -713,6 +728,7 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                 ),
             ],
             &TestTrieDb::new(),
+            None,
         )
         .unwrap();
 
@@ -757,6 +773,7 @@ f2e461b98c4e5afb0348ccab5bb421808080808080808080808080"
                 ],
             )],
             &TestTrieDb::new(),
+            None,
         )
         .unwrap();
 

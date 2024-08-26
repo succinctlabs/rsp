@@ -12,6 +12,7 @@ tokio.workspace = true
 futures.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+rayon.workspace = true
 
 # workspace
 rsp-witness-db.workspace = true
@@ -21,6 +22,7 @@ rsp-primitives.workspace = true
 reth-primitives.workspace = true
 reth-storage-errors.workspace = true
 reth-revm.workspace = true
+reth-trie.workspace = true
 
 # revm
 revm-primitives.workspace = true
