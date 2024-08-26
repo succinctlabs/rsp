@@ -5339,6 +5339,7 @@ dependencies = [
  "reth-primitives",
  "reth-trie",
  "revm-primitives",
+ "rsp-mpt",
  "rsp-primitives",
  "tracing-subscriber",
 ]

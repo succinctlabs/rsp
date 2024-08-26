@@ -45,8 +45,16 @@ impl DatabaseRef for WitnessDb {
 impl ExtDatabaseRef for WitnessDb {
     type Error = ProviderError;
 
-    fn trie_node_ref(&self, hash: B256, _context: PreimageContext) -> Result<Bytes, Self::Error> {
+    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
         // TODO: avoid cloning
         Ok(self.trie_nodes.get(&hash).unwrap().to_owned())
+    }
+
+    fn trie_node_ref_with_context(
+        &self,
+        hash: B256,
+        _context: PreimageContext,
+    ) -> Result<Bytes, Self::Error> {
+        self.trie_node_ref(hash)
     }
 }

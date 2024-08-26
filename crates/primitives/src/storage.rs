@@ -7,7 +7,15 @@ pub trait ExtDatabaseRef {
     type Error;
 
     /// Gets the preimage of a trie node given its Keccak hash.
-    fn trie_node_ref(&self, hash: B256, context: PreimageContext) -> Result<Bytes, Self::Error>;
+    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error>;
+
+    /// Gets the preimage of a trie node given its Keccak hash, with additional context that could
+    /// be helpful when the program is not running in a constrained environment.
+    fn trie_node_ref_with_context(
+        &self,
+        hash: B256,
+        context: PreimageContext,
+    ) -> Result<Bytes, Self::Error>;
 }
 
 /// Additional context for retrieving trie node preimages. These are useful when the JSON-RPC node

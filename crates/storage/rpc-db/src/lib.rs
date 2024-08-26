@@ -152,26 +152,29 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     pub async fn fetch_trie_node(
         &self,
         hash: B256,
-        context: PreimageContext<'_>,
+        context: Option<PreimageContext<'_>>,
     ) -> Result<Bytes, RpcDbError> {
         tracing::info!("fetching trie node {}", hash);
 
         // Fetch the trie node value from a geth node with `state.scheme=hash`.
         let value = match self.provider.client().request::<_, Bytes>("debug_dbGet", (hash,)).await {
             Ok(value) => value,
-            Err(_) => {
-                // The `debug_dbGet` method failed for some reason. Fall back to brute-forcing the
-                // slot/address needed to recover the preimage via the `eth_getProof` method
-                // instead.
-                tracing::debug!(
-                    "failed to fetch preimage from debug_dbGet; \
+            Err(err) => match context {
+                Some(context) => {
+                    // The `debug_dbGet` method failed for some reason. Fall back to brute-forcing
+                    // the slot/address needed to recover the preimage via the `eth_getProof` method
+                    // instead.
+                    tracing::debug!(
+                        "failed to fetch preimage from debug_dbGet; \
                     falling back to using eth_getProof: address={:?}, prefix={:?}",
-                    context.address,
-                    context.branch_path
-                );
+                        context.address,
+                        context.branch_path
+                    );
 
-                self.fetch_trie_node_via_proof(hash, context).await?
-            }
+                    self.fetch_trie_node_via_proof(hash, context).await?
+                }
+                None => return Err(RpcDbError::RpcError(err.to_string())),
+            },
         };
 
         // Record the trie node value to the state.
@@ -356,12 +359,28 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
 impl<T: Transport + Clone, P: Provider<T> + Clone> ExtDatabaseRef for RpcDb<T, P> {
     type Error = ProviderError;
 
-    fn trie_node_ref(&self, hash: B256, context: PreimageContext) -> Result<Bytes, Self::Error> {
+    fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
         let result =
-            tokio::task::block_in_place(|| handle.block_on(self.fetch_trie_node(hash, context)));
+            tokio::task::block_in_place(|| handle.block_on(self.fetch_trie_node(hash, None)));
+        let value =
+            result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
+        Ok(value)
+    }
+
+    fn trie_node_ref_with_context(
+        &self,
+        hash: B256,
+        context: PreimageContext,
+    ) -> Result<Bytes, Self::Error> {
+        let handle = tokio::runtime::Handle::try_current().map_err(|_| {
+            ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
+        })?;
+        let result = tokio::task::block_in_place(|| {
+            handle.block_on(self.fetch_trie_node(hash, Some(context)))
+        });
         let value =
             result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
         Ok(value)

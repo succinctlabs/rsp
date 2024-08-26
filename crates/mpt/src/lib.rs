@@ -12,7 +12,19 @@ use reth_trie::{
     EMPTY_ROOT_HASH,
 };
 use revm_primitives::{keccak256, HashMap};
-use rsp_primitives::storage::{ExtDatabaseRef, PreimageContext};
+use rsp_primitives::storage::ExtDatabaseRef;
+
+#[cfg(feature = "preimage_context")]
+use rsp_primitives::storage::PreimageContext;
+
+/// Additional context for preimage recovery when calculating trie root. `Some` when calculating
+/// storage trie root and `None` when calculating state trie root.
+#[cfg(feature = "preimage_context")]
+type RootContext = Option<Address>;
+
+/// No additional context is needed since the `preimage_context` feature is disabled.
+#[cfg(not(feature = "preimage_context"))]
+type RootContext = ();
 
 /// Computes the state root of a block's Merkle Patricia Trie given an [ExecutionOutcome] and a list
 /// of [EIP1186AccountProofResponse] storage proofs.
@@ -58,6 +70,11 @@ where
         let root = if proof.storage_proofs.is_empty() {
             proof.storage_root
         } else {
+            #[cfg(feature = "preimage_context")]
+            let context = Some(address);
+            #[cfg(not(feature = "preimage_context"))]
+            let context = ();
+
             compute_root_from_proofs(
                 storage_prefix_sets.freeze().iter().map(|storage_nibbles| {
                     let hashed_slot = B256::from_slice(&storage_nibbles.pack());
@@ -76,11 +93,16 @@ where
                     (storage_nibbles.clone(), encoded, storage_proof.proof.clone())
                 }),
                 db,
-                Some(address),
+                context,
             )?
         };
         storage_roots.insert(hashed_address, root);
     }
+
+    #[cfg(feature = "preimage_context")]
+    let context = None;
+    #[cfg(not(feature = "preimage_context"))]
+    let context = ();
 
     // Compute the state root of the entire trie.
     let mut rlp_buf = Vec::with_capacity(128);
@@ -103,7 +125,7 @@ where
             (account_nibbles.clone(), encoded, proof.proof.clone())
         }),
         db,
-        None,
+        context,
     )
 }
 
@@ -111,7 +133,7 @@ where
 fn compute_root_from_proofs<DB>(
     items: impl IntoIterator<Item = (Nibbles, Option<Vec<u8>>, Vec<Bytes>)>,
     db: &DB,
-    root_context: Option<Address>,
+    #[allow(unused)] root_context: RootContext,
 ) -> eyre::Result<B256>
 where
     DB: ExtDatabaseRef<Error: std::fmt::Debug>,
@@ -281,12 +303,16 @@ where
                     // technically have to modify this branch node, but the `alloy-trie` hash
                     // builder handles this automatically when supplying child nodes.
 
+                    #[cfg(feature = "preimage_context")]
                     let preimage = db
-                        .trie_node_ref(
+                        .trie_node_ref_with_context(
                             branch_hash,
                             PreimageContext { address: &root_context, branch_path: &path },
                         )
                         .unwrap();
+                    #[cfg(not(feature = "preimage_context"))]
+                    let preimage = db.trie_node_ref(branch_hash).unwrap();
+
                     match TrieNode::decode(&mut &preimage[..]).unwrap() {
                         TrieNode::Branch(_) => {
                             // This node is a branch node that's referenced by hash. There's no need
@@ -373,11 +399,7 @@ mod tests {
     impl ExtDatabaseRef for TestTrieDb {
         type Error = std::convert::Infallible;
 
-        fn trie_node_ref(
-            &self,
-            hash: B256,
-            _context: PreimageContext<'_>,
-        ) -> std::result::Result<Bytes, Self::Error> {
+        fn trie_node_ref(&self, hash: B256) -> std::result::Result<Bytes, Self::Error> {
             for preimage in self.preimages.iter() {
                 if keccak256(preimage) == hash {
                     return std::result::Result::Ok(preimage.to_owned());
@@ -385,6 +407,14 @@ mod tests {
             }
 
             panic!("missing preimage for test")
+        }
+
+        fn trie_node_ref_with_context(
+            &self,
+            hash: B256,
+            _context: PreimageContext<'_>,
+        ) -> Result<Bytes, Self::Error> {
+            self.trie_node_ref(hash)
         }
     }
 
