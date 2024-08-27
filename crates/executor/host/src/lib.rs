@@ -143,10 +143,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
         let state_root =
             rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs, &rpc_db)?;
         if state_root != current_block.state_root {
-            // TODO: comment this check back in, but leaving it out for now so that we can
-            // get rough cycle counts.
-            println!("The state root doesn't match.");
-            // eyre::bail!("mismatched state root");
+            eyre::bail!("mismatched state root");
         }
 
         // Derive the block header.
