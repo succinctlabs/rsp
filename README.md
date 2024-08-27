@@ -35,6 +35,10 @@ geth \
 
 When running the host CLI or integration tests, **make sure to use an RPC URL pointing to a Geth node running with said options**, or errors will arise when preimage recovery is needed. You can reach out to the Succinct team to access an RPC URL that supports this endpoint.
 
+> [!TIP]
+>
+> Don't have access to such a node but still want to try out RSP? Use [`rsp-tests`](https://github.com/succinctlabs/rsp-tests) to get quickly set up with an offline cache built for selected blocks.
+
 ### Running the CLI
 
 The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:

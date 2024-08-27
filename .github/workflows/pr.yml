@@ -32,3 +32,38 @@ jobs:
             echo "Lock files not up to date"
             exit 1
           fi
+
+  tests:
+    name: "Run tests"
+    runs-on:
+      ["runs-on", "runner=64cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+    steps:
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+
+      - name: "Install sp1up"
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+      - name: "Install SP1 toolchain"
+        run: |
+          sp1up
+
+      - name: "Set up test fixture"
+        run: |
+          git clone https://github.com/succinctlabs/rsp-tests --branch 2024-08-26 --depth 1 ../rsp-tests
+          cd ../rsp-tests/
+          docker compose up -d
+
+      - name: "Use local test fixture"
+        run: |
+          echo "RPC_1=http://localhost:9545/main/evm/1" >> $GITHUB_ENV
+          echo "RPC_10=http://localhost:9545/main/evm/10" >> $GITHUB_ENV
+
+      - name: "Run tests"
+        run: |
+          export RUST_LOG=info
+          cargo test --all -- --nocapture
