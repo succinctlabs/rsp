@@ -9,7 +9,6 @@ use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, EthereumVariant, OptimismVariant, Variant,
-    CHAIN_ID_ETH_MAINNET, CHAIN_ID_OP_MAINNET,
 };
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
@@ -33,23 +32,14 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
     pub async fn execute(
         &self,
         block_number: u64,
-    ) -> eyre::Result<(ClientExecutorInput, ChainVariant)> {
-        tracing::info!("fetching chain ID to identify chain variant");
-        let chain_id = self.provider.get_chain_id().await?;
-        let variant = match chain_id {
-            CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
-            CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
-            _ => {
-                eyre::bail!("unknown chain ID: {}", chain_id);
-            }
-        };
-
+        variant: ChainVariant,
+    ) -> eyre::Result<ClientExecutorInput> {
         let client_input = match variant {
             ChainVariant::Ethereum => self.execute_variant::<EthereumVariant>(block_number).await,
             ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
         }?;
 
-        Ok((client_input, variant))
+        Ok(client_input)
     }
 
     async fn execute_variant<V>(&self, block_number: u64) -> eyre::Result<ClientExecutorInput>
