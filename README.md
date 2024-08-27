@@ -22,9 +22,9 @@ and the command `rsp` will be installed.
 
 ### RPC Node Requirement
 
-RSP fetches block and state data from a JSON-RPC node. **But, you must use a RPC node that supports the `debug_dbGet` endpoint.**
+RSP fetches block and state data from a JSON-RPC node. It's recommended that you use a RPC node that supports the `debug_dbGet` endpoint.
 
-This is required because in some cases the host needs to recover the preimage of a [Merkle Patricia Trie](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/) node that's referenced by hash. To do this, the host utilizes the [`debug_dbGet` endpoint](https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugdbget) of a Geth node running with options `--state.scheme=hash`, which is the default, and `--gcmode=archive`. An example command for running the node is:
+This is recommended because in some cases the host needs to recover the preimage of a [Merkle Patricia Trie](https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/) node that's referenced by hash. To do this, the host utilizes the [`debug_dbGet` endpoint](https://geth.ethereum.org/docs/interacting-with-geth/rpc/ns-debug#debugdbget) of a Geth node running with options `--state.scheme=hash`, which is the default, and `--gcmode=archive`. An example command for running the node is:
 
 ```bash
 geth \
@@ -33,7 +33,7 @@ geth \
   --http.api=eth,debug
 ```
 
-When running the host CLI or integration tests, **make sure to use an RPC URL pointing to a Geth node running with said options**, or errors will arise when preimage recovery is needed. You can reach out to the Succinct team to access an RPC URL that supports this endpoint.
+However, in the absence of the `debug_dbGet` method, the host is able to fall back to a less efficient process of recovering the preimages via the standard `eth_getProof`. The fallback works in most cases but not all, so if you encounter a preimage recovery failure, you can reach out to the Succinct team to access an RPC URL that supports `debug_dbGet`.
 
 > [!TIP]
 >

@@ -4,7 +4,7 @@ use reth_primitives::{
 };
 use reth_storage_errors::provider::ProviderError;
 use revm_primitives::{Address, HashMap, U256};
-use rsp_primitives::storage::ExtDatabaseRef;
+use rsp_primitives::storage::{ExtDatabaseRef, PreimageContext};
 use serde::{Deserialize, Serialize};
 
 /// A database used to witness state inside the zkVM.
@@ -48,5 +48,13 @@ impl ExtDatabaseRef for WitnessDb {
     fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
         // TODO: avoid cloning
         Ok(self.trie_nodes.get(&hash).unwrap().to_owned())
+    }
+
+    fn trie_node_ref_with_context(
+        &self,
+        hash: B256,
+        _context: PreimageContext,
+    ) -> Result<Bytes, Self::Error> {
+        self.trie_node_ref(hash)
     }
 }

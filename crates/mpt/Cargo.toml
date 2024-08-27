@@ -34,3 +34,9 @@ alloy-rpc-types.workspace = true
 alloy-trie.workspace = true
 hex-literal.workspace = true
 tracing-subscriber = "0.3.18"
+
+rsp-mpt = { path = ".", features = ["preimage_context"] }
+
+[features]
+default = []
+preimage_context = []
