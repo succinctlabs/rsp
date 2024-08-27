@@ -179,7 +179,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
 
         // Create the client input.
         let client_input = ClientExecutorInput {
-            previous_block,
+            previous_block: previous_block.header,
             current_block,
             dirty_storage_proofs,
             used_storage_proofs: rpc_db.fetch_used_accounts_and_proofs().await,
