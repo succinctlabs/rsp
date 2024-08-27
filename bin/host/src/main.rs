@@ -1,4 +1,4 @@
-use alloy_provider::{network::AnyNetwork, Provider, ReqwestProvider};
+use alloy_provider::ReqwestProvider;
 use clap::Parser;
 use reth_primitives::B256;
 use rsp_client_executor::{
@@ -10,10 +10,12 @@ use std::path::PathBuf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
-use url::Url;
 
 mod execute;
 use execute::process_execution_report;
+
+mod cli;
+use cli::ProviderArgs;
 
 /// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
@@ -21,13 +23,8 @@ struct HostArgs {
     /// The block number of the block to execute.
     #[clap(long)]
     block_number: u64,
-    /// The rpc url used to fetch data about the block. If not provided, will use the
-    /// RPC_{chain_id} env var.
-    #[clap(long)]
-    rpc_url: Option<Url>,
-    /// The chain ID. If not provided, requires the rpc_url argument to be provided.
-    #[clap(long)]
-    chain_id: Option<u64>,
+    #[clap(flatten)]
+    provider: ProviderArgs,
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
     prove: bool,
@@ -54,62 +51,23 @@ async fn main() -> eyre::Result<()> {
 
     // Parse the command line arguments.
     let args = HostArgs::parse();
+    let provider_config = args.provider.into_provider().await?;
 
-    // We don't need RPC when using cache with known chain ID, so we leave it as `Option<Url>` here
-    // and decide on whether to panic later.
-    //
-    // On the other hand chain ID is always needed.
-    let (rpc_url, chain_id) = match (args.rpc_url, args.chain_id) {
-        (Some(rpc_url), Some(chain_id)) => (Some(rpc_url), chain_id),
-        (None, Some(chain_id)) => {
-            match std::env::var(format!("RPC_{}", chain_id)) {
-                Ok(rpc_env_var) => {
-                    // We don't always need it but if the value exists it has to be valid.
-                    (Some(Url::parse(rpc_env_var.as_str()).expect("invalid rpc url")), chain_id)
-                }
-                Err(_) => {
-                    // Not having RPC is okay because we know chain ID.
-                    (None, chain_id)
-                }
-            }
-        }
-        (Some(rpc_url), None) => {
-            // We can find out about chain ID from RPC.
-            let provider: ReqwestProvider<AnyNetwork> = ReqwestProvider::new_http(rpc_url.clone());
-            let chain_id = provider.get_chain_id().await?;
-
-            (Some(rpc_url), chain_id)
-        }
-        (None, None) => {
-            eyre::bail!("either --rpc-url or --chain-id must be used")
-        }
-    };
-
-    let variant = match chain_id {
+    let variant = match provider_config.chain_id {
         CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         _ => {
-            eyre::bail!("unknown chain ID: {}", chain_id);
+            eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
     };
 
-    let client_input_from_cache = if let Some(cache_dir) = args.cache_dir.as_ref() {
-        let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, args.block_number));
+    let client_input_from_cache = try_load_input_from_cache(
+        args.cache_dir.as_ref(),
+        provider_config.chain_id,
+        args.block_number,
+    )?;
 
-        if cache_path.exists() {
-            // TODO: prune the cache if invalid instead
-            let mut cache_file = std::fs::File::open(cache_path)?;
-            let client_input: ClientExecutorInput = bincode::deserialize_from(&mut cache_file)?;
-
-            Some(client_input)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    let client_input = match (client_input_from_cache, rpc_url) {
+    let client_input = match (client_input_from_cache, provider_config.rpc_url) {
         (Some(client_input_from_cache), _) => client_input_from_cache,
         (None, Some(rpc_url)) => {
             // Cache not found but we have RPC
@@ -126,7 +84,7 @@ async fn main() -> eyre::Result<()> {
                 .expect("failed to execute host");
 
             if let Some(cache_dir) = args.cache_dir {
-                let input_folder = cache_dir.join(format!("input/{}", chain_id));
+                let input_folder = cache_dir.join(format!("input/{}", provider_config.chain_id));
                 if !input_folder.exists() {
                     std::fs::create_dir_all(&input_folder)?;
                 }
@@ -183,4 +141,26 @@ async fn main() -> eyre::Result<()> {
     }
 
     Ok(())
+}
+
+fn try_load_input_from_cache(
+    cache_dir: Option<&PathBuf>,
+    chain_id: u64,
+    block_number: u64,
+) -> eyre::Result<Option<ClientExecutorInput>> {
+    Ok(if let Some(cache_dir) = cache_dir {
+        let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, block_number));
+
+        if cache_path.exists() {
+            // TODO: prune the cache if invalid instead
+            let mut cache_file = std::fs::File::open(cache_path)?;
+            let client_input: ClientExecutorInput = bincode::deserialize_from(&mut cache_file)?;
+
+            Some(client_input)
+        } else {
+            None
+        }
+    } else {
+        None
+    })
 }
