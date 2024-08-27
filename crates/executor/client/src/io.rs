@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use eyre::Result;
-use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Bytes, B256, U256};
+use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Bytes, Header, B256, U256};
 use reth_trie::AccountProof;
 use revm_primitives::keccak256;
 use rsp_primitives::account_proof::AccountProofWithBytecode;
@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 pub struct ClientExecutorInput {
     /// The current block (which will be executed inside the client).
     pub current_block: Block,
-    /// The previous block.
-    pub previous_block: Block,
+    /// The previous block header.
+    pub previous_block: Header,
     /// The dirty storage proofs for the storage slots that were modified.
     pub dirty_storage_proofs: Vec<AccountProof>,
     /// The storage proofs for the storage slots that were accessed.
