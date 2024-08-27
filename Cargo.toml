@@ -47,109 +47,81 @@ rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 
 # reth
-# reth-primitives = { path = "../reth/crates/primitives", default-features = false, features = ["alloy-compat", "std"]}
-# reth-codecs = { path = "../reth/crates/storage/codecs", default-features = false }
-# reth-consensus = { path = "../reth/crates/consensus/consensus", default-features = false }
-# reth-evm = { path = "../reth/crates/evm", default-features = false }
-# reth-revm = { path = "../reth/crates/revm", default-features = false, features = ["std"] }
-# reth-node-ethereum = { path = "../reth/crates/ethereum/node", default-features = false }
-# reth-evm-ethereum = { path = "../reth/crates/ethereum/evm", default-features = false, features = ["std"] }
-# reth-storage-errors = { path = "../reth/crates/storage/errors", default-features = false, features = ["std"] }
-# reth-trie = { path = "../reth/crates/trie/trie", default-features = false }
-# reth-trie-common = { path = "../reth/crates/trie/common", default-features = false }
-# reth-chainspec = { path = "../reth/crates/chainspec", default-features = false }
-# reth-execution-errors = { path = "../reth/crates/evm/execution-errors", default-features = false }
-# reth-execution-types = { path = "../reth/crates/evm/execution-types", default-features = false }
-# reth-db = { path = "../reth/crates/storage/db", default-features = false }
-# reth-errors = { path = "../reth/crates/errors", default-features = false }
-# reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus", default-features = false }
-reth-primitives = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-primitives = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "alloy-compat",
     "optimism",
     "std",
 ] }
-reth-codecs = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-evm = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-revm = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-codecs = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-consensus = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-evm = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-revm = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "std",
 ] }
-reth-node-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-evm-ethereum = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-node-ethereum = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "std",
 ] }
-reth-evm-optimism = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-evm-optimism = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "optimism",
 ] }
-reth-storage-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-storage-errors = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "std",
 ] }
-reth-trie = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-trie-common = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-chainspec = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-execution-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-execution-types = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-db = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-errors = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false }
-reth-optimism-consensus = { git = "https://github.com/jtguibas/reth.git", branch = "john/rsp-8e9e6ac", default-features = false, features = [
+reth-trie = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-trie-common = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-chainspec = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-execution-errors = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-execution-types = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-db = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-errors = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false }
+reth-optimism-consensus = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240827", default-features = false, features = [
     "optimism",
 ] }
 
 # revm
-# revm = { path = "../bluealloy-revm/crates/revm", features = [
-#     "std",
-#     "serde",
-# ], default-features = false }
-# revm-primitives = { path = "../bluealloy-revm/crates/primitives", features = [
-#     "std",
-#     "serde",
-# ], default-features = false }
-revm = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
+revm = { version = "12.1.0", features = [
     "optimism",
     "std",
     "serde",
     "kzg-rs",
 ], default-features = false }
-revm-primitives = { git = "https://github.com/0xWOLAND/bluealloy-revm.git", branch = "john/rsp-8e9e6ac", features = [
+revm-primitives = { version = "7.1.0", features = [
     "std",
     "serde",
 ], default-features = false }
-revm-inspectors = "0.1"
+revm-inspectors = "0.5"
 
 # alloy
 alloy-primitives = "0.7.2"
-alloy-provider = { version = "0.1", default-features = false, features = [
+alloy-provider = { version = "0.2", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
 ] }
-alloy-rpc-types = { version = "0.1", default-features = false, features = [
+alloy-rpc-types = { version = "0.2", default-features = false, features = [
     "eth",
 ] }
 alloy-rlp = "0.3.4"
-alloy-consensus = { version = "0.1", default-features = false }
-alloy-transport = { version = "0.1" }
-alloy-transport-http = { version = "0.1", features = [
+alloy-consensus = { version = "0.2", default-features = false }
+alloy-transport = { version = "0.2" }
+alloy-transport-http = { version = "0.2", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
-alloy-eips = { version = "0.1", default-features = false }
+alloy-eips = { version = "0.2", default-features = false }
 
 # Using GitHub until https://github.com/alloy-rs/trie/pull/27 is released
 alloy-trie = { git = "https://github.com/alloy-rs/trie.git", rev = "28ebb7cc70cbef9e894e5b36c99e28412525ac1a" }
 
-[patch.crates-io]
-# alloy-eips = { path = "../alloy/crates/eips" }
-# alloy-serde = { path = "../alloy/crates/serde" }
-alloy-eips = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
-alloy-serde = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
-tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" }
+# v0.1.5 breaks the build
+op-alloy-rpc-types = "=0.1.4"
 
+[patch.crates-io]
 # Using GitHub until https://github.com/alloy-rs/trie/pull/27 is released
 alloy-trie = { git = "https://github.com/alloy-rs/trie.git", rev = "28ebb7cc70cbef9e894e5b36c99e28412525ac1a" }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
-# rust.missing_docs = "warn"
 rust.unreachable_pub = "warn"
 rust.unused_must_use = "deny"
 rust.rust_2018_idioms = { level = "deny", priority = -1 }

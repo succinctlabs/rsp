@@ -14,11 +14,6 @@ rsp-client-executor = { path = "../../crates/executor/client" }
 sp1-zkvm = { git = "https://github.com/succinctlabs/sp1", branch = "experimental" }
 
 [patch.crates-io]
-# alloy-eips = { path = "../alloy/crates/eips" }
-# alloy-serde = { path = "../alloy/crates/serde" }
-alloy-eips = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
-alloy-serde = { git = "https://github.com/jtguibas/alloy.git", branch = "john/rsp-8e9e6ac" }
-
 # Using GitHub until https://github.com/alloy-rs/trie/pull/27 is released
 alloy-trie = { git = "https://github.com/alloy-rs/trie.git", rev = "28ebb7cc70cbef9e894e5b36c99e28412525ac1a" }
 
