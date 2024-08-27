@@ -82,7 +82,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
         // Construct the account info & write it to the log.
         let bytecode = Bytecode::new_raw(code);
         let account_info = AccountInfo {
-            nonce: proof.nonce.as_limbs()[0],
+            nonce: proof.nonce,
             balance: proof.balance,
             code_hash: proof.code_hash,
             code: Some(bytecode.clone()),

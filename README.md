@@ -125,14 +125,14 @@ By default, the `build.rs` in the `bin/host` crate will rebuild the client progr
 
 ```console
 cd ./bin/client-eth
-cargo prove build
+cargo prove build --ignore-rust-version
 ```
 
 To build the Optimism client ELF program:
 
 ```console
 cd ./bin/client-op
-cargo prove build
+cargo prove build --ignore-rust-version
 ```
 
 **Why does the program say "The state root doesn't match"?**

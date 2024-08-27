@@ -7,9 +7,8 @@ use itertools::Either;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{Address, B256};
 use reth_trie::{
-    nodes::{TrieNode, CHILD_INDEX_RANGE},
-    AccountProof, HashBuilder, HashedPostState, HashedStorage, Nibbles, TrieAccount,
-    EMPTY_ROOT_HASH,
+    AccountProof, HashBuilder, HashedPostState, HashedStorage, Nibbles, TrieAccount, TrieNode,
+    CHILD_INDEX_RANGE, EMPTY_ROOT_HASH,
 };
 use revm_primitives::{keccak256, HashMap};
 use rsp_primitives::storage::ExtDatabaseRef;

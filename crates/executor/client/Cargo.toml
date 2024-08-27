@@ -25,7 +25,7 @@ rsp-mpt.workspace = true
 reth-ethereum-consensus.workspace = true
 reth-optimism-consensus.workspace = true
 reth-execution-types.workspace = true
-reth-primitives = { workspace = true, features = ["k256"] }
+reth-primitives.workspace = true
 reth-storage-errors.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true

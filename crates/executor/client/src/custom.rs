@@ -118,7 +118,7 @@ impl CustomEvmConfig {
 impl ConfigureEvm for CustomEvmConfig {
     type DefaultExternalContext<'a> = ();
 
-    fn evm<'a, DB: Database + 'a>(&self, db: DB) -> Evm<'_, Self::DefaultExternalContext<'_>, DB> {
+    fn evm<DB: Database>(&self, db: DB) -> Evm<'_, Self::DefaultExternalContext<'_>, DB> {
         match self.0 {
             ChainVariant::Ethereum => {
                 EvmBuilder::default()
@@ -137,6 +137,8 @@ impl ConfigureEvm for CustomEvmConfig {
             }
         }
     }
+
+    fn default_external_context<'a>(&self) -> Self::DefaultExternalContext<'a> {}
 }
 
 impl ConfigureEvmEnv for CustomEvmConfig {
