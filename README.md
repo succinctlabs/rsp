@@ -4,7 +4,7 @@ A minimal implementation of generating zero-knowledge proofs of EVM block execut
 
 > [!CAUTION]
 >
-> This repository is still an active work-in-progress and is not audited or meant for production usage. In particular, there are some edge cases in Ethereum state root computation due to complications with the Merkle Patricia Trie (MPT) that result in the state root computation being slightly incorrect (we're actively working on fixing this). However, the prover time should still be an accurate estimate of proving costs in practice.
+> This repository is still an active work-in-progress and is not audited or meant for production usage.
 
 ## Getting Started
 
@@ -144,10 +144,6 @@ To build the Optimism client ELF program:
 cd ./bin/client-op
 cargo prove build --ignore-rust-version
 ```
-
-**Why does the program say "The state root doesn't match"?**
-
-As mentioned in the introduction, this repository is still a work in progress and some edge cases in the Ethereum MPT result in the state root computation being slightly incorrect for certain blocks. We're actively working on fixing this, but running these client programs on Ethereum and Optimism blocks still provides a very good estimate of realistic cycle count and proving workloads.
 
 **What are good testing blocks**
 
