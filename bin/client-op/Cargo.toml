@@ -11,7 +11,7 @@ bincode = "1.3.3"
 rsp-client-executor = { path = "../../crates/executor/client" }
 
 # sp1
-sp1-zkvm = { git = "https://github.com/succinctlabs/sp1", branch = "experimental" }
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1", tag = "v1.2.0-rc1" }
 
 [patch.crates-io]
 # Using GitHub until https://github.com/alloy-rs/trie/pull/27 is released
