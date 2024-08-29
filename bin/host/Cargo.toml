@@ -25,10 +25,10 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1", rev = "fb967e8c409b318d18985f8f92353e93d38c7cda" }
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1", tag = "v1.2.0-rc1" }
 
 [build-dependencies]
-sp1-helper = "1.0.1"
+sp1-helper = "1.2.0-rc1"
 
 [features]
 default = []
