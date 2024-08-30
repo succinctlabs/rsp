@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use alloy_provider::Provider;
+use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_transport::Transport;
 use eyre::{eyre, Ok};
 use itertools::Itertools;
@@ -15,14 +15,14 @@ use rsp_rpc_db::RpcDb;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
-pub struct HostExecutor<T: Transport + Clone, P: Provider<T> + Clone> {
+pub struct HostExecutor<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> {
     /// The provider which fetches data.
     pub provider: P,
     /// A phantom type to make the struct generic over the transport.
     pub phantom: PhantomData<T>,
 }
 
-impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P> {
     /// Create a new [`HostExecutor`] with a specific [Provider] and [Transport].
     pub fn new(provider: P) -> Self {
         Self { provider, phantom: PhantomData }
@@ -53,13 +53,13 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> HostExecutor<T, P> {
             .provider
             .get_block_by_number(block_number.into(), true)
             .await?
-            .map(Block::try_from)
+            .map(|block| Block::try_from(block.inner))
             .ok_or(eyre!("couldn't fetch block: {}", block_number))??;
         let previous_block = self
             .provider
             .get_block_by_number((block_number - 1).into(), true)
             .await?
-            .map(Block::try_from)
+            .map(|block| Block::try_from(block.inner))
             .ok_or(eyre!("couldn't fetch block: {}", block_number))??;
 
         // Setup the spec for the block executor.

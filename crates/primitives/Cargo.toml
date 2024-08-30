@@ -18,10 +18,10 @@ reth-primitives.workspace = true
 reth-revm.workspace = true
 reth-trie.workspace = true
 reth-chainspec.workspace = true
+reth-optimism-chainspec.workspace = true
 
 # revm
 revm-primitives.workspace = true
 
 # alloy
 alloy-rpc-types.workspace = true
-op-alloy-rpc-types.workspace = true

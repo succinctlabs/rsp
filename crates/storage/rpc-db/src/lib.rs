@@ -1,6 +1,6 @@
 use std::{cell::RefCell, iter::once, marker::PhantomData};
 
-use alloy_provider::Provider;
+use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_rpc_types::BlockId;
 use alloy_transport::Transport;
 use futures::future::join_all;
@@ -55,7 +55,7 @@ pub enum RpcDbError {
     PreimageNotFound,
 }
 
-impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
     /// Create a new [`RpcDb`].
     pub fn new(provider: P, block: BlockId, state_root: B256) -> Self {
         RpcDb {
@@ -142,7 +142,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
 
         // Record the block hash to the state.
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
-        let hash = block.header.hash.ok_or(RpcDbError::BlockNotFound)?;
+        let hash = block.header.hash;
         self.block_hashes.borrow_mut().insert(number, hash);
 
         Ok(hash)
@@ -316,7 +316,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> RpcDb<T, P> {
     }
 }
 
-impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> DatabaseRef for RpcDb<T, P> {
     type Error = ProviderError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -356,7 +356,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> DatabaseRef for RpcDb<T, P> {
     }
 }
 
-impl<T: Transport + Clone, P: Provider<T> + Clone> ExtDatabaseRef for RpcDb<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> ExtDatabaseRef for RpcDb<T, P> {
     type Error = ProviderError;
 
     fn trie_node_ref(&self, hash: B256) -> Result<Bytes, Self::Error> {
@@ -387,7 +387,7 @@ impl<T: Transport + Clone, P: Provider<T> + Clone> ExtDatabaseRef for RpcDb<T, P
     }
 }
 
-impl<T: Transport + Clone, P: Provider<T>> From<RpcDb<T, P>> for WitnessDb {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork>> From<RpcDb<T, P>> for WitnessDb {
     fn from(value: RpcDb<T, P>) -> Self {
         Self {
             state_root: value.state_root,
