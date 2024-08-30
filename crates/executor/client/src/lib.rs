@@ -6,7 +6,7 @@ pub mod utils;
 
 pub mod custom;
 
-use std::fmt::Display;
+use std::{borrow::BorrowMut, fmt::Display};
 
 use custom::CustomEvmConfig;
 use eyre::eyre;
@@ -19,15 +19,18 @@ use reth_evm_ethereum::execute::EthExecutorProvider;
 use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
-use reth_primitives::{proofs, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
+use reth_primitives::{proofs, Block, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
 use revm::{db::CacheDB, Database};
-use revm_primitives::U256;
+use revm_primitives::{Address, U256};
 
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
 
 /// Chain ID for OP Mainnnet.
 pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
+
+/// Chain ID for Linea Mainnet.
+pub const CHAIN_ID_LINEA_MAINNET: u64 = 0xe708;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
@@ -52,6 +55,10 @@ pub trait Variant {
         receipts: &[Receipt],
         requests: &[Request],
     ) -> eyre::Result<()>;
+
+    fn pre_process_block(block: &Block) -> Block {
+        block.clone()
+    }
 }
 
 /// Implementation for Ethereum-specific execution/validation logic.
@@ -62,6 +69,10 @@ pub struct EthereumVariant;
 #[derive(Debug)]
 pub struct OptimismVariant;
 
+/// Implementation for Linea-specific execution/validation logic.
+#[derive(Debug)]
+pub struct LineaVariant;
+
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChainVariant {
@@ -69,6 +80,8 @@ pub enum ChainVariant {
     Ethereum,
     /// OP stack networks.
     Optimism,
+    /// Linea networks.
+    Linea,
 }
 
 impl ChainVariant {
@@ -77,6 +90,7 @@ impl ChainVariant {
         match self {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
+            ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
         }
     }
 }
@@ -219,5 +233,55 @@ impl Variant for OptimismVariant {
         _requests: &[Request],
     ) -> eyre::Result<()> {
         Ok(validate_block_post_execution_optimism(block, chain_spec, receipts)?)
+    }
+}
+
+impl Variant for LineaVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::linea_mainnet().unwrap()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Linea),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+
+    fn pre_process_block(block: &Block) -> Block {
+        // Linea network uses clique consensus, which is not implemented in reth.
+        // The main difference for the execution part is the block beneficiary:
+        // reth will credit the block reward to the beneficiary address (coinbase)
+        // whereas in clique, the block reward is credited to the signer.
+
+        // We extract the clique beneficiary address from the genesis extra data.
+        // - vanity: 32 bytes
+        // - address: 20 bytes
+        // - seal: 65 bytes
+        // we extract the address from the 32nd to 52nd byte.
+        let addr = Address::from_slice(&Self::spec().genesis().extra_data[32..52]);
+
+        // We hijack the beneficiary address here to match the clique consensus.
+        let mut block = block.clone();
+        block.header.borrow_mut().beneficiary = addr;
+        block
     }
 }
