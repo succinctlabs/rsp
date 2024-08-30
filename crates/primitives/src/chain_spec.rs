@@ -1,4 +1,5 @@
-use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder, OP_MAINNET};
+use reth_chainspec::{Chain, ChainSpec, ChainSpecBuilder};
+use reth_optimism_chainspec::OP_MAINNET;
 
 /// Returns the [ChainSpec] for Ethereum mainnet.
 pub fn mainnet() -> eyre::Result<ChainSpec> {
