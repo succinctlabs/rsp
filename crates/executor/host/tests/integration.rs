@@ -1,7 +1,7 @@
 use alloy_provider::ReqwestProvider;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, ClientExecutor, EthereumVariant, OptimismVariant,
-    Variant,
+    io::ClientExecutorInput, ChainVariant, ClientExecutor, EthereumVariant, LineaVariant,
+    OptimismVariant, Variant,
 };
 use rsp_host_executor::HostExecutor;
 use tracing_subscriber::{
@@ -17,6 +17,11 @@ async fn test_e2e_ethereum() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
     run_e2e::<OptimismVariant>(ChainVariant::Optimism, "RPC_10", 122853660).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_linea() {
+    run_e2e::<LineaVariant>(ChainVariant::Linea, "RPC_59144", 5600000).await;
 }
 
 async fn run_e2e<V>(variant: ChainVariant, env_var_key: &str, block_number: u64)

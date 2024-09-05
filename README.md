@@ -89,6 +89,7 @@ End-to-end integration tests are available. To run these tests, utilize the `.en
 ```bash
 export RPC_1="YOUR_ETHEREUM_MAINNET_RPC_URL"
 export RPC_10="YOUR_OP_MAINNET_RPC_URL"
+export RPC_59144="YOUR_LINEA_MAINNET_RPC_URL"
 ```
 
 Note that these JSON-RPC nodes must fulfill the [RPC node requirement](#rpc-node-requirement).
