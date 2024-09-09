@@ -2629,13 +2629,18 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types",
+ "anyhow",
  "eyre",
  "itertools 0.13.0",
  "reth-execution-types",
  "reth-primitives",
  "reth-trie",
+ "revm",
  "revm-primitives",
+ "rlp",
  "rsp-primitives",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]

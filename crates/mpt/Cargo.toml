@@ -11,7 +11,11 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+anyhow = { workspace = true, features = ["std"] }
 eyre.workspace = true
+rlp.workspace = true
+serde.workspace = true
+thiserror.workspace = true
 itertools = "0.13.0"
 
 # workspace
@@ -23,6 +27,7 @@ reth-trie.workspace = true
 reth-execution-types.workspace = true
 
 # revm
+revm.workspace = true
 revm-primitives.workspace = true
 
 # alloy

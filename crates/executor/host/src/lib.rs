@@ -1,15 +1,15 @@
-use std::marker::PhantomData;
+use std::{collections::BTreeSet, marker::PhantomData};
 
 use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_transport::Transport;
 use eyre::{eyre, Ok};
-use itertools::Itertools;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant, Variant,
 };
+use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
 
@@ -112,27 +112,61 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             vec![executor_output.requests.into()],
         );
 
+        let state_requests = rpc_db.get_state_requests();
+
         // For every account we touched, fetch the storage proofs for all the slots we touched.
-        tracing::info!("fetching modified storage proofs");
-        let mut dirty_storage_proofs = Vec::new();
-        for (address, account) in executor_outcome.bundle_accounts_iter() {
-            let mut storage_keys = Vec::new();
-            for key in account.storage.keys().sorted() {
-                let slot = B256::new(key.to_be_bytes());
-                storage_keys.push(slot);
-            }
+        tracing::info!("fetching storage proofs");
+        let mut before_storage_proofs = Vec::new();
+        let mut after_storage_proofs = Vec::new();
+
+        for (address, used_keys) in state_requests.iter() {
+            let modified_keys = executor_outcome
+                .state()
+                .state
+                .get(address)
+                .map(|account| {
+                    account.storage.keys().map(|key| B256::from(*key)).collect::<BTreeSet<_>>()
+                })
+                .unwrap_or_default()
+                .into_iter()
+                .collect::<Vec<_>>();
+
+            let keys = used_keys
+                .iter()
+                .map(|key| B256::from(*key))
+                .chain(modified_keys.clone().into_iter())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>();
+
             let storage_proof = self
                 .provider
-                .get_proof(address, storage_keys)
+                .get_proof(*address, keys.clone())
                 .block_id((block_number - 1).into())
                 .await?;
-            dirty_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
+            before_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
+
+            let storage_proof = self
+                .provider
+                .get_proof(*address, modified_keys)
+                .block_id((block_number).into())
+                .await?;
+            after_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
         }
+
+        let state = EthereumState::from_proofs(
+            previous_block.state_root,
+            &before_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
+            &after_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
+        )?;
 
         // Verify the state root.
         tracing::info!("verifying the state root");
-        let state_root =
-            rsp_mpt::compute_state_root(&executor_outcome, &dirty_storage_proofs, &rpc_db)?;
+        let state_root = {
+            let mut mutated_state = state.clone();
+            mutated_state.update(&executor_outcome.hash_state_slow());
+            mutated_state.state_root()
+        };
         if state_root != current_block.state_root {
             eyre::bail!("mismatched state root");
         }
@@ -167,12 +201,12 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Create the client input.
         let client_input = ClientExecutorInput {
-            previous_block: previous_block.header,
             current_block: V::pre_process_block(&current_block),
-            dirty_storage_proofs,
-            used_storage_proofs: rpc_db.fetch_used_accounts_and_proofs().await,
+            previous_block: previous_block.header,
+            parent_state: state,
+            state_requests,
+            bytecodes: rpc_db.get_bytecodes(),
             block_hashes: rpc_db.block_hashes.borrow().clone(),
-            trie_nodes: rpc_db.trie_nodes.borrow().values().cloned().collect(),
         };
         Ok(client_input)
     }
