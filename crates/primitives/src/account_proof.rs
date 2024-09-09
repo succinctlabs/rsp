@@ -1,36 +1,6 @@
 use alloy_rpc_types::EIP1186AccountProofResponse;
-use reth_primitives::{revm_primitives::Bytecode, Account, B256};
+use reth_primitives::Account;
 use reth_trie::{AccountProof, StorageProof, EMPTY_ROOT_HASH};
-use revm_primitives::keccak256;
-use serde::{Deserialize, Serialize};
-
-/// The account proof with the bytecode.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AccountProofWithBytecode {
-    /// The account proof.
-    pub proof: AccountProof,
-    /// The bytecode of the account.
-    pub code: Bytecode,
-}
-
-impl AccountProofWithBytecode {
-    pub fn from_eip1186_proof(proof: EIP1186AccountProofResponse, bytecode: Bytecode) -> Self {
-        Self { proof: eip1186_proof_to_account_proof(proof), code: bytecode }
-    }
-
-    /// Verifies the account proof against the provided state root.
-    pub fn verify(&self, state_root: B256) -> eyre::Result<()> {
-        self.proof
-            .verify(state_root)
-            .map_err(|err| eyre::eyre!("Account proof verification failed: {err}"))?;
-        if let Some(info) = &self.proof.info {
-            if info.bytecode_hash.unwrap() != keccak256(self.code.bytes()) {
-                return Err(eyre::eyre!("Code hash does not match the code"));
-            }
-        }
-        Ok(())
-    }
-}
 
 /// Converts an [EIP1186AccountProofResponse] to an [AccountProof].
 pub fn eip1186_proof_to_account_proof(proof: EIP1186AccountProofResponse) -> AccountProof {

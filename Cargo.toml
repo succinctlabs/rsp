@@ -38,6 +38,7 @@ url = "2.3"
 thiserror = "1.0.61"
 hex-literal = "0.4.1"
 rayon = "1.10.0"
+rlp = "0.5.2"
 
 # workspace
 rsp-rpc-db = { path = "./crates/storage/rpc-db" }
