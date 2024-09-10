@@ -21,7 +21,9 @@ impl DatabaseRef for WitnessDb {
     type Error = ProviderError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        Ok(self.accounts.get(&address).cloned())
+        // Even absent accounts are loaded as `None`, so if an entry is missing from `HashMap` we
+        // need to panic. Otherwise it would be interpreted by `revm` as an uninitialized account.
+        Ok(Some(self.accounts.get(&address).cloned().unwrap()))
     }
 
     fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
@@ -29,6 +31,8 @@ impl DatabaseRef for WitnessDb {
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+        // Absence of storage trie or slot must be treated as an error here. Otherwise it's possible
+        // to trick `revm` into believing a slot is `0` when it's not.
         Ok(*self.storage.get(&address).unwrap().get(&index).unwrap())
     }
 
