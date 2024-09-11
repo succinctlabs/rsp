@@ -14,7 +14,6 @@ use reth_primitives::{
 use reth_revm::DatabaseRef;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::HashMap;
-use rsp_witness_db::WitnessDb;
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]
@@ -23,14 +22,12 @@ pub struct RpcDb<T, P> {
     pub provider: P,
     /// The block to fetch data from.
     pub block: BlockId,
-    /// The state root of the block.
-    pub state_root: B256,
     /// The cached accounts.
     pub accounts: RefCell<HashMap<Address, AccountInfo>>,
     /// The cached storage values.
     pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
-    /// The cached block hashes.
-    pub block_hashes: RefCell<HashMap<u64, B256>>,
+    /// The oldest block whose header/hash has been requested.
+    pub oldest_ancestor: RefCell<u64>,
     /// A phantom type to make the struct generic over the transport.
     pub _phantom: PhantomData<T>,
 }
@@ -48,14 +45,13 @@ pub enum RpcDbError {
 
 impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
     /// Create a new [`RpcDb`].
-    pub fn new(provider: P, block: BlockId, state_root: B256) -> Self {
+    pub fn new(provider: P, block: u64) -> Self {
         RpcDb {
             provider,
-            block,
-            state_root,
+            block: block.into(),
             accounts: RefCell::new(HashMap::new()),
             storage: RefCell::new(HashMap::new()),
-            block_hashes: RefCell::new(HashMap::new()),
+            oldest_ancestor: RefCell::new(block),
             _phantom: PhantomData,
         }
     }
@@ -133,7 +129,9 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
         // Record the block hash to the state.
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
         let hash = block.header.hash;
-        self.block_hashes.borrow_mut().insert(number, hash);
+
+        let mut oldest_ancestor = self.oldest_ancestor.borrow_mut();
+        *oldest_ancestor = number.min(*oldest_ancestor);
 
         Ok(hash)
     }
@@ -208,15 +206,5 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> DatabaseRef for R
         let value =
             result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
         Ok(value)
-    }
-}
-
-impl<T: Transport + Clone, P: Provider<T, AnyNetwork>> From<RpcDb<T, P>> for WitnessDb {
-    fn from(value: RpcDb<T, P>) -> Self {
-        Self {
-            accounts: value.accounts.borrow().clone(),
-            storage: value.storage.borrow().clone(),
-            block_hashes: value.block_hashes.borrow().clone(),
-        }
     }
 }

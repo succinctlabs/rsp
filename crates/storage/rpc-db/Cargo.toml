@@ -15,7 +15,6 @@ tracing.workspace = true
 rayon.workspace = true
 
 # workspace
-rsp-witness-db.workspace = true
 rsp-primitives.workspace = true
 
 # reth
