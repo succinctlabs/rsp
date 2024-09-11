@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::once};
 
 use eyre::Result;
+use itertools::Itertools;
 use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Header, B256, U256};
 use reth_trie::TrieAccount;
 use revm_primitives::{keccak256, Bytecode};
@@ -17,26 +18,30 @@ use serde::{Deserialize, Serialize};
 pub struct ClientExecutorInput {
     /// The current block (which will be executed inside the client).
     pub current_block: Block,
-    /// The previous block header.
-    pub previous_block: Header,
+    /// The previous block headers starting from the most recent. There must be at least one header
+    /// to provide the parent state root.
+    pub ancestor_headers: Vec<Header>,
     /// Network state as of the parent block.
     pub parent_state: EthereumState,
     /// Requests to account state and storage slots.
     pub state_requests: HashMap<Address, Vec<U256>>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
-    /// The block hashes.
-    pub block_hashes: HashMap<u64, B256>,
 }
 
 impl ClientExecutorInput {
+    /// Gets the immediate parent block's header.
+    pub fn parent_header(&self) -> &Header {
+        &self.ancestor_headers[0]
+    }
+
     /// Creates a [WitnessDb] from a [ClientExecutorInput]. To do so, it verifies the used storage
     /// proofs and constructs the account and storage values.
     ///
     /// Note: This mutates the input and takes ownership of used storage proofs and block hashes
     /// to avoid unnecessary cloning.
     pub fn witness_db(&mut self) -> Result<WitnessDb> {
-        let state_root: B256 = self.previous_block.state_root;
+        let state_root: B256 = self.parent_header().state_root;
         if state_root != self.parent_state.state_root() {
             eyre::bail!("parent state root mismatch");
         }
@@ -93,6 +98,22 @@ impl ClientExecutorInput {
             }
         }
 
-        Ok(WitnessDb { accounts, storage, block_hashes: std::mem::take(&mut self.block_hashes) })
+        // Verify and build block hashes
+        let mut block_hashes: HashMap<u64, B256> = HashMap::new();
+        for (child_header, parent_header) in
+            once(&self.current_block.header).chain(self.ancestor_headers.iter()).tuple_windows()
+        {
+            if parent_header.number != child_header.number - 1 {
+                eyre::bail!("non-consecutive blocks");
+            }
+
+            if parent_header.hash_slow() != child_header.parent_hash {
+                eyre::bail!("parent hash mismatch");
+            }
+
+            block_hashes.insert(parent_header.number, child_header.parent_hash);
+        }
+
+        Ok(WitnessDb { accounts, storage, block_hashes })
     }
 }

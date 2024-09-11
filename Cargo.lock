@@ -5421,7 +5421,6 @@ dependencies = [
  "reth-trie",
  "revm-primitives",
  "rsp-primitives",
- "rsp-witness-db",
  "thiserror",
  "tokio",
  "tracing",

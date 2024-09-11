@@ -68,11 +68,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
-        let rpc_db = RpcDb::new(
-            self.provider.clone(),
-            (block_number - 1).into(),
-            previous_block.header.state_root,
-        );
+        let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
         let cache_db = CacheDB::new(&rpc_db);
 
         // Execute the block and fetch all the necessary data along the way.
@@ -199,15 +195,25 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             state_root
         );
 
+        // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
+        let oldest_ancestor = *rpc_db.oldest_ancestor.borrow();
+        let mut ancestor_headers = vec![];
+        tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
+        for height in (oldest_ancestor..=(block_number - 1)).rev() {
+            let block = self.provider.get_block_by_number(height.into(), false).await?.unwrap();
+            ancestor_headers.push(block.inner.header.try_into()?);
+        }
+
         // Create the client input.
         let client_input = ClientExecutorInput {
             current_block: V::pre_process_block(&current_block),
-            previous_block: previous_block.header,
+            ancestor_headers,
             parent_state: state,
             state_requests,
             bytecodes: rpc_db.get_bytecodes(),
-            block_hashes: rpc_db.block_hashes.borrow().clone(),
         };
+        tracing::info!("successfully generated client input");
+
         Ok(client_input)
     }
 }

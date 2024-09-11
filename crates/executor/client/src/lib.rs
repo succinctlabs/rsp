@@ -158,7 +158,7 @@ impl ClientExecutor {
         //
         // Note: the receipts root and gas used are verified by `validate_block_post_execution`.
         let mut header = input.current_block.header.clone();
-        header.parent_hash = input.previous_block.hash_slow();
+        header.parent_hash = input.parent_header().hash_slow();
         header.ommers_hash = proofs::calculate_ommers_root(&input.current_block.ommers);
         header.state_root = input.current_block.state_root;
         header.transactions_root = proofs::calculate_transaction_root(&input.current_block.body);
