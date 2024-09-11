@@ -35,12 +35,10 @@ impl ClientExecutorInput {
         &self.ancestor_headers[0]
     }
 
-    /// Creates a [WitnessDb] from a [ClientExecutorInput]. To do so, it verifies the used storage
-    /// proofs and constructs the account and storage values.
-    ///
-    /// Note: This mutates the input and takes ownership of used storage proofs and block hashes
-    /// to avoid unnecessary cloning.
-    pub fn witness_db(&mut self) -> Result<WitnessDb> {
+    /// Creates a [WitnessDb] from a [ClientExecutorInput]. To do so, it verifies the state root,
+    /// ancestor headers and account bytecodes, and constructs the account and storage values by
+    /// reading against state tries.
+    pub fn witness_db(&self) -> Result<WitnessDb> {
         let state_root: B256 = self.parent_header().state_root;
         if state_root != self.parent_state.state_root() {
             eyre::bail!("parent state root mismatch");
@@ -51,8 +49,7 @@ impl ClientExecutorInput {
 
         let mut accounts = HashMap::new();
         let mut storage = HashMap::new();
-        let state_requests = std::mem::take(&mut self.state_requests);
-        for (address, slots) in state_requests {
+        for (&address, slots) in self.state_requests.iter() {
             let hashed_address = keccak256(address);
             let hashed_address = hashed_address.as_slice();
 
@@ -87,7 +84,7 @@ impl ClientExecutorInput {
                     .get(hashed_address)
                     .ok_or_else(|| eyre::eyre!("parent state does not contain storage trie"))?;
 
-                for slot in slots {
+                for &slot in slots {
                     let slot_value = storage_trie
                         .get_rlp::<U256>(keccak256(slot.to_be_bytes::<32>()).as_slice())?
                         .unwrap_or_default();
