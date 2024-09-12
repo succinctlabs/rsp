@@ -1,5 +1,3 @@
-#![feature(stmt_expr_attributes)]
-
 pub mod io;
 #[macro_use]
 pub mod utils;
