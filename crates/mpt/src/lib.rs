@@ -4,7 +4,7 @@ use revm::primitives::{Address, HashMap, B256};
 use serde::{Deserialize, Serialize};
 
 /// Module containing MPT code adapted from `zeth`.
-mod mpt;
+pub mod mpt;
 use mpt::{proofs_to_tries, MptNode};
 
 /// Ethereum state trie and account storage tries.
