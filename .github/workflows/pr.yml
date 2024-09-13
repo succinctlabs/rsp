@@ -26,6 +26,7 @@ jobs:
           (cd ./bin/client-eth && cargo tree)
           (cd ./bin/client-op && cargo tree)
           (cd ./bin/client-linea && cargo tree)
+          (cd ./bin/client-immutable && cargo tree)
 
       - name: "Assert no changes"
         run: |

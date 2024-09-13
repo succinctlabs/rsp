@@ -114,3 +114,39 @@ pub fn linea_mainnet() -> ChainSpec {
         ..Default::default()
     }
 }
+
+/// Returns the [ChainSpec] for Immutable zkEVM.
+pub fn immutable_mainnet() -> ChainSpec {
+    // TODO PETER TODO: Review this
+    // NOTE: Immutable has London activated; but setting Paris tricks reth into disabling
+    //       block rewards, which we need for Immutable (clique consensus) to work.
+    ChainSpec {
+        chain: Chain::immutable(),
+        // We don't need the genesis state. Using default to save cycles.
+        genesis: Default::default(),
+        paris_block_and_final_difficulty: Some((0, U256::ZERO)),
+        // For some reasons a state root mismatch error arises if we don't force activate everything
+        // before and including Shanghai.
+        hardforks: ChainHardforks::new(vec![
+            (EthereumHardfork::Frontier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Homestead.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Dao.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Tangerine.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::SpuriousDragon.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Byzantium.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Constantinople.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Petersburg.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Istanbul.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::MuirGlacier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Berlin.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::London.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::ArrowGlacier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::GrayGlacier.boxed(), ForkCondition::Block(0)),
+            (
+                EthereumHardfork::Paris.boxed(),
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
+            ),
+        ]),
+        ..Default::default()
+    }
+}
