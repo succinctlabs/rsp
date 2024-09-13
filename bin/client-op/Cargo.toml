@@ -17,9 +17,16 @@ sp1-zkvm = "1.2.0"
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
 tracing = { version = "0.1", features = ["max_level_off", "release_max_level_off"] }
 
+# For enabling the `sha3-keccak` feature
+alloy-primitives = { version = "0.8.3", features = ["sha3-keccak"] }
+
 [patch.crates-io]
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", branch = "patch-v0.10.8", package = "sha2" }
 ecdsa-core = { git = "https://github.com/sp1-patches/signatures", package = "ecdsa", branch = "patch-ecdsa-v0.16.9" }
 tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", branch = "patch-v2.0.2" }
 bn = { package = "substrate-bn", git = "https://github.com/sp1-patches/bn", branch = "patch-v0.6.0" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", branch = "patch-sha3-v0.10.8" }
+
+# Using the fork until https://github.com/alloy-rs/core/pull/737 is merged and released
+alloy-primitives = { git = "https://github.com/xJonathanLEI/alloy-core", rev = "9b4e1acf2a1cb8a54fc380577dfbdb1cb06615e9" }

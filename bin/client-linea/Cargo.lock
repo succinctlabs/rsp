@@ -183,15 +183,14 @@ dependencies = [
 
 [[package]]
 name = "alloy-primitives"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a767e59c86900dd7c3ce3ecef04f3ace5ac9631ee150beb8b7d22f7fa3bbb2d7"
+version = "0.8.3"
+source = "git+https://github.com/xJonathanLEI/alloy-core?rev=9b4e1acf2a1cb8a54fc380577dfbdb1cb06615e9#9b4e1acf2a1cb8a54fc380577dfbdb1cb06615e9"
 dependencies = [
  "alloy-rlp",
  "bytes",
  "cfg-if",
  "const-hex",
- "derive_more 0.99.18",
+ "derive_more 1.0.0",
  "getrandom",
  "hex-literal",
  "itoa",
@@ -201,6 +200,7 @@ dependencies = [
  "rand",
  "ruint",
  "serde",
+ "sha3",
  "tiny-keccak",
 ]
 
@@ -756,12 +756,6 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "convert_case"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
-
-[[package]]
-name = "convert_case"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
@@ -924,10 +918,8 @@ version = "0.99.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f33878137e4dafd7fa914ad4e259e18a4e8e532b9617a2d0150262bf53abfce"
 dependencies = [
- "convert_case 0.4.0",
  "proc-macro2",
  "quote",
- "rustc_version 0.4.0",
  "syn 2.0.72",
 ]
 
@@ -946,7 +938,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
- "convert_case 0.6.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "syn 2.0.72",
@@ -2092,7 +2084,7 @@ name = "reth-codecs-derive"
 version = "1.0.6"
 source = "git+https://github.com/sp1-patches/reth?tag=rsp-20240830#260c7ed2c9374182a43a3602aaa953d37aa9217b"
 dependencies = [
- "convert_case 0.6.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "syn 2.0.72",
@@ -2615,6 +2607,7 @@ dependencies = [
 name = "rsp-client-linea"
 version = "0.0.0"
 dependencies = [
+ "alloy-primitives",
  "bincode",
  "log",
  "rsp-client-executor",
@@ -2930,8 +2923,7 @@ dependencies = [
 [[package]]
 name = "sha3"
 version = "0.10.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
+source = "git+https://github.com/sp1-patches/RustCrypto-hashes?branch=patch-sha3-v0.10.8#8f6d303c0861ba7e5adcc36207c0f41fe5edaabc"
 dependencies = [
  "digest 0.10.7",
  "keccak",
@@ -3002,7 +2994,7 @@ dependencies = [
 [[package]]
 name = "sp1-lib"
 version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1?branch=dev#26fd15e457e239c379d324f156d423811421eece"
+source = "git+https://github.com/succinctlabs/sp1?branch=dev#6f67afd957bb7e3741c69651fc5d879d5edaf280"
 dependencies = [
  "anyhow",
  "bincode",
