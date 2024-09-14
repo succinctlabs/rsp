@@ -52,7 +52,8 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
         let origin_current_block = self
             .provider
             .get_block_by_number(block_number.into(), true)
-            .await?.wrap_err(eyre!("couldn't fetch block: {}", block_number))?;
+            .await?
+            .ok_or_else(|| eyre!("couldn't fetch block: {}", block_number))?;
 
         let current_block = Block::try_from(origin_current_block.clone().inner)?;
 
@@ -187,7 +188,6 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Assert the derived header is correct.
         assert_eq!(header.hash_slow(), origin_current_block.inner.header.hash, "header mismatch");
-        
         // Log the result.
         tracing::info!(
             "successfully executed block: block_number={}, block_hash={}, state_root={}",
