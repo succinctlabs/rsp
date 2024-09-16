@@ -343,7 +343,7 @@ impl Variant for ImmutableVariant {
         // - seal: 65 bytes
         // we extract the address from the 32nd to 52nd byte.
         // TODO PETER TODO the code below is a copy from the Linea code and is probably wrong.
-        let addr = address!("8f81e2e3f8b46467523463835f965ffe476e1c9e");
+        let addr = address!("48a999207837F3Ae1a036Dd6cF5c99225d70d13F");
 
         // We hijack the beneficiary address here to match the clique consensus.
         let mut block = block.clone();
