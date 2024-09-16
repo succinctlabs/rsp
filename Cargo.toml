@@ -120,8 +120,3 @@ rust.unreachable_pub = "warn"
 rust.unused_must_use = "deny"
 rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
-
-# Remove this once PR has been merged.
-[patch.crates-io]
-alloy-chains = { git = "https://github.com/drinkcoffee/chains", branch = "add-immutable" }
-#alloy-chains = { path = "../chains" }
