@@ -1,8 +1,7 @@
-#![feature(stmt_expr_attributes)]
-
+/// Client program input data types.
 pub mod io;
 #[macro_use]
-pub mod utils;
+mod utils;
 
 pub mod custom;
 

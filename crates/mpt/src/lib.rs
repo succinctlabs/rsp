@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
-use mpt::{proofs_to_tries, MptNode};
+use mpt::{proofs_to_tries, transition_proofs_to_tries, MptNode};
 
 /// Ethereum state trie and account storage tries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,12 +16,18 @@ pub struct EthereumState {
 
 impl EthereumState {
     /// Builds Ethereum state tries from relevant proofs before and after a state transition.
-    pub fn from_proofs(
+    pub fn from_transition_proofs(
         state_root: B256,
         parent_proofs: &HashMap<Address, AccountProof>,
         proofs: &HashMap<Address, AccountProof>,
     ) -> Result<Self> {
-        proofs_to_tries(state_root, parent_proofs, proofs).map_err(|err| eyre::eyre!("{}", err))
+        transition_proofs_to_tries(state_root, parent_proofs, proofs)
+            .map_err(|err| eyre::eyre!("{}", err))
+    }
+
+    /// Builds Ethereum state tries from relevant proofs from a given state.
+    pub fn from_proofs(state_root: B256, proofs: &HashMap<Address, AccountProof>) -> Result<Self> {
+        proofs_to_tries(state_root, proofs).map_err(|err| eyre::eyre!("{}", err))
     }
 
     /// Mutates state based on diffs provided in [`HashedPostState`].

@@ -1,6 +1,6 @@
 # Reth Succinct Processor (RSP)
 
-A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports both Ethereum and OP Stack.
+A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports Ethereum, OP Stack, Linea, and Immutable zkEVM.
 
 > [!CAUTION]
 >
@@ -32,7 +32,7 @@ In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:
+The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
@@ -81,6 +81,7 @@ End-to-end integration tests are available. To run these tests, utilize the `.en
 export RPC_1="YOUR_ETHEREUM_MAINNET_RPC_URL"
 export RPC_10="YOUR_OP_MAINNET_RPC_URL"
 export RPC_59144="YOUR_LINEA_MAINNET_RPC_URL"
+export RPC_13371="YOUR_IMMUTABLE_MAINENT_RPC_URL"
 ```
 
 Note that these JSON-RPC nodes must fulfill the [RPC node requirement](#rpc-node-requirement).
@@ -123,7 +124,7 @@ cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain
 
 **Building the client programs manually**
 
-By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
+By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (make sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
 
 ```console
 cd ./bin/client-eth
@@ -140,3 +141,13 @@ cargo prove build --ignore-rust-version
 **What are good testing blocks**
 
 A good small block to test on for Ethereum mainnet is: `20526624`.
+
+**Immutable zkEVM RPC
+
+Use `rpc.immutable.com` for the RPC end point to use with Immutable zkEVM. Hence use the command line:
+
+```
+cargo run --bin rsp --release -- --rpc-url https://rpc.immutable.com --block-number 12129402
+```
+
+
