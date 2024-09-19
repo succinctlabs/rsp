@@ -184,7 +184,7 @@ dependencies = [
 [[package]]
 name = "alloy-primitives"
 version = "0.8.3"
-source = "git+https://github.com/xJonathanLEI/alloy-core?rev=9b4e1acf2a1cb8a54fc380577dfbdb1cb06615e9#9b4e1acf2a1cb8a54fc380577dfbdb1cb06615e9"
+source = "git+https://github.com/alloy-rs/core?rev=9867b55a032a355b2ffc326bff7f0d579ed42fc7#9867b55a032a355b2ffc326bff7f0d579ed42fc7"
 dependencies = [
  "alloy-rlp",
  "bytes",
@@ -991,7 +991,7 @@ dependencies = [
  "hex-literal",
  "rfc6979",
  "signature",
- "sp1-lib 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp1-lib 1.2.0",
  "spki",
 ]
 
@@ -2993,8 +2993,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-lib"
-version = "1.2.0"
-source = "git+https://github.com/succinctlabs/sp1?branch=dev#6f67afd957bb7e3741c69651fc5d879d5edaf280"
+version = "2.0.0"
+source = "git+https://github.com/succinctlabs/sp1?branch=dev#23c97e9e088b7eb3d5533a413c9ad416d80ba0c3"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3019,7 +3019,7 @@ dependencies = [
  "rand",
  "serde",
  "sha2",
- "sp1-lib 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp1-lib 1.2.0",
 ]
 
 [[package]]
@@ -3033,7 +3033,7 @@ dependencies = [
  "group",
  "pairing",
  "rand_core",
- "sp1-lib 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sp1-lib 1.2.0",
  "subtle",
 ]
 
@@ -3099,7 +3099,7 @@ dependencies = [
  "lazy_static",
  "rand",
  "rustc-hex",
- "sp1-lib 1.2.0 (git+https://github.com/succinctlabs/sp1?branch=dev)",
+ "sp1-lib 2.0.0",
 ]
 
 [[package]]
