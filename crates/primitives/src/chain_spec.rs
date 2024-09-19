@@ -117,7 +117,6 @@ pub fn linea_mainnet() -> ChainSpec {
 
 /// Returns the [ChainSpec] for Immutable zkEVM.
 pub fn immutable_mainnet() -> ChainSpec {
-    // TODO PETER TODO: Review this
     // NOTE: Immutable has London activated; but setting Paris tricks reth into disabling
     //       block rewards, which we need for Immutable (clique consensus) to work.
     ChainSpec {
@@ -147,7 +146,7 @@ pub fn immutable_mainnet() -> ChainSpec {
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
             ),
             (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(0)),
-            //(EthereumHardfork::Cancun.boxed(), ForkCondition::Timestamp(1710338135)),
+            (EthereumHardfork::Cancun.boxed(), ForkCondition::Timestamp(1728338400)),
         ]),
         ..Default::default()
     }
