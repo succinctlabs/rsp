@@ -332,17 +332,11 @@ impl Variant for ImmutableVariant {
 
     fn pre_process_block(block: &Block) -> Block {
         // Immutable zkEVM uses a modified clique consensus, which is not implemented in reth.
-        // The main difference is 
-        // TODO PETER TODO  for the execution part is the block beneficiary:
+        // The main difference is  for the execution part is the block beneficiary:
         // reth will credit the block reward to the beneficiary address (coinbase)
         // whereas in clique, the block reward is credited to the signer.
 
-        // We extract the clique beneficiary address from the genesis extra data.
-        // - vanity: 32 bytes
-        // - address: 20 bytes
-        // - seal: 65 bytes
-        // we extract the address from the 32nd to 52nd byte.
-        // TODO PETER TODO the code below is a copy from the Linea code and is probably wrong.
+        // The clique beneficiary address is hardcoded as:
         let addr = address!("48a999207837F3Ae1a036Dd6cF5c99225d70d13F");
 
         // We hijack the beneficiary address here to match the clique consensus.
