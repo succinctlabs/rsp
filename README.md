@@ -142,7 +142,7 @@ cargo prove build --ignore-rust-version
 
 A good small block to test on for Ethereum mainnet is: `20526624`.
 
-**Immutable zkEVM RPC
+**Immutable zkEVM and Immutable zkEVM testnet RPC
 
 Use `rpc.immutable.com` for the RPC end point to use with Immutable zkEVM. Hence use the command line:
 
@@ -150,4 +150,9 @@ Use `rpc.immutable.com` for the RPC end point to use with Immutable zkEVM. Hence
 cargo run --bin rsp --release -- --rpc-url https://rpc.immutable.com --block-number 12129402
 ```
 
+Use `rpc.testnet.immutable.com` for the RPC end point to use with Immutable zkEVM. Hence use the command line:
+
+```
+cargo run --bin rsp --release -- --rpc-url https://rpc.testnet.immutable.com --block-number 5
+```
 

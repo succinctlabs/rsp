@@ -27,6 +27,7 @@ jobs:
           (cd ./bin/client-op && cargo tree)
           (cd ./bin/client-linea && cargo tree)
           (cd ./bin/client-immutable && cargo tree)
+          (cd ./bin/client-immutable-testnet && cargo tree)
 
       - name: "Assert no changes"
         run: |
@@ -110,6 +111,7 @@ jobs:
           echo "RPC_10=http://localhost:9545/main/evm/10" >> $GITHUB_ENV
           echo "RPC_59144=http://localhost:9545/main/evm/59144" >> $GITHUB_ENV
           echo "RPC_13371=http://localhost:9545/main/evm/13371" >> $GITHUB_ENV
+          echo "RPC_13473=http://localhost:9545/main/evm/13473" >> $GITHUB_ENV
 
       - name: "Run tests"
         run: |

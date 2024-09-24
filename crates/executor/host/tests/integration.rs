@@ -29,6 +29,11 @@ async fn test_e2e_immutable() {
     run_e2e::<ImmutableVariant>(ChainVariant::Immutable, "RPC_13371", 12129402).await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_immutabletestnet() {
+    run_e2e::<ImmutableTestnetVariant>(ChainVariant::Immutable, "RPC_13473", 14086362).await;
+}
+
 async fn run_e2e<V>(variant: ChainVariant, env_var_key: &str, block_number: u64)
 where
     V: Variant,

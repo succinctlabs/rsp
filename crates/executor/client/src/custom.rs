@@ -149,6 +149,13 @@ impl ConfigureEvm for CustomEvmConfig {
                     .append_handler_register(Self::set_precompiles)
                     .build()
             }
+            ChainVariant::ImmutableTestnet => {
+                EvmBuilder::default()
+                    .with_db(db)
+                    // add additional precompiles
+                    .append_handler_register(Self::set_precompiles)
+                    .build()
+            }
         }
     }
 
@@ -166,6 +173,7 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             }
             ChainVariant::Linea => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
             ChainVariant::Immutable => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
+            ChainVariant::ImmutableTestnet => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
         }
     }
 
@@ -192,6 +200,9 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             ChainVariant::Immutable => {
                 EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
             }
+            ChainVariant::ImmutableTestnet => {
+                EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
+            }
         }
     }
 
@@ -210,6 +221,8 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             ChainVariant::Linea => EthEvmConfig::default()
                 .fill_tx_env_system_contract_call(env, caller, contract, data),
             ChainVariant::Immutable => EthEvmConfig::default()
+                .fill_tx_env_system_contract_call(env, caller, contract, data),
+            ChainVariant::ImmutableTestnet => EthEvmConfig::default()
                 .fill_tx_env_system_contract_call(env, caller, contract, data),
         }
     }

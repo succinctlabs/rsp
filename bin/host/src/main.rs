@@ -3,7 +3,7 @@ use clap::Parser;
 use reth_primitives::B256;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
-    CHAIN_ID_OP_MAINNET, CHAIN_ID_IMMUTABLE_MAINNET,
+    CHAIN_ID_OP_MAINNET, CHAIN_ID_IMMUTABLE_MAINNET, CHAIN_ID_IMMUTABLE_TESTNET,
 };
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{ProverClient, SP1Stdin};
@@ -59,6 +59,7 @@ async fn main() -> eyre::Result<()> {
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
         CHAIN_ID_IMMUTABLE_MAINNET => ChainVariant::Immutable,
+        CHAIN_ID_IMMUTABLE_TESTNET => ChainVariant::ImmutableTestnet,
         _ => {
             eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
@@ -116,6 +117,7 @@ async fn main() -> eyre::Result<()> {
         ChainVariant::Optimism => include_bytes!("../../client-op/elf/riscv32im-succinct-zkvm-elf"),
         ChainVariant::Linea => include_bytes!("../../client-linea/elf/riscv32im-succinct-zkvm-elf"),
         ChainVariant::Immutable => include_bytes!("../../client-immutable/elf/riscv32im-succinct-zkvm-elf"),
+        ChainVariant::ImmutableTestnet => include_bytes!("../../client-immutable-testnet/elf/riscv32im-succinct-zkvm-elf"),
     });
 
     // Execute the block inside the zkVM.
