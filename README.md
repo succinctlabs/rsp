@@ -1,6 +1,6 @@
 # Reth Succinct Processor (RSP)
 
-A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports Ethereum, OP Stack, Linea, and Immutable zkEVM.
+A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports Ethereum, OP Stack, Linea, Immutable zkEVM, and Immutable zkEVM Testnet.
 
 > [!CAUTION]
 >
@@ -81,7 +81,8 @@ End-to-end integration tests are available. To run these tests, utilize the `.en
 export RPC_1="YOUR_ETHEREUM_MAINNET_RPC_URL"
 export RPC_10="YOUR_OP_MAINNET_RPC_URL"
 export RPC_59144="YOUR_LINEA_MAINNET_RPC_URL"
-export RPC_13371="YOUR_IMMUTABLE_MAINENT_RPC_URL"
+export RPC_13371="YOUR_IMMUTABLE_MAINNET_RPC_URL"
+export RPC_13473="YOUR_IMMUTABLE_TESTNET_RPC_URL"
 ```
 
 Note that these JSON-RPC nodes must fulfill the [RPC node requirement](#rpc-node-requirement).

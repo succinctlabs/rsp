@@ -152,12 +152,12 @@ pub fn immutable_mainnet() -> ChainSpec {
     }
 }
 
-/// Returns the [ChainSpec] for Immutable zkEVM.
+/// Returns the [ChainSpec] for Immutable zkEVM testnet.
 pub fn immutable_testnet() -> ChainSpec {
     // NOTE: Immutable testnet has London activated; but setting Paris tricks reth into disabling
     //       block rewards, which we need for Immutable (clique consensus) to work.
     ChainSpec {
-        chain: Chain::immutable(),
+        chain: Chain::immutable_testnet(),
         // We don't need the genesis state. Using default to save cycles.
         genesis: Default::default(),
         paris_block_and_final_difficulty: Some((0, U256::ZERO)),
