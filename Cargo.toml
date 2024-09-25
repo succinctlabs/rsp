@@ -97,7 +97,7 @@ revm-primitives = { version = "9.0.0", features = [
 revm-inspectors = "0.6"
 
 # alloy
-alloy-primitives = "0.8.0"
+alloy-primitives = { version = "0.8.4", features = ["sha3-keccak"] }
 alloy-provider = { version = "0.3", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
