@@ -145,7 +145,7 @@ pub fn immutable_mainnet() -> ChainSpec {
                 EthereumHardfork::Paris.boxed(),
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
             ),
-            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(0)),
+            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(1711490400)),
             (EthereumHardfork::Cancun.boxed(), ForkCondition::Timestamp(1728338400)),
         ]),
         ..Default::default()
@@ -182,7 +182,7 @@ pub fn immutable_testnet() -> ChainSpec {
                 EthereumHardfork::Paris.boxed(),
                 ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
             ),
-            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(0)),
+            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(1710280800)),
             (EthereumHardfork::Cancun.boxed(), ForkCondition::Timestamp(1727128800)),
         ]),
         ..Default::default()

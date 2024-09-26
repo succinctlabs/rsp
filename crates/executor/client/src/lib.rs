@@ -393,7 +393,7 @@ impl Variant for ImmutableTestnetVariant {
         // whereas in clique, the block reward is credited to the signer.
 
         // The clique beneficiary address is hardcoded as:
-        let addr = address!("48a999207837F3Ae1a036Dd6cF5c99225d70d13F");
+        let addr = address!("5C1DDf199349E8C3D4d22187BAAdf98fB9f5BA3d");
 
         // We hijack the beneficiary address here to match the clique consensus.
         let mut block = block.clone();
