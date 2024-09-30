@@ -7,7 +7,8 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, EthereumVariant, ImmutableVariant, ImmutableTestnetVariant, LineaVariant, OptimismVariant, Variant,
+    io::ClientExecutorInput, ChainVariant, EthereumVariant, ImmutableTestnetVariant,
+    ImmutableVariant, LineaVariant, OptimismVariant, Variant,
 };
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
@@ -39,7 +40,9 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
             ChainVariant::Linea => self.execute_variant::<LineaVariant>(block_number).await,
             ChainVariant::Immutable => self.execute_variant::<ImmutableVariant>(block_number).await,
-            ChainVariant::ImmutableTestnet => self.execute_variant::<ImmutableTestnetVariant>(block_number).await,
+            ChainVariant::ImmutableTestnet => {
+                self.execute_variant::<ImmutableTestnetVariant>(block_number).await
+            }
         }?;
 
         Ok(client_input)

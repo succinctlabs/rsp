@@ -172,8 +172,12 @@ impl ConfigureEvmEnv for CustomEvmConfig {
                 OptimismEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
             }
             ChainVariant::Linea => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
-            ChainVariant::Immutable => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
-            ChainVariant::ImmutableTestnet => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
+            ChainVariant::Immutable => {
+                EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
+            }
+            ChainVariant::ImmutableTestnet => {
+                EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
+            }
         }
     }
 
@@ -196,7 +200,7 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             ),
             ChainVariant::Linea => {
                 EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
-            },
+            }
             ChainVariant::Immutable => {
                 EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
             }

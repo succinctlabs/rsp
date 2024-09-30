@@ -37,7 +37,6 @@ pub const CHAIN_ID_IMMUTABLE_MAINNET: u64 = 0x343B;
 /// Chain ID for Immutable zkEVM Testnet.
 pub const CHAIN_ID_IMMUTABLE_TESTNET: u64 = 0x34A1;
 
-
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
 pub struct ClientExecutor;
@@ -86,7 +85,6 @@ pub struct ImmutableVariant;
 /// Implementation for Immutable testnet-specific execution/validation logic.
 #[derive(Debug)]
 pub struct ImmutableTestnetVariant;
-
 
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -354,7 +352,6 @@ impl Variant for ImmutableVariant {
         block
     }
 }
-
 
 impl Variant for ImmutableTestnetVariant {
     fn spec() -> ChainSpec {
