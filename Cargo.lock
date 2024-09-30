@@ -5399,6 +5399,8 @@ dependencies = [
  "reth-primitives",
  "reth-revm",
  "reth-trie",
+ "revm-interpreter",
+ "revm-precompile",
  "revm-primitives",
  "serde",
  "serde_json",
