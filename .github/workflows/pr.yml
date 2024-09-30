@@ -34,6 +34,30 @@ jobs:
             exit 1
           fi
 
+  deps-semver:
+    name: "Check upstream SemVer violations"
+    runs-on: ["runs-on", "runner=8cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    steps:
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+
+      - name: "Install sp1up"
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+      - name: "Install SP1 toolchain"
+        run: |
+          sp1up
+
+      - name: "Remove lock files"
+        run: |
+          find -name Cargo.lock -type f -exec rm {} \;
+
+      - name: "Build without lock files"
+        run: |
+          cargo build --all --all-targets
+
   fmt:
     name: "Check code format"
     runs-on: ["runs-on", "runner=8cpu-linux-x64", "run-id=${{ github.run_id }}"]
