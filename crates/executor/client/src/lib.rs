@@ -75,7 +75,7 @@ pub struct OptimismVariant;
 #[derive(Debug)]
 pub struct LineaVariant;
 
-/// Implementation for Ethereum-specific execution/validation logic.
+/// Implementation for Sepolia-specific execution/validation logic.
 #[derive(Debug)]
 pub struct SepoliaVariant;
 

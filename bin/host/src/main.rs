@@ -58,7 +58,7 @@ async fn main() -> eyre::Result<()> {
         CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
-        CHAIN_ID_LINEA_SEPOLIA => ChainVariant::Sepolia,
+        CHAIN_ID_SEPOLIA => ChainVariant::Sepolia,  
         _ => {
             eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
