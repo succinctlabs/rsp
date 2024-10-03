@@ -125,7 +125,7 @@ pub fn sepolia() -> ChainSpec {
         // We don't need the genesis state. Using default to save cycles.
         genesis: Default::default(),
         genesis_hash: Some(SEPOLIA_GENESIS_HASH),
-        paris_block_and_final_difficulty: Some((1735371, U256::from(17_000_000_000_000_000u64))),
+        paris_block_and_final_difficulty: Some((0, U256::ZERO)),
         // For some reasons a state root mismatch error arises if we don't force activate everything
         // before and including Shanghai.
         hardforks: ChainHardforks::new(vec![
@@ -143,9 +143,9 @@ pub fn sepolia() -> ChainSpec {
             (EthereumHardfork::London.boxed(), ForkCondition::Block(0)),
             (
                 EthereumHardfork::Paris.boxed(),
-                ForkCondition::TTD { fork_block: Some(1735371), total_difficulty: U256::from(17_000_000_000_000_000u64) },
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
             ),
-            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(1677557088)),
+            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(0)),
             (EthereumHardfork::Cancun.boxed(), ForkCondition::Timestamp(1706655072)),
         ]),
         deposit_contract: Some(DepositContract::new(
