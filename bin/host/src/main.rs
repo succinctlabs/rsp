@@ -128,7 +128,6 @@ async fn main() -> eyre::Result<()> {
 
 
     if variant == ChainVariant::CliqueShanghaiChainID {
-        println!("chain_id: {}", provider_config.chain_id);
         stdin.write(&provider_config.chain_id);
     }
 

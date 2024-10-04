@@ -165,7 +165,6 @@ pub fn sepolia() -> ChainSpec {
 
 /// Returns the [ChainSpec] for Linea Mainnet.
 pub fn clique_shangai_chainid(chain_id: u64) -> ChainSpec {
-    println!("chain_id: {}", chain_id);
     // NOTE: Linea has London activated; but setting Paris tricks reth into disabling
     //       block rewards, which we need for Linea (clique consensus) to work.
     ChainSpec {
