@@ -59,9 +59,7 @@ async fn main() -> eyre::Result<()> {
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
         CHAIN_ID_SEPOLIA => ChainVariant::Sepolia,  
-        _ => {
-            eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
-        }
+        _ => ChainVariant::CliqueShanghaiChainID
     };
 
     let client_input_from_cache = try_load_input_from_cache(
@@ -118,12 +116,21 @@ async fn main() -> eyre::Result<()> {
         ChainVariant::Sepolia => {
             include_bytes!("../../client-sepolia/elf/riscv32im-succinct-zkvm-elf")
         }
+        ChainVariant::CliqueShanghaiChainID => {
+            include_bytes!("../../client-clique-shangai-chainid/elf/riscv32im-succinct-zkvm-elf")
+        }
     });
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
     let buffer = bincode::serialize(&client_input).unwrap();
     stdin.write_vec(buffer);
+
+
+    if variant == ChainVariant::CliqueShanghaiChainID {
+        println!("chain_id: {}", provider_config.chain_id);
+        stdin.write(&provider_config.chain_id);
+    }
 
     // Only execute the program.
     let (mut public_values, execution_report) =

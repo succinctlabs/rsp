@@ -160,3 +160,42 @@ pub fn sepolia() -> ChainSpec {
     spec.genesis.config.dao_fork_support = true;
     spec
 }
+
+
+
+/// Returns the [ChainSpec] for Linea Mainnet.
+pub fn clique_shangai_chainid(chain_id: u64) -> ChainSpec {
+    println!("chain_id: {}", chain_id);
+    // NOTE: Linea has London activated; but setting Paris tricks reth into disabling
+    //       block rewards, which we need for Linea (clique consensus) to work.
+    ChainSpec {
+        chain: Chain::from(chain_id),
+        // We don't need the genesis state. Using default to save cycles.
+        genesis: Default::default(),
+        paris_block_and_final_difficulty: Some((0, U256::ZERO)),
+        // For some reasons a state root mismatch error arises if we don't force activate everything
+        // before and including Shanghai.
+        hardforks: ChainHardforks::new(vec![
+            (EthereumHardfork::Frontier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Homestead.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Dao.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Tangerine.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::SpuriousDragon.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Byzantium.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Constantinople.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Petersburg.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Istanbul.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::MuirGlacier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::Berlin.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::London.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::ArrowGlacier.boxed(), ForkCondition::Block(0)),
+            (EthereumHardfork::GrayGlacier.boxed(), ForkCondition::Block(0)),
+            (
+                EthereumHardfork::Paris.boxed(),
+                ForkCondition::TTD { fork_block: Some(0), total_difficulty: U256::ZERO },
+            ),
+            (EthereumHardfork::Shanghai.boxed(), ForkCondition::Timestamp(0)),
+        ]),
+        ..Default::default()
+    }
+}

@@ -20,7 +20,7 @@ use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
 use reth_primitives::{proofs, Block, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
 use revm::{db::CacheDB, Database};
-use revm_primitives::{address, U256};
+use revm_primitives::{U256, Address};
 
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
@@ -63,6 +63,33 @@ pub trait Variant {
     }
 }
 
+/// Trait for representing different execution/validation rules of different chain variants. This
+/// allows for dead code elimination to minimize the ELF size for each variant.
+pub trait VariantChainID {
+    fn spec(chain_id: u64) -> ChainSpec;
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+        chain_id: u64,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>;
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()>;
+
+    fn pre_process_block(block: &Block) -> Block {
+        block.clone()
+    }
+}
+
+
 /// Implementation for Ethereum-specific execution/validation logic.
 #[derive(Debug)]
 pub struct EthereumVariant;
@@ -79,6 +106,10 @@ pub struct LineaVariant;
 #[derive(Debug)]
 pub struct SepoliaVariant;
 
+/// Implementation for Sepolia-specific execution/validation logic.
+#[derive(Debug)]
+pub struct CliqueShanghaiChainIDVariant;
+
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChainVariant {
@@ -89,7 +120,9 @@ pub enum ChainVariant {
     /// Linea networks.
     Linea,
     /// Testnets
-    Sepolia
+    Sepolia,
+    /// Clique Shanghai ChainID
+    CliqueShanghaiChainID
 }
 
 impl ChainVariant {
@@ -99,7 +132,8 @@ impl ChainVariant {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
             ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
-            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA
+            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA,
+            ChainVariant::CliqueShanghaiChainID => 0
         }
     }
 }
@@ -183,6 +217,86 @@ impl ClientExecutor {
 
         Ok(header)
     }
+
+    pub fn execute_with_chain_id<V>(&self, chain_id: u64, mut input: ClientExecutorInput) -> eyre::Result<Header>
+    where
+        V: VariantChainID,
+    {
+        // Initialize the witnessed database with verified storage proofs.
+        let witness_db = input.witness_db()?;
+        let cache_db = CacheDB::new(&witness_db);
+
+        // Execute the block.
+        let spec = V::spec(chain_id);
+        let executor_block_input = profile!("recover senders", {
+            input
+                .current_block
+                .clone()
+                .with_recovered_senders()
+                .ok_or(eyre!("failed to recover senders"))
+        })?;
+        let executor_difficulty = input.current_block.header.difficulty;
+        let executor_output = profile!("execute", {
+            V::execute(&executor_block_input, executor_difficulty, cache_db, chain_id)
+        })?;
+
+        // Validate the block post execution.
+        profile!("validate block post-execution", {
+            V::validate_block_post_execution(
+                &executor_block_input,
+                &spec,
+                &executor_output.receipts,
+                &executor_output.requests,
+            )
+        })?;
+
+        // Accumulate the logs bloom.
+        let mut logs_bloom = Bloom::default();
+        profile!("accrue logs bloom", {
+            executor_output.receipts.iter().for_each(|r| {
+                logs_bloom.accrue_bloom(&r.bloom_slow());
+            })
+        });
+
+        // Convert the output to an execution outcome.
+        let executor_outcome = ExecutionOutcome::new(
+            executor_output.state,
+            Receipts::from(executor_output.receipts),
+            input.current_block.header.number,
+            vec![executor_output.requests.into()],
+        );
+
+        // Verify the state root.
+        let state_root = profile!("compute state root", {
+            input.parent_state.update(&executor_outcome.hash_state_slow());
+            input.parent_state.state_root()
+        });
+
+        if state_root != input.current_block.state_root {
+            eyre::bail!("mismatched state root");
+        }
+
+        // Derive the block header.
+        //
+        // Note: the receipts root and gas used are verified by `validate_block_post_execution`.
+        let mut header = input.current_block.header.clone();
+        header.parent_hash = input.parent_header().hash_slow();
+        header.ommers_hash = proofs::calculate_ommers_root(&input.current_block.ommers);
+        header.state_root = input.current_block.state_root;
+        header.transactions_root = proofs::calculate_transaction_root(&input.current_block.body);
+        header.receipts_root = input.current_block.header.receipts_root;
+        header.withdrawals_root = input
+            .current_block
+            .withdrawals
+            .clone()
+            .map(|w| proofs::calculate_withdrawals_root(w.into_inner().as_slice()));
+        header.logs_bloom = logs_bloom;
+        header.requests_root =
+            input.current_block.requests.as_ref().map(|r| proofs::calculate_requests_root(&r.0));
+
+        Ok(header)
+    }
+
 }
 
 impl Variant for EthereumVariant {
@@ -288,7 +402,8 @@ impl Variant for LineaVariant {
         // - address: 20 bytes
         // - seal: 65 bytes
         // we extract the address from the 32nd to 52nd byte.
-        let addr = address!("8f81e2e3f8b46467523463835f965ffe476e1c9e");
+        let block_extra_data = block.header.extra_data.clone();
+        let addr = Address::from_slice(&block_extra_data[32..52]);
 
         // We hijack the beneficiary address here to match the clique consensus.
         let mut block = block.clone();
@@ -325,5 +440,56 @@ impl Variant for SepoliaVariant {
         requests: &[Request],
     ) -> eyre::Result<()> {
         Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+}
+ impl VariantChainID for CliqueShanghaiChainIDVariant {
+    fn spec(chain_id: u64) -> ChainSpec {
+        rsp_primitives::chain_spec::clique_shangai_chainid(chain_id)
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+        chain_id: u64,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(EthExecutorProvider::new(
+            Self::spec(chain_id).into(),
+            CustomEvmConfig::from_variant(ChainVariant::CliqueShanghaiChainID),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+
+    fn pre_process_block(block: &Block) -> Block {
+        // Linea network uses clique consensus, which is not implemented in reth.
+        // The main difference for the execution part is the block beneficiary:
+        // reth will credit the block reward to the beneficiary address (coinbase)
+        // whereas in clique, the block reward is credited to the signer.
+
+        // We extract the clique beneficiary address from the genesis extra data.
+        // - vanity: 32 bytes
+        // - address: 20 bytes
+        // - seal: 65 bytes
+        // we extract the address from the 32nd to 52nd byte.
+        let block_extra_data = block.header.extra_data.clone();
+        let addr = Address::from_slice(&block_extra_data[32..52]);
+
+        // We hijack the beneficiary address here to match the clique consensus.
+        let mut block = block.clone();
+        block.header.borrow_mut().beneficiary = addr;
+        block
     }
 }
