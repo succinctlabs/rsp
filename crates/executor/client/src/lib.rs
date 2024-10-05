@@ -472,24 +472,4 @@ impl Variant for SepoliaVariant {
     ) -> eyre::Result<()> {
         Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
     }
-
-    fn pre_process_block(block: &Block) -> Block {
-        // Linea network uses clique consensus, which is not implemented in reth.
-        // The main difference for the execution part is the block beneficiary:
-        // reth will credit the block reward to the beneficiary address (coinbase)
-        // whereas in clique, the block reward is credited to the signer.
-
-        // We extract the clique beneficiary address from the genesis extra data.
-        // - vanity: 32 bytes
-        // - address: 20 bytes
-        // - seal: 65 bytes
-        // we extract the address from the 32nd to 52nd byte.
-        let block_extra_data = block.header.extra_data.clone();
-        let addr = Address::from_slice(&block_extra_data[32..52]);
-
-        // We hijack the beneficiary address here to match the clique consensus.
-        let mut block = block.clone();
-        block.header.borrow_mut().beneficiary = addr;
-        block
-    }
 }
