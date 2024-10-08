@@ -125,6 +125,8 @@ async fn main() -> eyre::Result<()> {
     let (mut public_values, execution_report) =
         client.execute(&pk.elf, stdin.clone()).run().unwrap();
 
+    println!("execution report: {}", execution_report);
+
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");

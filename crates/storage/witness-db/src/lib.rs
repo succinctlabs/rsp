@@ -23,6 +23,7 @@ impl DatabaseRef for WitnessDb {
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         // Even absent accounts are loaded as `None`, so if an entry is missing from `HashMap` we
         // need to panic. Otherwise it would be interpreted by `revm` as an uninitialized account.
+        tracing::info!("address: {:?}", address);
         Ok(Some(self.accounts.get(&address).cloned().unwrap()))
     }
 
