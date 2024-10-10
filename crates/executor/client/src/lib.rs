@@ -31,6 +31,12 @@ pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 /// Chain ID for Linea Mainnet.
 pub const CHAIN_ID_LINEA_MAINNET: u64 = 0xe708;
 
+/// Chain ID for Immutable zkEVM Mainnet.
+pub const CHAIN_ID_IMMUTABLE_MAINNET: u64 = 0x343B;
+
+/// Chain ID for Immutable zkEVM Testnet.
+pub const CHAIN_ID_IMMUTABLE_TESTNET: u64 = 0x34A1;
+
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
 pub struct ClientExecutor;
@@ -72,6 +78,14 @@ pub struct OptimismVariant;
 #[derive(Debug)]
 pub struct LineaVariant;
 
+/// Implementation for Immutable-specific execution/validation logic.
+#[derive(Debug)]
+pub struct ImmutableVariant;
+
+/// Implementation for Immutable testnet-specific execution/validation logic.
+#[derive(Debug)]
+pub struct ImmutableTestnetVariant;
+
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChainVariant {
@@ -81,6 +95,10 @@ pub enum ChainVariant {
     Optimism,
     /// Linea networks.
     Linea,
+    /// Immutable zkEVM network
+    Immutable,
+    /// Immutable zkEVM testnet network
+    ImmutableTestnet,
 }
 
 impl ChainVariant {
@@ -90,6 +108,8 @@ impl ChainVariant {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
             ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
+            ChainVariant::Immutable => CHAIN_ID_IMMUTABLE_MAINNET,
+            ChainVariant::ImmutableTestnet => CHAIN_ID_IMMUTABLE_TESTNET,
         }
     }
 }
@@ -279,6 +299,98 @@ impl Variant for LineaVariant {
         // - seal: 65 bytes
         // we extract the address from the 32nd to 52nd byte.
         let addr = address!("8f81e2e3f8b46467523463835f965ffe476e1c9e");
+
+        // We hijack the beneficiary address here to match the clique consensus.
+        let mut block = block.clone();
+        block.header.borrow_mut().beneficiary = addr;
+        block
+    }
+}
+
+impl Variant for ImmutableVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::immutable_mainnet()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Immutable),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+
+    fn pre_process_block(block: &Block) -> Block {
+        // Immutable zkEVM uses a modified clique consensus, which is not implemented in reth.
+        // The main difference is  for the execution part is the block beneficiary:
+        // reth will credit the block reward to the beneficiary address (coinbase)
+        // whereas in clique, the block reward is credited to the signer.
+
+        // The clique beneficiary address is hardcoded as:
+        let addr = address!("48a999207837F3Ae1a036Dd6cF5c99225d70d13F");
+
+        // We hijack the beneficiary address here to match the clique consensus.
+        let mut block = block.clone();
+        block.header.borrow_mut().beneficiary = addr;
+        block
+    }
+}
+
+impl Variant for ImmutableTestnetVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::immutable_testnet()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        Ok(EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::ImmutableTestnet),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())?)
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> eyre::Result<()> {
+        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    }
+
+    fn pre_process_block(block: &Block) -> Block {
+        // Immutable zkEVM uses a modified clique consensus, which is not implemented in reth.
+        // The main difference is  for the execution part is the block beneficiary:
+        // reth will credit the block reward to the beneficiary address (coinbase)
+        // whereas in clique, the block reward is credited to the signer.
+
+        // The clique beneficiary address is hardcoded as:
+        let addr = address!("5C1DDf199349E8C3D4d22187BAAdf98fB9f5BA3d");
 
         // We hijack the beneficiary address here to match the clique consensus.
         let mut block = block.clone();

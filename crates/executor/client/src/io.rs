@@ -69,7 +69,7 @@ impl WitnessInput for ClientExecutorInput {
     }
 }
 
-/// A trait for constructing [`WitnessDb`].
+/// A trait for constructing [`WitnessDb`].2122194022
 pub trait WitnessInput {
     /// Gets a reference to the state from which account info and storage slots are loaded.
     fn state(&self) -> &EthereumState;
