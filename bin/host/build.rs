@@ -13,4 +13,12 @@ fn main() {
         &format!("../{}", "client-linea"),
         BuildArgs { ignore_rust_version: true, ..Default::default() },
     );
+    build_program_with_args(
+        &format!("../{}", "client-sepolia"),
+        BuildArgs { ignore_rust_version: true, ..Default::default() },
+    );
+    build_program_with_args(
+        &format!("../{}", "client-clique-shangai-chainid"),
+        BuildArgs { ignore_rust_version: true, ..Default::default() },
+    );
 }

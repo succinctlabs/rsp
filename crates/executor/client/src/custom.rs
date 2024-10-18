@@ -11,8 +11,8 @@ use reth_evm::{ConfigureEvm, ConfigureEvmEnv};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_evm_optimism::OptimismEvmConfig;
 use reth_primitives::{
-    revm_primitives::{CfgEnvWithHandlerCfg, TxEnv},
-    Address, Bytes, Header, TransactionSigned, U256,
+    revm_primitives::{CfgEnvWithHandlerCfg, TxEnv, BlockEnv},
+    Address, Bytes, Header, TransactionSigned, U256
 };
 use reth_revm::{
     handler::register::EvmHandler, precompile::PrecompileSpecId, primitives::Env,
@@ -142,6 +142,20 @@ impl ConfigureEvm for CustomEvmConfig {
                     .append_handler_register(Self::set_precompiles)
                     .build()
             }
+            ChainVariant::Sepolia => {
+                EvmBuilder::default()
+                    .with_db(db)
+                    // add additional precompiles
+                    .append_handler_register(Self::set_precompiles)
+                    .build()
+            }
+            ChainVariant::CliqueShanghaiChainID => {
+                EvmBuilder::default()
+                    .with_db(db)
+                    // add additional precompiles
+                    .append_handler_register(Self::set_precompiles)
+                    .build()
+            }
         }
     }
 
@@ -158,6 +172,12 @@ impl ConfigureEvmEnv for CustomEvmConfig {
                 OptimismEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
             }
             ChainVariant::Linea => EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender),
+            ChainVariant::Sepolia => {
+                EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
+            }
+            ChainVariant::CliqueShanghaiChainID => {
+                EthEvmConfig::default().fill_tx_env(tx_env, transaction, sender)
+            }
         }
     }
 
@@ -181,6 +201,44 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             ChainVariant::Linea => {
                 EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
             }
+            ChainVariant::Sepolia => {
+                EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
+            }
+            ChainVariant::CliqueShanghaiChainID => {
+                EthEvmConfig::default().fill_cfg_env(cfg_env, chain_spec, header, total_difficulty)
+            }
+        }
+    }
+
+    fn fill_block_env(
+        &self, block_env: &mut BlockEnv, header: &Header, after_merge: bool
+    ) {
+        match self.0 {
+            ChainVariant::Ethereum => {
+                EthEvmConfig::default().fill_block_env(block_env, header, after_merge)
+            }
+            ChainVariant::Optimism => OptimismEvmConfig::default().fill_block_env(
+                block_env,
+                header,
+                after_merge,
+            ),
+            ChainVariant::Linea => {
+                EthEvmConfig::default().fill_block_env(block_env, header, after_merge)
+            }
+            ChainVariant::Sepolia => {
+                EthEvmConfig::default().fill_block_env(block_env, header, after_merge)
+            }
+            ChainVariant::CliqueShanghaiChainID => {
+
+                // add beneficiary address from the extra data
+                let block_extra_data = header.extra_data.clone();
+                let addr = Address::from_slice(&block_extra_data[32..52]);
+
+                // We hijack the beneficiary address here to match the clique consensus.
+                let mut header = header.clone();
+                header.beneficiary = addr;
+                EthEvmConfig::default().fill_block_env(block_env, &header, after_merge)
+            }
         }
     }
 
@@ -197,6 +255,10 @@ impl ConfigureEvmEnv for CustomEvmConfig {
             ChainVariant::Optimism => OptimismEvmConfig::default()
                 .fill_tx_env_system_contract_call(env, caller, contract, data),
             ChainVariant::Linea => EthEvmConfig::default()
+                .fill_tx_env_system_contract_call(env, caller, contract, data),
+            ChainVariant::Sepolia => EthEvmConfig::default()
+                .fill_tx_env_system_contract_call(env, caller, contract, data),
+            ChainVariant::CliqueShanghaiChainID => EthEvmConfig::default()
                 .fill_tx_env_system_contract_call(env, caller, contract, data),
         }
     }
