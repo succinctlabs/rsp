@@ -164,7 +164,7 @@ impl ClientExecutor {
         header.withdrawals_root = input
             .current_block
             .withdrawals
-            .clone()
+            .take()
             .map(|w| proofs::calculate_withdrawals_root(w.into_inner().as_slice()));
         header.logs_bloom = logs_bloom;
         header.requests_root =
