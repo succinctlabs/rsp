@@ -38,8 +38,13 @@ where
         .try_init();
 
     // Setup the provider.
-    let rpc_url =
-        Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
+    let rpc_url = Url::parse(
+        std::env::var(env_var_key)
+            .unwrap_or_else(|_| panic!("Env var {} to be set", env_var_key))
+            .as_str(),
+    )
+    .expect("invalid rpc url");
+
     let provider = ReqwestProvider::new_http(rpc_url);
 
     // Setup the host executor.

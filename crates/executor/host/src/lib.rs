@@ -68,8 +68,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
-        let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
-        let cache_db = CacheDB::new(&rpc_db);
+        let mut rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
@@ -82,7 +81,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             .with_recovered_senders()
             .ok_or(eyre!("failed to recover senders"))?;
         let executor_difficulty = current_block.header.difficulty;
-        let executor_output = V::execute(&executor_block_input, executor_difficulty, cache_db)?;
+        let executor_output = V::execute(&executor_block_input, executor_difficulty, &mut rpc_db)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
@@ -196,7 +195,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
         );
 
         // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
-        let oldest_ancestor = *rpc_db.oldest_ancestor.borrow();
+        let oldest_ancestor = rpc_db.oldest_ancestor;
         let mut ancestor_headers = vec![];
         tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
         for height in (oldest_ancestor..=(block_number - 1)).rev() {

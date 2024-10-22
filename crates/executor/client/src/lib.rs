@@ -19,7 +19,7 @@ use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
 use reth_primitives::{proofs, Block, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
-use revm::{db::CacheDB, Database};
+use revm::{db::WrapDatabaseRef, Database};
 use revm_primitives::{address, U256};
 
 /// Chain ID for Ethereum Mainnet.
@@ -43,7 +43,7 @@ pub trait Variant {
     fn execute<DB>(
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
-        cache_db: DB,
+        db: DB,
     ) -> eyre::Result<BlockExecutionOutput<Receipt>>
     where
         DB: Database<Error: Into<ProviderError> + Display>;
@@ -101,7 +101,7 @@ impl ClientExecutor {
     {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = input.witness_db()?;
-        let cache_db = CacheDB::new(&witness_db);
+        let db = WrapDatabaseRef(witness_db);
 
         // Execute the block.
         let spec = V::spec();
@@ -113,9 +113,8 @@ impl ClientExecutor {
                 .ok_or(eyre!("failed to recover senders"))
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
-        let executor_output = profile!("execute", {
-            V::execute(&executor_block_input, executor_difficulty, cache_db)
-        })?;
+        let executor_output =
+            profile!("execute", { V::execute(&executor_block_input, executor_difficulty, db) })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
@@ -183,7 +182,7 @@ impl Variant for EthereumVariant {
     fn execute<DB>(
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
-        cache_db: DB,
+        db: DB,
     ) -> eyre::Result<BlockExecutionOutput<Receipt>>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
@@ -192,7 +191,7 @@ impl Variant for EthereumVariant {
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Ethereum),
         )
-        .executor(cache_db)
+        .executor(db)
         .execute((executor_block_input, executor_difficulty).into())?)
     }
 
@@ -214,7 +213,7 @@ impl Variant for OptimismVariant {
     fn execute<DB>(
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
-        cache_db: DB,
+        db: DB,
     ) -> eyre::Result<BlockExecutionOutput<Receipt>>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
@@ -223,7 +222,7 @@ impl Variant for OptimismVariant {
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Optimism),
         )
-        .executor(cache_db)
+        .executor(db)
         .execute((executor_block_input, executor_difficulty).into())?)
     }
 
@@ -245,7 +244,7 @@ impl Variant for LineaVariant {
     fn execute<DB>(
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
-        cache_db: DB,
+        db: DB,
     ) -> eyre::Result<BlockExecutionOutput<Receipt>>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
@@ -254,7 +253,7 @@ impl Variant for LineaVariant {
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Linea),
         )
-        .executor(cache_db)
+        .executor(db)
         .execute((executor_block_input, executor_difficulty).into())?)
     }
 

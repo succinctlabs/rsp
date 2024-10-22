@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     marker::PhantomData,
 };
@@ -11,11 +10,14 @@ use reth_primitives::{
     revm_primitives::{AccountInfo, Bytecode},
     Address, B256, U256,
 };
-use reth_revm::DatabaseRef;
+use reth_revm::Database;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::HashMap;
 
 /// A database that fetches data from a [Provider] over a [Transport].
+///
+/// This type is very similar to a CacheDb as exposed by revm, except we have some extra fields
+/// and the inner types are more conducive to the state we need to extract.
 #[derive(Debug, Clone)]
 pub struct RpcDb<T, P> {
     /// The provider which fetches data.
@@ -23,11 +25,13 @@ pub struct RpcDb<T, P> {
     /// The block to fetch data from.
     pub block: BlockId,
     /// The cached accounts.
-    pub accounts: RefCell<HashMap<Address, AccountInfo>>,
+    pub accounts: HashMap<Address, AccountInfo>,
     /// The cached storage values.
-    pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
+    pub storage: HashMap<Address, HashMap<U256, U256>>,
+    /// The cached block hashes
+    pub block_hash_by_number: HashMap<u64, B256>,
     /// The oldest block whose header/hash has been requested.
-    pub oldest_ancestor: RefCell<u64>,
+    pub oldest_ancestor: u64,
     /// A phantom type to make the struct generic over the transport.
     pub _phantom: PhantomData<T>,
 }
@@ -43,22 +47,34 @@ pub enum RpcDbError {
     PreimageNotFound,
 }
 
-impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
+impl<T, P> RpcDb<T, P>
+where
+    T: Transport + Clone,
+    P: Provider<T, AnyNetwork>,
+{
     /// Create a new [`RpcDb`].
     pub fn new(provider: P, block: u64) -> Self {
         RpcDb {
             provider,
             block: block.into(),
-            accounts: RefCell::new(HashMap::new()),
-            storage: RefCell::new(HashMap::new()),
-            oldest_ancestor: RefCell::new(block),
+            accounts: HashMap::new(),
+            storage: HashMap::new(),
+            block_hash_by_number: HashMap::new(),
+            oldest_ancestor: block,
             _phantom: PhantomData,
         }
     }
 
     /// Fetch the [AccountInfo] for an [Address].
-    pub async fn fetch_account_info(&self, address: Address) -> Result<AccountInfo, RpcDbError> {
+    pub async fn fetch_account_info(
+        &mut self,
+        address: Address,
+    ) -> Result<AccountInfo, RpcDbError> {
         tracing::info!("fetching account info for address: {}", address);
+
+        if let Some(account_info) = self.accounts.get(&address) {
+            return Ok(account_info.clone());
+        }
 
         // Fetch the proof for the account.
         let proof = self
@@ -86,18 +102,24 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
         };
 
         // Record the account info to the state.
-        self.accounts.borrow_mut().insert(address, account_info.clone());
+        self.accounts.insert(address, account_info.clone());
 
         Ok(account_info)
     }
 
     /// Fetch the storage value at an [Address] and [U256] index.
     pub async fn fetch_storage_at(
-        &self,
+        &mut self,
         address: Address,
         index: U256,
     ) -> Result<U256, RpcDbError> {
         tracing::info!("fetching storage value at address: {}, index: {}", address, index);
+
+        if let Some(account) = self.storage.get(&address) {
+            if let Some(value) = account.get(&index) {
+                return Ok(*value);
+            }
+        }
 
         // Fetch the storage value.
         let value = self
@@ -108,16 +130,19 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
             .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
 
         // Record the storage value to the state.
-        let mut storage_values = self.storage.borrow_mut();
-        let entry = storage_values.entry(address).or_default();
+        let entry = self.storage.entry(address).or_default();
         entry.insert(index, value);
 
         Ok(value)
     }
 
     /// Fetch the block hash for a block number.
-    pub async fn fetch_block_hash(&self, number: u64) -> Result<B256, RpcDbError> {
+    pub async fn fetch_block_hash(&mut self, number: u64) -> Result<B256, RpcDbError> {
         tracing::info!("fetching block hash for block number: {}", number);
+
+        if let Some(hash) = self.block_hash_by_number.get(&number) {
+            return Ok(*hash);
+        }
 
         // Fetch the block.
         let block = self
@@ -130,22 +155,20 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
         let hash = block.header.hash;
 
-        let mut oldest_ancestor = self.oldest_ancestor.borrow_mut();
-        *oldest_ancestor = number.min(*oldest_ancestor);
+        self.block_hash_by_number.insert(number, hash);
+        self.oldest_ancestor = number.min(self.oldest_ancestor);
 
         Ok(hash)
     }
 
     /// Gets all the state keys used. The client uses this to read the actual state data from tries.
     pub fn get_state_requests(&self) -> HashMap<Address, Vec<U256>> {
-        let accounts = self.accounts.borrow();
-        let storage = self.storage.borrow();
-
-        accounts
+        self.accounts
             .keys()
-            .chain(storage.keys())
+            .chain(self.storage.keys())
             .map(|&address| {
-                let storage_keys_for_address: BTreeSet<U256> = storage
+                let storage_keys_for_address: BTreeSet<U256> = self
+                    .storage
                     .get(&address)
                     .map(|storage_map| storage_map.keys().cloned().collect())
                     .unwrap_or_default();
@@ -157,9 +180,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
 
     /// Gets all account bytecodes.
     pub fn get_bytecodes(&self) -> Vec<Bytecode> {
-        let accounts = self.accounts.borrow();
-
-        accounts
+        self.accounts
             .values()
             .flat_map(|account| account.code.clone())
             .map(|code| (code.hash_slow(), code))
@@ -169,10 +190,14 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> RpcDb<T, P> {
     }
 }
 
-impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> DatabaseRef for RpcDb<T, P> {
+impl<T, P> Database for RpcDb<T, P>
+where
+    T: Transport + Clone,
+    P: Provider<T, AnyNetwork>,
+{
     type Error = ProviderError;
 
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
@@ -183,11 +208,11 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> DatabaseRef for R
         Ok(Some(account_info))
     }
 
-    fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
+    fn code_by_hash(&mut self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
         unimplemented!()
     }
 
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn storage(&mut self, address: Address, index: U256) -> Result<U256, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
@@ -198,7 +223,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> DatabaseRef for R
         Ok(value)
     }
 
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+    fn block_hash(&mut self, number: u64) -> Result<B256, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
