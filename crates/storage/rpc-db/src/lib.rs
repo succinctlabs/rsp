@@ -16,8 +16,8 @@ use revm_primitives::HashMap;
 
 /// A database that fetches data from a [Provider] over a [Transport].
 ///
-/// This type is very similar to a CacheDb as exposed by revm, except we have some extra fields
-/// and the inner types are more conducive to the state we need to extract.
+/// This type is very similar to a CacheDb as exposed by revm
+/// in the sense that it will cache any RPC responses in memory.
 #[derive(Debug, Clone)]
 pub struct RpcDb<T, P> {
     /// The provider which fetches data.
