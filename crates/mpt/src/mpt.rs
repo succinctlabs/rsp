@@ -37,8 +37,7 @@ use thiserror::Error as ThisError;
 
 use reth_primitives::Address;
 
-use super::EthereumState;
-use super::FromProofError;
+use super::{EthereumState, FromProofError};
 
 pub trait RlpBytes {
     /// Returns the RLP-encoding.
