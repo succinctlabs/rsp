@@ -14,14 +14,14 @@ use rsp_rpc_db::RpcDb;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
-pub struct HostExecutor<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> {
+pub struct HostExecutor<T: Transport + Clone, P: Provider<T, AnyNetwork>> {
     /// The provider which fetches data.
     pub provider: P,
     /// A phantom type to make the struct generic over the transport.
     pub phantom: PhantomData<T>,
 }
 
-impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork>> HostExecutor<T, P> {
     /// Create a new [`HostExecutor`] with a specific [Provider] and [Transport].
     pub fn new(provider: P) -> Self {
         Self { provider, phantom: PhantomData }
@@ -67,7 +67,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
-        let mut rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
+        let mut rpc_db = RpcDb::new(&self.provider, block_number - 1);
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
