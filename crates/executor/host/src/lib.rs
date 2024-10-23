@@ -5,7 +5,6 @@ use alloy_transport::Transport;
 use eyre::{eyre, Ok};
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
-use revm::db::CacheDB;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant, Variant,
 };
