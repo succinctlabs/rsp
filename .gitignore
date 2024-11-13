@@ -19,6 +19,6 @@ pgo-data.profdata
 .env
 
 # SP1 ELF files
-**/riscv32im-succinct-zkvm-elf
+elf
 
 **.csv
