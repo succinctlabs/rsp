@@ -3239,13 +3239,14 @@ dependencies = [
 [[package]]
 name = "substrate-bn"
 version = "0.6.0"
-source = "git+https://github.com/sp1-patches/bn?tag=substrate_bn-v0.6.0-patch-v1#9b0e986d32ea128a08cebfe90767072beccdb45f"
+source = "git+https://github.com/sp1-patches/bn?tag=substrate_bn-v0.6.0-patch-v2#8ef05d3969312eca34fa9f1f566a469022badda6"
 dependencies = [
  "bytemuck",
  "byteorder",
  "cfg-if",
  "crunchy",
  "lazy_static",
+ "num-bigint 0.4.6",
  "rand",
  "rustc-hex",
  "sp1-lib 3.2.1",
