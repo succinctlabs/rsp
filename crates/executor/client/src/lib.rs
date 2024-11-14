@@ -100,7 +100,7 @@ impl ClientExecutor {
         V: Variant,
     {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = input.witness_db()?;
+        let witness_db = profile!("initialize witness database", { input.witness_db()? });
         let cache_db = CacheDB::new(&witness_db);
 
         // Execute the block.
@@ -144,10 +144,13 @@ impl ClientExecutor {
         );
 
         // Verify the state root.
-        let state_root = profile!("compute state root", {
-            input.parent_state.update(&executor_outcome.hash_state_slow());
-            input.parent_state.state_root()
+        let hash_state_slow =
+            profile!("compute state root (hash)", { executor_outcome.hash_state_slow() });
+        profile!("compute state root (update)", {
+            input.parent_state.update(&hash_state_slow);
         });
+        let state_root =
+            profile!("compute state root (finalize)", { input.parent_state.state_root() });
 
         if state_root != input.current_block.state_root {
             eyre::bail!("mismatched state root");

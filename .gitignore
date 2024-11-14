@@ -22,3 +22,5 @@ pgo-data.profdata
 elf
 
 **.csv
+
+*.log
