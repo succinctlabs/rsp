@@ -25,10 +25,10 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-sp1-sdk = "1.2.0"
+sp1-sdk = "3.0.0"
 
 [build-dependencies]
-sp1-helper = "1.2.0"
+sp1-helper = "3.0.0"
 
 [features]
 default = []

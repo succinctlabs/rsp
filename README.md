@@ -101,7 +101,7 @@ cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id> -
 
 This will generate proofs locally on your machine. Given how large these programs are, it might take a while for the proof to generate.
 
-**Run with prover network**
+#### Run with prover network
 
 If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/generating-proofs/prover-network.html), follow the sign-up instructions, and run the command with the following environment variables prefixed:
 
@@ -111,7 +111,7 @@ SP1_PROVER=network SP1_PRIVATE_KEY=
 
 To specify a custom prover network RPC, you can use the `PROVER_NETWORK_RPC` environment variable.
 
-**Run with GPU**
+#### Run with GPU
 
 To generate proofs locally on a GPU, you can enable the `cuda` feature in the CLI, which will enable it in the SDK. Make sure to read the instructions [here](https://github.com/succinctlabs/sp1/blob/fb967e8c409b318d18985f8f92353e93d38c7cda/book/generating-proofs/hardware-acceleration/cuda.md) to make sure you have all required dependencies installed. You can run it with a command like this:
 
@@ -121,7 +121,7 @@ cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain
 
 ## FAQ
 
-**Building the client programs manually**
+### Building the client programs manually
 
 By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
 
@@ -137,6 +137,6 @@ cd ./bin/client-op
 cargo prove build --ignore-rust-version
 ```
 
-**What are good testing blocks**
+### What are good testing blocks
 
 A good small block to test on for Ethereum mainnet is: `20526624`.
