@@ -6,7 +6,9 @@ use rsp_client_executor::{io::ClientExecutorInput, ClientExecutor, EthereumVaria
 pub fn main() {
     // Read the input.
     let input = sp1_zkvm::io::read_vec();
+    println!("cycle-tracker-report-start: deserialize");
     let input = bincode::deserialize::<ClientExecutorInput>(&input).unwrap();
+    println!("cycle-tracker-report-end: deserialize");
 
     // Execute the block.
     let executor = ClientExecutor;
