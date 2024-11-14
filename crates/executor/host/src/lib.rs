@@ -5,7 +5,6 @@ use alloy_transport::Transport;
 use eyre::{eyre, Ok};
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
-use revm::db::CacheDB;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant, Variant,
 };
@@ -15,14 +14,14 @@ use rsp_rpc_db::RpcDb;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
-pub struct HostExecutor<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> {
+pub struct HostExecutor<T: Transport + Clone, P: Provider<T, AnyNetwork>> {
     /// The provider which fetches data.
     pub provider: P,
     /// A phantom type to make the struct generic over the transport.
     pub phantom: PhantomData<T>,
 }
 
-impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P> {
+impl<T: Transport + Clone, P: Provider<T, AnyNetwork>> HostExecutor<T, P> {
     /// Create a new [`HostExecutor`] with a specific [Provider] and [Transport].
     pub fn new(provider: P) -> Self {
         Self { provider, phantom: PhantomData }
@@ -68,8 +67,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
-        let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
-        let cache_db = CacheDB::new(&rpc_db);
+        let mut rpc_db = RpcDb::new(&self.provider, block_number - 1);
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
@@ -82,7 +80,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             .with_recovered_senders()
             .ok_or(eyre!("failed to recover senders"))?;
         let executor_difficulty = current_block.header.difficulty;
-        let executor_output = V::execute(&executor_block_input, executor_difficulty, cache_db)?;
+        let executor_output = V::execute(&executor_block_input, executor_difficulty, &mut rpc_db)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
@@ -196,7 +194,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
         );
 
         // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
-        let oldest_ancestor = *rpc_db.oldest_ancestor.borrow();
+        let oldest_ancestor = rpc_db.oldest_ancestor;
         let mut ancestor_headers = vec![];
         tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
         for height in (oldest_ancestor..=(block_number - 1)).rev() {
