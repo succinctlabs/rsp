@@ -100,7 +100,7 @@ impl ClientExecutor {
         V: Variant,
     {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = profile!("initialize witness database", { input.witness_db()? });
+        let witness_db = profile!("initialize witness database", { input.witness_db() })?;
         let cache_db = CacheDB::new(&witness_db);
 
         // Execute the block.

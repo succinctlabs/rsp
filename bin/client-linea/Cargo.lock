@@ -3004,7 +3004,6 @@ dependencies = [
 [[package]]
 name = "sp1-lib"
 version = "3.0.0"
-source = "git+https://github.com/succinctlabs/sp1?branch=dev#4503ebda58adc82452dae48a5d57fd7752da1d40"
 dependencies = [
  "bincode",
  "serde",
@@ -3012,9 +3011,8 @@ dependencies = [
 
 [[package]]
 name = "sp1-lib"
-version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c8744af050832df5ca44fcd63979a83b93ca3010b2d5a5ce2a2b91f7438065c"
+version = "3.0.0"
+source = "git+https://github.com/succinctlabs/sp1?branch=dev#4503ebda58adc82452dae48a5d57fd7752da1d40"
 dependencies = [
  "bincode",
  "serde",
@@ -3022,9 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c801c78c061c34136e370ecba67e6570d785b27177a120108050d626ee4590c9"
+version = "3.0.1"
 dependencies = [
  "cfg-if",
  "getrandom",
@@ -3032,7 +3028,7 @@ dependencies = [
  "libm",
  "rand",
  "sha2",
- "sp1-lib 3.2.1",
+ "sp1-lib 3.0.0",
 ]
 
 [[package]]
@@ -3112,7 +3108,7 @@ dependencies = [
  "lazy_static",
  "rand",
  "rustc-hex",
- "sp1-lib 3.0.0",
+ "sp1-lib 3.0.0 (git+https://github.com/succinctlabs/sp1?branch=dev)",
 ]
 
 [[package]]
