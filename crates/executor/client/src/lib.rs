@@ -101,7 +101,6 @@ impl ClientExecutor {
     {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = input.witness_db()?;
-        let db = WrapDatabaseRef(witness_db);
 
         // Execute the block.
         let spec = V::spec();
@@ -114,7 +113,7 @@ impl ClientExecutor {
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
         let executor_output =
-            profile!("execute", { V::execute(&executor_block_input, executor_difficulty, db) })?;
+            profile!("execute", { V::execute(&executor_block_input, executor_difficulty, witness_db) })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
