@@ -23,3 +23,8 @@ sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "sha2-v
 ecdsa-core = { git = "https://github.com/sp1-patches/signatures", tag = "ecdsa-v0.16.9-patch-v1", package = "ecdsa" }
 bn = { git = "https://github.com/sp1-patches/bn", tag = "substrate_bn-v0.6.0-patch-v2", package = "substrate-bn" }
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "sha3-v0.10.8-patch-v1" }
+
+revm = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-primitives = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-interpreter = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-precompile = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }

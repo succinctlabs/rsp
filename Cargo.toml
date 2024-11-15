@@ -83,20 +83,69 @@ reth-optimism-consensus = { git = "https://github.com/sp1-patches/reth", tag = "
     "optimism",
 ] }
 
+# reth-primitives = { path = "../reth/crates/primitives", default-features = false, features = [
+#     "alloy-compat",
+#     "optimism",
+#     "std",
+# ] }
+# reth-codecs = { path = "../reth/crates/storage/codecs", default-features = false }
+# reth-consensus = { path = "../reth/crates/consensus/consensus", default-features = false }
+# reth-evm = { path = "../reth/crates/evm", default-features = false }
+# reth-revm = { path = "../reth/crates/revm", default-features = false, features = [
+#     "std",
+# ] }
+# reth-node-ethereum = { path = "../reth/crates/ethereum/node", default-features = false }
+# reth-evm-ethereum = { path = "../reth/crates/ethereum/evm", default-features = false, features = [
+#     "std",
+# ] }
+# reth-evm-optimism = { path = "../reth/crates/optimism/evm", default-features = false, features = [
+#     "optimism",
+# ] }
+# reth-storage-errors = { path = "../reth/crates/storage/errors", default-features = false, features = [
+#     "std",
+# ] }
+# reth-trie = { path = "../reth/crates/trie/trie", default-features = false }
+# reth-trie-common = { path = "../reth/crates/trie/common", default-features = false }
+# reth-chainspec = { path = "../reth/crates/chainspec", default-features = false }
+# reth-optimism-chainspec = { path = "../reth/crates/optimism/chainspec", default-features = false }
+# reth-optimism-forks = { path = "../reth/crates/optimism/hardforks", default-features = false }
+# reth-execution-errors = { path = "../reth/crates/evm/execution-errors", default-features = false }
+# reth-execution-types = { path = "../reth/crates/evm/execution-types", default-features = false }
+# reth-db = { path = "../reth/crates/db", default-features = false }
+# reth-errors = { path = "../reth/crates/errors", default-features = false }
+# reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus", default-features = false }
+# reth-optimism-consensus = { path = "../reth/crates/optimism/consensus", default-features = false, features = [
+#     "optimism",
+# ] }
+
 # revm
-revm = { version = "14.0.0", features = [
+revm = { version = "=14.0.1", features = [
     "optimism",
     "std",
     "serde",
     "kzg-rs",
 ], default-features = false }
-revm-primitives = { version = "9.0.0", features = [
+revm-primitives = { version = "=9.0.1", features = [
     "std",
     "serde",
 ], default-features = false }
 revm-inspectors = "0.6"
 revm-interpreter = { version = "=10.0.1", default-features = false }
 revm-precompile = { version = "=11.0.1", default-features = false }
+
+# revm = { path = "../revm/crates/revm", default-features = false, features = [
+#     "optimism",
+#     "std",
+#     "serde",
+#     "kzg-rs",
+# ]    }
+# revm-primitives = { path = "../revm/crates/primitives", default-features = false, features = [
+#     "std",
+#     "serde",
+# ] }
+# revm-inspectors = "0.6"
+# revm-interpreter = { path = "../revm/crates/interpreter", version = "=10.0.1", default-features = false }
+# revm-precompile = { path = "../revm/crates/precompile", version = "=11.0.1", default-features = false }
 
 # alloy
 alloy-primitives = { version = "0.8.4", features = ["sha3-keccak"] }
@@ -115,6 +164,12 @@ alloy-transport-http = { version = "0.3", features = [
 ], default-features = false }
 alloy-eips = { version = "0.3", default-features = false }
 alloy-trie = "0.5.0"
+
+[patch.crates-io]
+revm = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-primitives = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-interpreter = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
+revm-precompile = { git = "https://github.com/sp1-patches/revm", branch = "yuwen/cache-analyzed-bytecode" }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
