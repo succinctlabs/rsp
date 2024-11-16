@@ -210,7 +210,7 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             ancestor_headers,
             parent_state: state,
             state_requests,
-            bytecodes: rpc_db.get_bytecodes(),
+            bytecodes: rpc_db.get_bytecodes().into_iter().map(revm::interpreter::analysis::to_padded).collect(),
         };
         tracing::info!("successfully generated client input");
 

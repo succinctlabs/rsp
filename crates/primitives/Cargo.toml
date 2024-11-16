@@ -21,8 +21,8 @@ reth-chainspec.workspace = true
 reth-optimism-chainspec.workspace = true
 
 # revm
-revm-interpreter.workspace = true
-revm-precompile.workspace = true
+# revm-interpreter.workspace = true
+# revm-precompile.workspace = true
 revm-primitives.workspace = true
 
 # alloy
