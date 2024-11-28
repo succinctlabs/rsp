@@ -32,7 +32,7 @@ In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:
+The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
@@ -123,7 +123,7 @@ cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain
 
 ### Building the client programs manually
 
-By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
+By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (make sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
 
 ```console
 cd ./bin/client-eth
