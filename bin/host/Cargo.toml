@@ -25,7 +25,10 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-sp1-sdk = "3.0.0"
+sp1-sdk = { path = "../../../sp1/crates/sdk" }
+reqwest = "0.12.9"
+base64 = "0.22.1"
+hex = "0.4.3"
 
 [build-dependencies]
 sp1-helper = "3.0.0"

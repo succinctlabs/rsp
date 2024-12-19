@@ -6,7 +6,7 @@ use rsp_client_executor::{
     CHAIN_ID_OP_MAINNET,
 };
 use rsp_host_executor::HostExecutor;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, HashableKey, ProverClient, SP1Stdin};
 use std::path::PathBuf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -127,18 +127,40 @@ async fn main() -> eyre::Result<()> {
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
 
-    // Process the execute report, print it out, and save data to a CSV specified by
-    // report_path.
-    process_execution_report(variant, client_input, execution_report, args.report_path)?;
-
     if args.prove {
-        // Actually generate the proof. It is strongly recommended you use the network prover
-        // given the size of these programs.
         println!("Starting proof generation.");
+        let start = std::time::Instant::now();
         let proof = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
-        println!("Proof generation finished.");
+        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+        let elapsed = start.elapsed().as_secs_f32();
 
-        client.verify(&proof, &vk).expect("proof verification should succeed");
+        // Submit proof to the API
+        let json = &serde_json::json!({
+            "proof": base64::encode(proof_bytes),
+            "block_number": args.block_number,
+            "proving_cycles": execution_report.total_instruction_count(),
+            "proving_time": (elapsed * 1000.0) as u64,
+            "verifier_id": vk.bytes32(),
+            "cluster_id": 1,
+        });
+        // Save the proof data to a file
+        let proof_file_path = "latest_proof.json";
+        std::fs::write(proof_file_path, serde_json::to_string_pretty(json)?)?;
+        println!("Saved proof data to {}", proof_file_path);
+
+        let client = reqwest::Client::new();
+        let response = client
+            .post("https://staging--ethproofs.netlify.app/api/v0/proofs/proved")
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", std::env::var("API_TOKEN").unwrap()))
+            .json(json)
+            .send()
+            .await?;
+
+        println!("Proof submission status: {}", response.status());
+        if !response.status().is_success() {
+            println!("Error response: {}", response.text().await?);
+        }
     }
 
     Ok(())
