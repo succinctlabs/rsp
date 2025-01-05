@@ -28,7 +28,7 @@ async fn run_e2e<V>(variant: ChainVariant, env_var_key: &str, block_number: u64)
 where
     V: Variant,
 {
-    // Intialize the environment variables.
+    // Initialize the environment variables.
     dotenv::dotenv().ok();
 
     // Initialize the logger.

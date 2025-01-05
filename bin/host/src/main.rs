@@ -40,7 +40,7 @@ struct HostArgs {
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
-    // Intialize the environment variables.
+    // Initialize the environment variables.
     dotenv::dotenv().ok();
 
     if std::env::var("RUST_LOG").is_err() {
