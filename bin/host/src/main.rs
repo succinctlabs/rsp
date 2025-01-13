@@ -105,7 +105,7 @@ async fn main() -> eyre::Result<()> {
     };
 
     // Generate the proof.
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match variant {
@@ -120,8 +120,7 @@ async fn main() -> eyre::Result<()> {
     stdin.write_vec(buffer);
 
     // Only execute the program.
-    let (mut public_values, execution_report) =
-        client.execute(&pk.elf, stdin.clone()).run().unwrap();
+    let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
 
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
@@ -135,7 +134,7 @@ async fn main() -> eyre::Result<()> {
         // Actually generate the proof. It is strongly recommended you use the network prover
         // given the size of these programs.
         println!("Starting proof generation.");
-        let proof = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
+        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
         println!("Proof generation finished.");
 
         client.verify(&proof, &vk).expect("proof verification should succeed");
