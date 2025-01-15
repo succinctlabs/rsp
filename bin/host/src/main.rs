@@ -113,7 +113,7 @@ async fn main() -> eyre::Result<()> {
         ChainVariant::Ethereum => include_elf!("rsp-client-eth"),
         ChainVariant::Optimism => include_elf!("rsp-client-op"),
         ChainVariant::Linea => include_elf!("rsp-client-linea"),
-        ChainVariant::Linea => include_elf!("rsp-client-sepolia"),
+        ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
     });
 
     // Execute the block inside the zkVM.
