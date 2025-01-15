@@ -1,13 +1,13 @@
 use alloy_provider::ReqwestProvider;
-use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
+use eth_proofs::EthProofsClient;
 use reth_primitives::B256;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
     CHAIN_ID_OP_MAINNET,
 };
 use rsp_host_executor::HostExecutor;
-use sp1_sdk::{include_elf, HashableKey, ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use std::path::PathBuf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -17,6 +17,8 @@ mod execute;
 
 mod cli;
 use cli::ProviderArgs;
+
+mod eth_proofs;
 
 /// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
@@ -141,40 +143,25 @@ async fn main() -> eyre::Result<()> {
 
     if args.prove {
         println!("Starting proof generation.");
+        let eth_proofs_client = EthProofsClient::new(
+            args.eth_proofs_cluster_id,
+            args.eth_proofs_endpoint,
+            args.eth_proofs_api_token,
+        );
+
+        if let Some(eth_proofs_client) = &eth_proofs_client {
+            eth_proofs_client.proving(args.block_number).await?;
+        }
+
         let start = std::time::Instant::now();
-        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
-        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+        //let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
+        let proof_bytes = vec![2; 10]; // bincode::serialize(&proof.proof).unwrap();
         let elapsed = start.elapsed().as_secs_f32();
 
-        if let Some(eth_proofs_endpoint) = args.eth_proofs_endpoint {
-            // Submit proof to the API
-            let json = &serde_json::json!({
-                "proof": STANDARD.encode(proof_bytes),
-                "block_number": args.block_number,
-                "proving_cycles": execution_report.total_instruction_count(),
-                "proving_time": (elapsed * 1000.0) as u64,
-                "verifier_id": vk.bytes32(),
-                "cluster_id": args.eth_proofs_cluster_id,
-            });
-
-            // Save the proof data to a file
-            let proof_file_path = "latest_proof.json";
-            std::fs::write(proof_file_path, serde_json::to_string_pretty(json)?)?;
-            println!("Saved proof data to {}", proof_file_path);
-
-            let client = reqwest::Client::new();
-            let response = client
-                .post(format!("{eth_proofs_endpoint}/proofs/proved"))
-                .header("Content-Type", "application/json")
-                .header("Authorization", format!("Bearer {}", std::env::var("API_TOKEN").unwrap()))
-                .json(json)
-                .send()
+        if let Some(eth_proofs_client) = &eth_proofs_client {
+            eth_proofs_client
+                .proved(&proof_bytes, args.block_number, &execution_report, elapsed, &vk)
                 .await?;
-
-            println!("Proof submission status: {}", response.status());
-            if !response.status().is_success() {
-                println!("Error response: {}", response.text().await?);
-            }
         }
     }
 
