@@ -1,4 +1,5 @@
 use alloy_provider::ReqwestProvider;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
 use reth_primitives::B256;
 use rsp_client_executor::{
@@ -35,6 +36,18 @@ struct HostArgs {
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     report_path: PathBuf,
+
+    /// Optional ETH proofs endpoint.
+    #[clap(long, env, requires("eth_proofs_api_token"))]
+    eth_proofs_endpoint: Option<String>,
+
+    /// Optional ETH proofs API token.
+    #[clap(long, env)]
+    eth_proofs_api_token: Option<String>,
+
+    /// Optional ETH proofs cluster ID.
+    #[clap(long, env, default_value_t = 1)]
+    eth_proofs_cluster_id: u64,
 }
 
 #[tokio::main]
@@ -133,32 +146,35 @@ async fn main() -> eyre::Result<()> {
         let proof_bytes = bincode::serialize(&proof.proof).unwrap();
         let elapsed = start.elapsed().as_secs_f32();
 
-        // Submit proof to the API
-        let json = &serde_json::json!({
-            "proof": base64::encode(proof_bytes),
-            "block_number": args.block_number,
-            "proving_cycles": execution_report.total_instruction_count(),
-            "proving_time": (elapsed * 1000.0) as u64,
-            "verifier_id": vk.bytes32(),
-            "cluster_id": 1,
-        });
-        // Save the proof data to a file
-        let proof_file_path = "latest_proof.json";
-        std::fs::write(proof_file_path, serde_json::to_string_pretty(json)?)?;
-        println!("Saved proof data to {}", proof_file_path);
+        if let Some(eth_proofs_endpoint) = args.eth_proofs_endpoint {
+            // Submit proof to the API
+            let json = &serde_json::json!({
+                "proof": STANDARD.encode(proof_bytes),
+                "block_number": args.block_number,
+                "proving_cycles": execution_report.total_instruction_count(),
+                "proving_time": (elapsed * 1000.0) as u64,
+                "verifier_id": vk.bytes32(),
+                "cluster_id": args.eth_proofs_cluster_id,
+            });
 
-        let client = reqwest::Client::new();
-        let response = client
-            .post("https://staging--ethproofs.netlify.app/api/v0/proofs/proved")
-            .header("Content-Type", "application/json")
-            .header("Authorization", format!("Bearer {}", std::env::var("API_TOKEN").unwrap()))
-            .json(json)
-            .send()
-            .await?;
+            // Save the proof data to a file
+            let proof_file_path = "latest_proof.json";
+            std::fs::write(proof_file_path, serde_json::to_string_pretty(json)?)?;
+            println!("Saved proof data to {}", proof_file_path);
 
-        println!("Proof submission status: {}", response.status());
-        if !response.status().is_success() {
-            println!("Error response: {}", response.text().await?);
+            let client = reqwest::Client::new();
+            let response = client
+                .post(format!("{eth_proofs_endpoint}/proofs/proved"))
+                .header("Content-Type", "application/json")
+                .header("Authorization", format!("Bearer {}", std::env::var("API_TOKEN").unwrap()))
+                .json(json)
+                .send()
+                .await?;
+
+            println!("Proof submission status: {}", response.status());
+            if !response.status().is_success() {
+                println!("Error response: {}", response.text().await?);
+            }
         }
     }
 
