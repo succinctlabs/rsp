@@ -7,7 +7,8 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
 use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant, SepoliaVariant, Variant
+    io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant,
+    SepoliaVariant, Variant,
 };
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;

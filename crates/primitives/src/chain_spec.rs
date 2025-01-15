@@ -2,7 +2,9 @@ use reth_chainspec::{
     BaseFeeParams, BaseFeeParamsKind, Chain, ChainHardforks, ChainSpec, DepositContract,
     EthereumHardfork, ForkCondition, OptimismHardfork,
 };
-use reth_primitives::{constants::ETHEREUM_BLOCK_GAS_LIMIT, MAINNET_GENESIS_HASH, SEPOLIA_GENESIS_HASH};
+use reth_primitives::{
+    constants::ETHEREUM_BLOCK_GAS_LIMIT, MAINNET_GENESIS_HASH, SEPOLIA_GENESIS_HASH,
+};
 use revm_primitives::{address, b256, U256};
 
 /// Returns the [ChainSpec] for Ethereum mainnet.

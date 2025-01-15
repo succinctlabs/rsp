@@ -89,7 +89,7 @@ pub enum ChainVariant {
     /// Linea networks.
     Linea,
     /// Testnets
-    Sepolia
+    Sepolia,
 }
 
 impl ChainVariant {
@@ -99,7 +99,7 @@ impl ChainVariant {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
             ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
-            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA
+            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA,
         }
     }
 }
