@@ -48,7 +48,7 @@ struct HostArgs {
     eth_proofs_api_token: Option<String>,
 
     /// Optional ETH proofs cluster ID.
-    #[clap(long, env, default_value_t = 1)]
+    #[clap(long, default_value_t = 1)]
     eth_proofs_cluster_id: u64,
 }
 
@@ -154,8 +154,8 @@ async fn main() -> eyre::Result<()> {
         }
 
         let start = std::time::Instant::now();
-        //let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
-        let proof_bytes = vec![2; 10]; // bincode::serialize(&proof.proof).unwrap();
+        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
+        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
         let elapsed = start.elapsed().as_secs_f32();
 
         if let Some(eth_proofs_client) = &eth_proofs_client {

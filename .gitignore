@@ -14,6 +14,7 @@ pgo-data.profdata
 # Proofs
 **/proof-with-pis.json
 **/proof-with-io.json
+latest_proof.json
 
 # Env
 .env
