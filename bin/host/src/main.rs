@@ -13,7 +13,6 @@ use tracing_subscriber::{
 };
 
 mod execute;
-use execute::process_execution_report;
 
 mod cli;
 use cli::ProviderArgs;
@@ -105,7 +104,7 @@ async fn main() -> eyre::Result<()> {
     };
 
     // Generate the proof.
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match variant {
@@ -121,7 +120,7 @@ async fn main() -> eyre::Result<()> {
 
     // Only execute the program.
     let (mut public_values, execution_report) =
-        client.execute(&pk.elf, stdin.clone()).run().unwrap();
+        client.execute(&pk.elf, &stdin.clone()).run().unwrap();
 
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
@@ -130,7 +129,7 @@ async fn main() -> eyre::Result<()> {
     if args.prove {
         println!("Starting proof generation.");
         let start = std::time::Instant::now();
-        let proof = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
+        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
         let proof_bytes = bincode::serialize(&proof.proof).unwrap();
         let elapsed = start.elapsed().as_secs_f32();
 
