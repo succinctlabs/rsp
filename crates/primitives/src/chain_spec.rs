@@ -115,7 +115,7 @@ pub fn linea_mainnet() -> ChainSpec {
     }
 }
 
-/// Returns the [ChainSpec] for Ethereum mainnet.
+/// Returns the [ChainSpec] for Sepolia testnet.
 pub fn sepolia() -> ChainSpec {
     // Spec extracted from:
     //
