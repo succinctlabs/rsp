@@ -119,6 +119,32 @@ To generate proofs locally on a GPU, you can enable the `cuda` feature in the CL
 cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain-id <chain-id> --prove
 ```
 
+#### Benchmarking on ETH proofs
+
+To run benchmarking with [ETH proofs](https://staging--ethproofs.netlify.app/), you'll need to:
+
+1. Set the following environment variables:
+   ```bash
+   export ETH_PROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
+   export ETH_PROOFS_API_TOKEN=<your_api_token>
+   export RPC_URL=<your_eth_mainnet_rpc>
+   ```
+
+3. Run the benchmarking recipe:
+   ```bash
+   # Run with default cluster ID (1) and sleep time (900s)
+   just run-eth-proofs
+
+   # Run with custom cluster ID and sleep time (in seconds)
+   just run-eth-proofs 5 600
+   ```
+
+This will continuously:
+- Fetch the latest block number
+- Round it down to the nearest 100
+- Generate a proof and submit its proving time
+- Sleep for the specified duration before the next iteration
+
 ## FAQ
 
 ### Building the client programs manually
