@@ -1,6 +1,7 @@
 use alloy_provider::ReqwestProvider;
 use clap::Parser;
 use eth_proofs::EthProofsClient;
+use execute::process_execution_report;
 use reth_primitives::B256;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
@@ -140,6 +141,12 @@ async fn main() -> eyre::Result<()> {
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
+
+    if args.eth_proofs_endpoint.is_none() {
+        // Process the execute report, print it out, and save data to a CSV specified by
+        // report_path.
+        process_execution_report(variant, client_input, &execution_report, args.report_path)?;
+    }
 
     if args.prove {
         println!("Starting proof generation.");
