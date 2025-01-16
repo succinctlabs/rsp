@@ -21,6 +21,29 @@ impl EthProofsClient {
         }
     }
 
+    pub async fn queued(&self, block_number: u64) -> eyre::Result<()> {
+        let json = &serde_json::json!({
+            "block_number": block_number,
+            "cluster_id": self.cluster_id,
+        });
+
+        let response = self
+            .client
+            .post(format!("{}/proofs/queued", self.endpoint))
+            .header("Content-Type", "application/json")
+            .header("Authorization", format!("Bearer {}", self.api_token))
+            .json(json)
+            .send()
+            .await?;
+
+        println!("Queued submission status: {}", response.status());
+        if !response.status().is_success() {
+            println!("Error response: {}", response.text().await?);
+        }
+
+        Ok(())
+    }
+
     pub async fn proving(&self, block_number: u64) -> eyre::Result<()> {
         let json = &serde_json::json!({
             "block_number": block_number,
