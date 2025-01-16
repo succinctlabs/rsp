@@ -135,8 +135,7 @@ async fn main() -> eyre::Result<()> {
     stdin.write_vec(buffer);
 
     // Only execute the program.
-    let (mut public_values, execution_report) =
-        client.execute(&pk.elf, &stdin.clone()).run().unwrap();
+    let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
 
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
