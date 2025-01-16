@@ -50,7 +50,7 @@ run-eth-proofs cluster_id="1" sleep_time="900":
         SP1_PROVER=cuda cargo run --bin rsp --release -F cuda -- --block-number $ROUNDED_BLOCK --eth-proofs-cluster-id {{cluster_id}} --rpc-url $RPC_URL --prove
 
         echo "Sleeping for $(({{sleep_time}} / 60)) minutes..."
-        sleep $sleep_time
+        sleep {{sleep_time}}
     done
 
 # Usage:
