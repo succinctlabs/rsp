@@ -19,7 +19,7 @@ use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
 use reth_primitives::{proofs, Block, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
-use revm::{db::WrapDatabaseRef, Database};
+use revm::Database;
 use revm_primitives::{address, U256};
 
 /// Chain ID for Ethereum Mainnet.
@@ -112,8 +112,9 @@ impl ClientExecutor {
                 .ok_or(eyre!("failed to recover senders"))
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
-        let executor_output =
-            profile!("execute", { V::execute(&executor_block_input, executor_difficulty, witness_db) })?;
+        let executor_output = profile!("execute", {
+            V::execute(&executor_block_input, executor_difficulty, witness_db)
+        })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
