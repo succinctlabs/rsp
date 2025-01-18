@@ -112,10 +112,7 @@ impl<'a> DatabaseRef for TrieDB<'a> {
 
     /// Get account code by its hash.
     fn code_by_hash_ref(&self, hash: B256) -> Result<Bytecode, Self::Error> {
-        Ok(self.bytecode_by_hash
-            .get(&hash)
-            .map(|code| (*code).clone())
-            .unwrap())
+        Ok(self.bytecode_by_hash.get(&hash).map(|code| (*code).clone()).unwrap())
     }
 
     /// Get storage value of address at index.
