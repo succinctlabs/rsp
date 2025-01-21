@@ -8,7 +8,6 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-eyre.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 tracing.workspace = true
