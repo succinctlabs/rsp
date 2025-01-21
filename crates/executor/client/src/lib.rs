@@ -33,6 +33,9 @@ pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 /// Chain ID for Linea Mainnet.
 pub const CHAIN_ID_LINEA_MAINNET: u64 = 0xe708;
 
+/// Chain ID for Sepolia.
+pub const CHAIN_ID_SEPOLIA: u64 = 0xaa36a7;
+
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
 pub struct ClientExecutor;
@@ -74,6 +77,10 @@ pub struct OptimismVariant;
 #[derive(Debug)]
 pub struct LineaVariant;
 
+/// Implementation for Sepolia-specific execution/validation logic.
+#[derive(Debug)]
+pub struct SepoliaVariant;
+
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChainVariant {
@@ -83,6 +90,8 @@ pub enum ChainVariant {
     Optimism,
     /// Linea networks.
     Linea,
+    /// Testnets
+    Sepolia,
 }
 
 impl ChainVariant {
@@ -92,6 +101,7 @@ impl ChainVariant {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
             ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
+            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA,
         }
     }
 }
@@ -286,5 +296,36 @@ impl Variant for LineaVariant {
         let mut block = block.clone();
         block.header.borrow_mut().beneficiary = addr;
         block
+    }
+}
+
+impl Variant for SepoliaVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::sepolia()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Ethereum),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> Result<(), ConsensusError> {
+        validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)
     }
 }

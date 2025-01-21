@@ -1,22 +1,25 @@
 use alloy_provider::ReqwestProvider;
 use clap::Parser;
+use eth_proofs::EthProofsClient;
+use execute::process_execution_report;
 use reth_primitives::B256;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
-    CHAIN_ID_OP_MAINNET,
+    CHAIN_ID_OP_MAINNET, CHAIN_ID_SEPOLIA,
 };
 use rsp_host_executor::HostExecutor;
-use sp1_sdk::{ProverClient, SP1Stdin};
+use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
 use std::path::PathBuf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
 
 mod execute;
-use execute::process_execution_report;
 
 mod cli;
 use cli::ProviderArgs;
+
+mod eth_proofs;
 
 /// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
@@ -36,6 +39,18 @@ struct HostArgs {
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     report_path: PathBuf,
+
+    /// Optional ETH proofs endpoint.
+    #[clap(long, env, requires("eth_proofs_api_token"))]
+    eth_proofs_endpoint: Option<String>,
+
+    /// Optional ETH proofs API token.
+    #[clap(long, env)]
+    eth_proofs_api_token: Option<String>,
+
+    /// Optional ETH proofs cluster ID.
+    #[clap(long, default_value_t = 1)]
+    eth_proofs_cluster_id: u64,
 }
 
 #[tokio::main]
@@ -52,12 +67,22 @@ async fn main() -> eyre::Result<()> {
 
     // Parse the command line arguments.
     let args = HostArgs::parse();
-    let provider_config = args.provider.into_provider().await?;
+    let provider_config = args.provider.clone().into_provider().await?;
+    let eth_proofs_client = EthProofsClient::new(
+        args.eth_proofs_cluster_id,
+        args.eth_proofs_endpoint,
+        args.eth_proofs_api_token,
+    );
+
+    if let Some(eth_proofs_client) = &eth_proofs_client {
+        eth_proofs_client.queued(args.block_number).await?;
+    }
 
     let variant = match provider_config.chain_id {
         CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
+        CHAIN_ID_SEPOLIA => ChainVariant::Sepolia,
         _ => {
             eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
@@ -85,7 +110,7 @@ async fn main() -> eyre::Result<()> {
                 .await
                 .expect("failed to execute host");
 
-            if let Some(cache_dir) = args.cache_dir {
+            if let Some(ref cache_dir) = args.cache_dir {
                 let input_folder = cache_dir.join(format!("input/{}", provider_config.chain_id));
                 if !input_folder.exists() {
                     std::fs::create_dir_all(&input_folder)?;
@@ -105,15 +130,14 @@ async fn main() -> eyre::Result<()> {
     };
 
     // Generate the proof.
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match variant {
-        ChainVariant::Ethereum => {
-            include_bytes!("../../client-eth/elf/riscv32im-succinct-zkvm-elf")
-        }
-        ChainVariant::Optimism => include_bytes!("../../client-op/elf/riscv32im-succinct-zkvm-elf"),
-        ChainVariant::Linea => include_bytes!("../../client-linea/elf/riscv32im-succinct-zkvm-elf"),
+        ChainVariant::Ethereum => include_elf!("rsp-client-eth"),
+        ChainVariant::Optimism => include_elf!("rsp-client-op"),
+        ChainVariant::Linea => include_elf!("rsp-client-linea"),
+        ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
     });
 
     // Execute the block inside the zkVM.
@@ -122,25 +146,40 @@ async fn main() -> eyre::Result<()> {
     stdin.write_vec(buffer);
 
     // Only execute the program.
-    let (mut public_values, execution_report) =
-        client.execute(&pk.elf, stdin.clone()).run().unwrap();
+    let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
 
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
 
-    // Process the execute report, print it out, and save data to a CSV specified by
-    // report_path.
-    process_execution_report(variant, client_input, execution_report, args.report_path)?;
+    if eth_proofs_client.is_none() {
+        // Process the execute report, print it out, and save data to a CSV specified by
+        // report_path.
+        process_execution_report(
+            variant,
+            client_input,
+            &execution_report,
+            args.report_path.clone(),
+        )?;
+    }
 
     if args.prove {
-        // Actually generate the proof. It is strongly recommended you use the network prover
-        // given the size of these programs.
         println!("Starting proof generation.");
-        let proof = client.prove(&pk, stdin).compressed().run().expect("Proving should work.");
-        println!("Proof generation finished.");
 
-        client.verify(&proof, &vk).expect("proof verification should succeed");
+        if let Some(eth_proofs_client) = &eth_proofs_client {
+            eth_proofs_client.proving(args.block_number).await?;
+        }
+
+        let start = std::time::Instant::now();
+        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
+        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+        let elapsed = start.elapsed().as_secs_f32();
+
+        if let Some(eth_proofs_client) = &eth_proofs_client {
+            eth_proofs_client
+                .proved(&proof_bytes, args.block_number, &execution_report, elapsed, &vk)
+                .await?;
+        }
     }
 
     Ok(())

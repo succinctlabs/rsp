@@ -14,11 +14,12 @@ pgo-data.profdata
 # Proofs
 **/proof-with-pis.json
 **/proof-with-io.json
+latest_proof.json
 
 # Env
 .env
 
 # SP1 ELF files
-**/riscv32im-succinct-zkvm-elf
+elf
 
 **.csv

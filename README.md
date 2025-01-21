@@ -8,7 +8,7 @@ A minimal implementation of generating zero-knowledge proofs of EVM block execut
 
 ## Getting Started
 
-To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/getting-started/install.html) installed to build the client programs. Then follow the instructions below.
+To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/docs/getting-started/install) installed to build the client programs. Then follow the instructions below.
 
 ### Installing the CLI
 
@@ -81,6 +81,7 @@ End-to-end integration tests are available. To run these tests, utilize the `.en
 export RPC_1="YOUR_ETHEREUM_MAINNET_RPC_URL"
 export RPC_10="YOUR_OP_MAINNET_RPC_URL"
 export RPC_59144="YOUR_LINEA_MAINNET_RPC_URL"
+export RPC_11155111="YOUR_SEPOLIA_RPC_URL"
 ```
 
 Note that these JSON-RPC nodes must fulfill the [RPC node requirement](#rpc-node-requirement).
@@ -101,7 +102,7 @@ cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id> -
 
 This will generate proofs locally on your machine. Given how large these programs are, it might take a while for the proof to generate.
 
-**Run with prover network**
+#### Run with prover network
 
 If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/generating-proofs/prover-network.html), follow the sign-up instructions, and run the command with the following environment variables prefixed:
 
@@ -111,7 +112,7 @@ SP1_PROVER=network SP1_PRIVATE_KEY=
 
 To specify a custom prover network RPC, you can use the `PROVER_NETWORK_RPC` environment variable.
 
-**Run with GPU**
+#### Run with GPU
 
 To generate proofs locally on a GPU, you can enable the `cuda` feature in the CLI, which will enable it in the SDK. Make sure to read the instructions [here](https://github.com/succinctlabs/sp1/blob/fb967e8c409b318d18985f8f92353e93d38c7cda/book/generating-proofs/hardware-acceleration/cuda.md) to make sure you have all required dependencies installed. You can run it with a command like this:
 
@@ -119,9 +120,35 @@ To generate proofs locally on a GPU, you can enable the `cuda` feature in the CL
 cargo run --bin rsp --release --features cuda -- --block-number 18884864 --chain-id <chain-id> --prove
 ```
 
+#### Benchmarking on ETH proofs
+
+To run benchmarking with [ETH proofs](https://staging--ethproofs.netlify.app/), you'll need to:
+
+1. Set the following environment variables:
+   ```bash
+   export ETH_PROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
+   export ETH_PROOFS_API_TOKEN=<your_api_token>
+   export RPC_URL=<your_eth_mainnet_rpc>
+   ```
+
+3. Run the benchmarking recipe:
+   ```bash
+   # Run with default cluster ID (1) and sleep time (900s)
+   just run-eth-proofs
+
+   # Run with custom cluster ID and sleep time (in seconds)
+   just run-eth-proofs 5 600
+   ```
+
+This will continuously:
+- Fetch the latest block number
+- Round it down to the nearest 100
+- Generate a proof and submit its proving time
+- Sleep for the specified duration before the next iteration
+
 ## FAQ
 
-**Building the client programs manually**
+### Building the client programs manually
 
 By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
 
@@ -137,6 +164,6 @@ cd ./bin/client-op
 cargo prove build --ignore-rust-version
 ```
 
-**What are good testing blocks**
+### What are good testing blocks
 
 A good small block to test on for Ethereum mainnet is: `20526624`.

@@ -22,7 +22,7 @@ struct ExecutionReportData {
 pub fn process_execution_report(
     variant: ChainVariant,
     client_input: ClientExecutorInput,
-    execution_report: ExecutionReport,
+    execution_report: &ExecutionReport,
     report_path: PathBuf,
 ) -> eyre::Result<()> {
     println!("\nExecution report:\n{}", execution_report);
