@@ -51,14 +51,12 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
-        let origin_current_block = self
+        let current_block = self
             .provider
             .get_block_by_number(block_number.into(), true)
             .await?
             .ok_or(HostError::ExpectedBlock(block_number))
             .map(|block| Block::try_from(block.inner))??;
-
-        let current_block = Block::from(origin_current_block.clone());
 
         let previous_block = self
             .provider
