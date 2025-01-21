@@ -11,8 +11,6 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true, features = ["std"] }
-eyre.workspace = true
 rlp.workspace = true
 serde.workspace = true
 thiserror.workspace = true

@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 tokio.workspace = true
-eyre.workspace = true
 url.workspace = true
 tracing-subscriber = "0.3.18"
 dotenv = "0.15.0"
@@ -26,6 +25,7 @@ reth-primitives.workspace = true
 
 # sp1
 sp1-sdk = "4.0.0"
+eyre = "0.6.12"
 reqwest = "0.12.9"
 base64 = "0.22.1"
 hex = "0.4.3"

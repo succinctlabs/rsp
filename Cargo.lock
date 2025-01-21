@@ -4890,10 +4890,10 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
- "eyre",
  "futures",
  "itertools 0.13.0",
  "reth-chainspec",
+ "reth-consensus",
  "reth-errors",
  "reth-ethereum-consensus",
  "reth-evm",
@@ -4912,6 +4912,7 @@ dependencies = [
  "rsp-witness-db",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
  "tokio",
  "url",
 ]
@@ -4927,7 +4928,6 @@ dependencies = [
  "alloy-transport",
  "bincode",
  "dotenv",
- "eyre",
  "futures",
  "itertools 0.13.0",
  "reth-chainspec",
@@ -4946,6 +4946,7 @@ dependencies = [
  "rsp-witness-db",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -4960,8 +4961,6 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types",
  "alloy-trie 0.5.3",
- "anyhow",
- "eyre",
  "hex-literal",
  "itertools 0.13.0",
  "reth-execution-types",
@@ -4982,7 +4981,6 @@ name = "rsp-primitives"
 version = "0.1.0"
 dependencies = [
  "alloy-rpc-types",
- "eyre",
  "reth-chainspec",
  "reth-optimism-chainspec",
  "reth-primitives",

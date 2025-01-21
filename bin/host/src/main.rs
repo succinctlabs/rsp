@@ -5,7 +5,7 @@ use execute::process_execution_report;
 use reth_primitives::B256;
 use rsp_client_executor::{
     io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
-    CHAIN_ID_OP_MAINNET,
+    CHAIN_ID_OP_MAINNET, CHAIN_ID_SEPOLIA,
 };
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
@@ -82,6 +82,7 @@ async fn main() -> eyre::Result<()> {
         CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
         CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
         CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
+        CHAIN_ID_SEPOLIA => ChainVariant::Sepolia,
         _ => {
             eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
         }
@@ -136,6 +137,7 @@ async fn main() -> eyre::Result<()> {
         ChainVariant::Ethereum => include_elf!("rsp-client-eth"),
         ChainVariant::Optimism => include_elf!("rsp-client-op"),
         ChainVariant::Linea => include_elf!("rsp-client-linea"),
+        ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
     });
 
     // Execute the block inside the zkVM.

@@ -2,18 +2,20 @@
 pub mod io;
 #[macro_use]
 mod utils;
-
 pub mod custom;
+pub mod error;
 
 use std::{borrow::BorrowMut, fmt::Display};
 
 use custom::CustomEvmConfig;
-use eyre::eyre;
+use error::ClientError;
 use io::ClientExecutorInput;
 use reth_chainspec::ChainSpec;
-use reth_errors::ProviderError;
+use reth_errors::{ConsensusError, ProviderError};
 use reth_ethereum_consensus::validate_block_post_execution as validate_block_post_execution_ethereum;
-use reth_evm::execute::{BlockExecutionOutput, BlockExecutorProvider, Executor};
+use reth_evm::execute::{
+    BlockExecutionError, BlockExecutionOutput, BlockExecutorProvider, Executor,
+};
 use reth_evm_ethereum::execute::EthExecutorProvider;
 use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
@@ -31,6 +33,9 @@ pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 /// Chain ID for Linea Mainnet.
 pub const CHAIN_ID_LINEA_MAINNET: u64 = 0xe708;
 
+/// Chain ID for Sepolia.
+pub const CHAIN_ID_SEPOLIA: u64 = 0xaa36a7;
+
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone, Default)]
 pub struct ClientExecutor;
@@ -44,7 +49,7 @@ pub trait Variant {
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
         cache_db: DB,
-    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
     where
         DB: Database<Error: Into<ProviderError> + Display>;
 
@@ -53,7 +58,7 @@ pub trait Variant {
         chain_spec: &ChainSpec,
         receipts: &[Receipt],
         requests: &[Request],
-    ) -> eyre::Result<()>;
+    ) -> Result<(), ConsensusError>;
 
     fn pre_process_block(block: &Block) -> Block {
         block.clone()
@@ -72,6 +77,10 @@ pub struct OptimismVariant;
 #[derive(Debug)]
 pub struct LineaVariant;
 
+/// Implementation for Sepolia-specific execution/validation logic.
+#[derive(Debug)]
+pub struct SepoliaVariant;
+
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChainVariant {
@@ -81,6 +90,8 @@ pub enum ChainVariant {
     Optimism,
     /// Linea networks.
     Linea,
+    /// Testnets
+    Sepolia,
 }
 
 impl ChainVariant {
@@ -90,12 +101,13 @@ impl ChainVariant {
             ChainVariant::Ethereum => CHAIN_ID_ETH_MAINNET,
             ChainVariant::Optimism => CHAIN_ID_OP_MAINNET,
             ChainVariant::Linea => CHAIN_ID_LINEA_MAINNET,
+            ChainVariant::Sepolia => CHAIN_ID_SEPOLIA,
         }
     }
 }
 
 impl ClientExecutor {
-    pub fn execute<V>(&self, mut input: ClientExecutorInput) -> eyre::Result<Header>
+    pub fn execute<V>(&self, mut input: ClientExecutorInput) -> Result<Header, ClientError>
     where
         V: Variant,
     {
@@ -112,7 +124,7 @@ impl ClientExecutor {
                 .current_block
                 .clone()
                 .with_recovered_senders()
-                .ok_or(eyre!("failed to recover senders"))
+                .ok_or(ClientError::SignatureRecoveryFailed)
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
         let executor_output = profile!("execute", {
@@ -152,7 +164,7 @@ impl ClientExecutor {
         });
 
         if state_root != input.current_block.state_root {
-            eyre::bail!("mismatched state root");
+            return Err(ClientError::MismatchedStateRoot);
         }
 
         // Derive the block header.
@@ -167,7 +179,7 @@ impl ClientExecutor {
         header.withdrawals_root = input
             .current_block
             .withdrawals
-            .clone()
+            .take()
             .map(|w| proofs::calculate_withdrawals_root(w.into_inner().as_slice()));
         header.logs_bloom = logs_bloom;
         header.requests_root =
@@ -186,16 +198,16 @@ impl Variant for EthereumVariant {
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
         cache_db: DB,
-    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
     {
-        Ok(EthExecutorProvider::new(
+        EthExecutorProvider::new(
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Ethereum),
         )
         .executor(cache_db)
-        .execute((executor_block_input, executor_difficulty).into())?)
+        .execute((executor_block_input, executor_difficulty).into())
     }
 
     fn validate_block_post_execution(
@@ -203,8 +215,8 @@ impl Variant for EthereumVariant {
         chain_spec: &ChainSpec,
         receipts: &[Receipt],
         requests: &[Request],
-    ) -> eyre::Result<()> {
-        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    ) -> Result<(), ConsensusError> {
+        validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)
     }
 }
 
@@ -217,16 +229,16 @@ impl Variant for OptimismVariant {
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
         cache_db: DB,
-    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
     {
-        Ok(OpExecutorProvider::new(
+        OpExecutorProvider::new(
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Optimism),
         )
         .executor(cache_db)
-        .execute((executor_block_input, executor_difficulty).into())?)
+        .execute((executor_block_input, executor_difficulty).into())
     }
 
     fn validate_block_post_execution(
@@ -234,8 +246,8 @@ impl Variant for OptimismVariant {
         chain_spec: &ChainSpec,
         receipts: &[Receipt],
         _requests: &[Request],
-    ) -> eyre::Result<()> {
-        Ok(validate_block_post_execution_optimism(block, chain_spec, receipts)?)
+    ) -> Result<(), ConsensusError> {
+        validate_block_post_execution_optimism(block, chain_spec, receipts)
     }
 }
 
@@ -248,16 +260,16 @@ impl Variant for LineaVariant {
         executor_block_input: &BlockWithSenders,
         executor_difficulty: U256,
         cache_db: DB,
-    ) -> eyre::Result<BlockExecutionOutput<Receipt>>
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
     where
         DB: Database<Error: Into<ProviderError> + Display>,
     {
-        Ok(EthExecutorProvider::new(
+        EthExecutorProvider::new(
             Self::spec().into(),
             CustomEvmConfig::from_variant(ChainVariant::Linea),
         )
         .executor(cache_db)
-        .execute((executor_block_input, executor_difficulty).into())?)
+        .execute((executor_block_input, executor_difficulty).into())
     }
 
     fn validate_block_post_execution(
@@ -265,8 +277,8 @@ impl Variant for LineaVariant {
         chain_spec: &ChainSpec,
         receipts: &[Receipt],
         requests: &[Request],
-    ) -> eyre::Result<()> {
-        Ok(validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)?)
+    ) -> Result<(), ConsensusError> {
+        validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)
     }
 
     fn pre_process_block(block: &Block) -> Block {
@@ -286,5 +298,36 @@ impl Variant for LineaVariant {
         let mut block = block.clone();
         block.header.borrow_mut().beneficiary = addr;
         block
+    }
+}
+
+impl Variant for SepoliaVariant {
+    fn spec() -> ChainSpec {
+        rsp_primitives::chain_spec::sepolia()
+    }
+
+    fn execute<DB>(
+        executor_block_input: &BlockWithSenders,
+        executor_difficulty: U256,
+        cache_db: DB,
+    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
+    where
+        DB: Database<Error: Into<ProviderError> + Display>,
+    {
+        EthExecutorProvider::new(
+            Self::spec().into(),
+            CustomEvmConfig::from_variant(ChainVariant::Ethereum),
+        )
+        .executor(cache_db)
+        .execute((executor_block_input, executor_difficulty).into())
+    }
+
+    fn validate_block_post_execution(
+        block: &BlockWithSenders,
+        chain_spec: &ChainSpec,
+        receipts: &[Receipt],
+        requests: &[Request],
+    ) -> Result<(), ConsensusError> {
+        validate_block_post_execution_ethereum(block, chain_spec, receipts, requests)
     }
 }

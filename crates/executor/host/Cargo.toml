@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-eyre.workspace = true
+thiserror.workspace = true
 serde_json.workspace = true
 url.workspace = true
 serde.workspace = true

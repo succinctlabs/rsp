@@ -1,6 +1,5 @@
 use std::{collections::HashMap, iter::once};
 
-use eyre::Result;
 use itertools::Itertools;
 use reth_errors::ProviderError;
 use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Header, B256, U256};
@@ -8,9 +7,10 @@ use reth_trie::TrieAccount;
 use revm_primitives::{keccak256, Bytecode};
 use rsp_mpt::EthereumState;
 //use rsp_witness_db::WitnessDb;
+use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};
 
-use revm::DatabaseRef;
+use crate::error::ClientError;
 
 /// The input for the client to execute a block and fully verify the STF (state transition
 /// function).
@@ -40,7 +40,7 @@ impl ClientExecutorInput {
     }
 
     /// Creates a [`WitnessDb`].
-    pub fn witness_db(&self) -> Result<TrieDB<'_>> {
+    pub fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
         <Self as WitnessInput>::witness_db(self)
     }
 }
@@ -170,11 +170,11 @@ pub trait WitnessInput {
     /// implementing this trait causes a zkVM run to cost over 5M cycles more. To avoid this, define
     /// a method inside the type that calls this trait method instead.
     #[inline(always)]
-    fn witness_db(&self) -> Result<TrieDB<'_>> {
+    fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
         let state = self.state();
 
         if self.state_anchor() != state.state_root() {
-            eyre::bail!("parent state root mismatch");
+            return Err(ClientError::MismatchedStateRoot);
         }
 
         let bytecodes_by_hash =
@@ -184,11 +184,18 @@ pub trait WitnessInput {
         let mut block_hashes: HashMap<u64, B256> = HashMap::new();
         for (child_header, parent_header) in self.headers().tuple_windows() {
             if parent_header.number != child_header.number - 1 {
-                eyre::bail!("non-consecutive blocks");
+                return Err(ClientError::InvalidHeaderBlockNumber(
+                    parent_header.number + 1,
+                    child_header.number,
+                ));
             }
 
-            if parent_header.hash_slow() != child_header.parent_hash {
-                eyre::bail!("parent hash mismatch");
+            let parent_header_hash = parent_header.hash_slow();
+            if parent_header_hash != child_header.parent_hash {
+                return Err(ClientError::InvalidHeaderParentHash(
+                    parent_header_hash,
+                    child_header.parent_hash,
+                ));
             }
 
             block_hashes.insert(parent_header.number, child_header.parent_hash);
