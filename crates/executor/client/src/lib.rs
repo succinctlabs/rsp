@@ -21,7 +21,7 @@ use reth_evm_optimism::OpExecutorProvider;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution as validate_block_post_execution_optimism;
 use reth_primitives::{proofs, Block, BlockWithSenders, Bloom, Header, Receipt, Receipts, Request};
-use revm::{db::CacheDB, Database};
+use revm::{db::WrapDatabaseRef, Database};
 use revm_primitives::{address, U256};
 
 /// Chain ID for Ethereum Mainnet.
@@ -112,8 +112,10 @@ impl ClientExecutor {
         V: Variant,
     {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = input.witness_db()?;
-        let cache_db = CacheDB::new(&witness_db);
+        let wrap_ref = profile!("initialize witness db", {
+            let trie_db = input.witness_db().unwrap();
+            WrapDatabaseRef(trie_db)
+        });
 
         // Execute the block.
         let spec = V::spec();
@@ -126,7 +128,7 @@ impl ClientExecutor {
         })?;
         let executor_difficulty = input.current_block.header.difficulty;
         let executor_output = profile!("execute", {
-            V::execute(&executor_block_input, executor_difficulty, cache_db)
+            V::execute(&executor_block_input, executor_difficulty, wrap_ref)
         })?;
 
         // Validate the block post execution.
