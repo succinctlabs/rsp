@@ -5,7 +5,7 @@ mod utils;
 pub mod custom;
 pub mod error;
 
-use std::{borrow::BorrowMut, fmt::Display};
+use std::{borrow::BorrowMut, fmt::Display, fs::File, io::BufReader, path::Path};
 
 use custom::CustomEvmConfig;
 use error::ClientError;
@@ -157,6 +157,14 @@ impl ChainVariant {
 
     pub fn from_genesis(genesis: Genesis) -> Self {
         Self::Ethereum(EthereumVariant::new(genesis.into()))
+    }
+
+    pub fn from_genesis_path<P: AsRef<Path>>(genesis_path: P) -> Result<Self, ClientError> {
+        let file = File::open(genesis_path)?;
+        let reader = BufReader::new(file);
+        let genesis = serde_json::from_reader::<_, Genesis>(reader)?;
+
+        Ok(Self::from_genesis(genesis.into()))
     }
 
     pub fn mainnet() -> Self {

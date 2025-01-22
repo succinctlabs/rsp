@@ -9,7 +9,7 @@ use rsp_client_executor::{
 };
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::path::PathBuf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -87,13 +87,7 @@ async fn main() -> eyre::Result<()> {
     }
 
     let variant = match &args.genesis_path {
-        Some(genesis_path) => {
-            let file = File::open(genesis_path)?;
-            let reader = BufReader::new(file);
-            let genesis = serde_json::from_reader(reader)?;
-
-            ChainVariant::from_genesis(genesis)
-        }
+        Some(genesis_path) => ChainVariant::from_genesis_path(&genesis_path)?,
         None => match provider_config.chain_id {
             CHAIN_ID_ETH_MAINNET => ChainVariant::mainnet(),
             CHAIN_ID_OP_MAINNET => ChainVariant::op_mainnet(),
