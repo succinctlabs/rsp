@@ -94,10 +94,14 @@ async fn main() -> eyre::Result<()> {
             CHAIN_ID_LINEA_MAINNET => ChainVariant::linea_mainnet(),
             CHAIN_ID_SEPOLIA => ChainVariant::sepolia(),
             _ => {
-                eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
+                eyre::bail!("Unknown chain ID: {}", provider_config.chain_id);
             }
         },
     };
+
+    if args.genesis_path.is_some() && variant.chain_id() != provider_config.chain_id {
+        eyre::bail!("The chain ID in the genesis file does not match the provided RPC");
+    }
 
     let client_input_from_cache = try_load_input_from_cache(
         args.cache_dir.as_ref(),
