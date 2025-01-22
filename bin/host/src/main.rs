@@ -87,7 +87,7 @@ async fn main() -> eyre::Result<()> {
     }
 
     let variant = match &args.genesis_path {
-        Some(genesis_path) => ChainVariant::from_genesis_path(&genesis_path)?,
+        Some(genesis_path) => ChainVariant::from_genesis_path(genesis_path)?,
         None => match provider_config.chain_id {
             CHAIN_ID_ETH_MAINNET => ChainVariant::mainnet(),
             CHAIN_ID_OP_MAINNET => ChainVariant::op_mainnet(),
