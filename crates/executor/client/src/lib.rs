@@ -110,19 +110,6 @@ impl LineaVariant {
     }
 }
 
-/// Implementation for Sepolia-specific execution/validation logic.
-#[derive(Debug, Clone)]
-pub struct SepoliaVariant {
-    pub spec: ChainSpec,
-}
-
-impl SepoliaVariant {
-    /// Creates a new Sepolia variant.
-    pub fn new(spec: ChainSpec) -> Self {
-        Self { spec }
-    }
-}
-
 /// EVM chain variants that implement different execution/validation rules.
 #[derive(Debug, Clone)]
 pub enum ChainVariant {
@@ -132,8 +119,6 @@ pub enum ChainVariant {
     Optimism(OptimismVariant),
     /// Linea networks.
     Linea(LineaVariant),
-    /// Testnets
-    Sepolia(SepoliaVariant),
 }
 
 impl ChainVariant {
@@ -142,14 +127,14 @@ impl ChainVariant {
             CHAIN_ID_ETH_MAINNET => {
                 Ok(Self::Ethereum(EthereumVariant::new(rsp_primitives::chain_spec::mainnet())))
             }
+            CHAIN_ID_SEPOLIA => {
+                Ok(Self::Ethereum(EthereumVariant::new(rsp_primitives::chain_spec::sepolia())))
+            }
             CHAIN_ID_OP_MAINNET => {
                 Ok(Self::Optimism(OptimismVariant::new(rsp_primitives::chain_spec::op_mainnet())))
             }
             CHAIN_ID_LINEA_MAINNET => {
                 Ok(Self::Linea(LineaVariant::new(rsp_primitives::chain_spec::linea_mainnet())))
-            }
-            CHAIN_ID_SEPOLIA => {
-                Ok(Self::Sepolia(SepoliaVariant::new(rsp_primitives::chain_spec::sepolia())))
             }
             _ => Err(ClientError::UnknownChainId(chain_id)),
         }
@@ -164,7 +149,7 @@ impl ChainVariant {
         let reader = BufReader::new(file);
         let genesis = serde_json::from_reader::<_, Genesis>(reader)?;
 
-        Ok(Self::from_genesis(genesis.into()))
+        Ok(Self::from_genesis(genesis))
     }
 
     pub fn mainnet() -> Self {
@@ -189,7 +174,6 @@ impl ChainVariant {
             ChainVariant::Ethereum(v) => v.spec.genesis.config.chain_id,
             ChainVariant::Optimism(v) => v.spec.genesis.config.chain_id,
             ChainVariant::Linea(v) => v.spec.genesis.config.chain_id,
-            ChainVariant::Sepolia(v) => v.spec.genesis.config.chain_id,
         }
     }
 
@@ -198,7 +182,6 @@ impl ChainVariant {
             ChainVariant::Ethereum(v) => v.spec.genesis.clone(),
             ChainVariant::Optimism(v) => v.spec.genesis.clone(),
             ChainVariant::Linea(v) => v.spec.genesis.clone(),
-            ChainVariant::Sepolia(v) => v.spec.genesis.clone(),
         }
     }
 }
@@ -223,9 +206,6 @@ impl Variant for ChainVariant {
             ChainVariant::Linea(v) => {
                 v.execute(executor_block_input, executor_difficulty, cache_db)
             }
-            ChainVariant::Sepolia(v) => {
-                v.execute(executor_block_input, executor_difficulty, cache_db)
-            }
         }
     }
 
@@ -239,7 +219,6 @@ impl Variant for ChainVariant {
             ChainVariant::Ethereum(v) => v.validate_block_post_execution(block, receipts, requests),
             ChainVariant::Optimism(v) => v.validate_block_post_execution(block, receipts, requests),
             ChainVariant::Linea(v) => v.validate_block_post_execution(block, receipts, requests),
-            ChainVariant::Sepolia(v) => v.validate_block_post_execution(block, receipts, requests),
         }
     }
 
@@ -248,7 +227,6 @@ impl Variant for ChainVariant {
             ChainVariant::Ethereum(v) => v.pre_process_block(block),
             ChainVariant::Optimism(v) => v.pre_process_block(block),
             ChainVariant::Linea(v) => v.pre_process_block(block),
-            ChainVariant::Sepolia(v) => v.pre_process_block(block),
         }
     }
 }
@@ -453,39 +431,5 @@ impl Variant for LineaVariant {
 impl From<LineaVariant> for ChainVariant {
     fn from(v: LineaVariant) -> Self {
         Self::Linea(v)
-    }
-}
-
-impl Variant for SepoliaVariant {
-    fn execute<DB>(
-        &self,
-        executor_block_input: &BlockWithSenders,
-        executor_difficulty: U256,
-        cache_db: DB,
-    ) -> Result<BlockExecutionOutput<Receipt>, BlockExecutionError>
-    where
-        DB: Database<Error: Into<ProviderError> + Display>,
-    {
-        EthExecutorProvider::new(
-            self.spec.clone().into(),
-            CustomEvmConfig::from_variant(self.clone().into()),
-        )
-        .executor(cache_db)
-        .execute((executor_block_input, executor_difficulty).into())
-    }
-
-    fn validate_block_post_execution(
-        &self,
-        block: &BlockWithSenders,
-        receipts: &[Receipt],
-        requests: &[Request],
-    ) -> Result<(), ConsensusError> {
-        validate_block_post_execution_ethereum(block, &self.spec, receipts, requests)
-    }
-}
-
-impl From<SepoliaVariant> for ChainVariant {
-    fn from(v: SepoliaVariant) -> Self {
-        Self::Sepolia(v)
     }
 }
