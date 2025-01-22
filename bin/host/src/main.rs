@@ -9,7 +9,7 @@ use rsp_client_executor::{
 };
 use rsp_host_executor::HostExecutor;
 use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use std::path::PathBuf;
+use std::{fs::File, io::BufReader, path::PathBuf};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -27,15 +27,23 @@ struct HostArgs {
     /// The block number of the block to execute.
     #[clap(long)]
     block_number: u64,
+
     #[clap(flatten)]
     provider: ProviderArgs,
+
+    /// The path to the genesis json file to use for the execution.
+    #[clap(long)]
+    genesis_path: Option<PathBuf>,
+
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
     prove: bool,
+
     /// Optional path to the directory containing cached client input. A new cache file will be
     /// created from RPC data if it doesn't already exist.
     #[clap(long)]
     cache_dir: Option<PathBuf>,
+
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     report_path: PathBuf,
@@ -78,14 +86,23 @@ async fn main() -> eyre::Result<()> {
         eth_proofs_client.queued(args.block_number).await?;
     }
 
-    let variant = match provider_config.chain_id {
-        CHAIN_ID_ETH_MAINNET => ChainVariant::Ethereum,
-        CHAIN_ID_OP_MAINNET => ChainVariant::Optimism,
-        CHAIN_ID_LINEA_MAINNET => ChainVariant::Linea,
-        CHAIN_ID_SEPOLIA => ChainVariant::Sepolia,
-        _ => {
-            eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
+    let variant = match &args.genesis_path {
+        Some(genesis_path) => {
+            let file = File::open(genesis_path)?;
+            let reader = BufReader::new(file);
+            let genesis = serde_json::from_reader(reader)?;
+
+            ChainVariant::from_genesis(genesis)
         }
+        None => match provider_config.chain_id {
+            CHAIN_ID_ETH_MAINNET => ChainVariant::mainnet(),
+            CHAIN_ID_OP_MAINNET => ChainVariant::op_mainnet(),
+            CHAIN_ID_LINEA_MAINNET => ChainVariant::linea_mainnet(),
+            CHAIN_ID_SEPOLIA => ChainVariant::sepolia(),
+            _ => {
+                eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
+            }
+        },
     };
 
     let client_input_from_cache = try_load_input_from_cache(
@@ -105,10 +122,8 @@ async fn main() -> eyre::Result<()> {
             let host_executor = HostExecutor::new(provider);
 
             // Execute the host.
-            let client_input = host_executor
-                .execute(args.block_number, variant)
-                .await
-                .expect("failed to execute host");
+            let client_input =
+                host_executor.execute(args.block_number, &variant, args.genesis_path).await?;
 
             if let Some(ref cache_dir) = args.cache_dir {
                 let input_folder = cache_dir.join(format!("input/{}", provider_config.chain_id));
@@ -134,10 +149,10 @@ async fn main() -> eyre::Result<()> {
 
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match variant {
-        ChainVariant::Ethereum => include_elf!("rsp-client-eth"),
-        ChainVariant::Optimism => include_elf!("rsp-client-op"),
-        ChainVariant::Linea => include_elf!("rsp-client-linea"),
-        ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
+        ChainVariant::Ethereum(_) => include_elf!("rsp-client-eth"),
+        ChainVariant::Optimism(_) => include_elf!("rsp-client-op"),
+        ChainVariant::Linea(_) => include_elf!("rsp-client-linea"),
+        ChainVariant::Sepolia(_) => include_elf!("rsp-client-sepolia"),
     });
 
     // Execute the block inside the zkVM.
