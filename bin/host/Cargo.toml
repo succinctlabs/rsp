@@ -24,7 +24,8 @@ alloy-provider.workspace = true
 reth-primitives.workspace = true
 
 # sp1
-sp1-sdk = "4.0.0"
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/mhz-profiling" }
+sp1-core-machine = { git = "https://github.com/succinctlabs/sp1-wip", branch = "yuwen/mhz-profiling", features = ["bigint-rug"] }
 eyre = "0.6.12"
 reqwest = "0.12.9"
 base64 = "0.22.1"

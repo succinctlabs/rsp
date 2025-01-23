@@ -111,6 +111,12 @@ impl ClientExecutor {
     where
         V: Variant,
     {
+        let executor_block_input = profile!("clone senders", {
+            BlockWithSenders {
+                block: input.executor_block_input.clone(),
+                senders: input.senders.clone(),
+            }
+        });
         // Initialize the witnessed database with verified storage proofs.
         let wrap_ref = profile!("initialize witness db", {
             let trie_db = input.witness_db().unwrap();
@@ -119,13 +125,15 @@ impl ClientExecutor {
 
         // Execute the block.
         let spec = V::spec();
-        let executor_block_input = profile!("recover senders", {
-            input
-                .current_block
-                .clone()
-                .with_recovered_senders()
-                .ok_or(ClientError::SignatureRecoveryFailed)
-        })?;
+        // let executor_block_input = profile!("recover senders", {
+        //     input
+        //         .current_block
+        //         .clone()
+        //         .with_recovered_senders()
+        //         .ok_or(ClientError::SignatureRecoveryFailed)
+        // })?;
+        // let executor_block_input =
+        //     BlockWithSenders { block: input.executor_block_input, senders: input.senders };
         let executor_difficulty = input.current_block.header.difficulty;
         let executor_output = profile!("execute", {
             V::execute(&executor_block_input, executor_difficulty, wrap_ref)

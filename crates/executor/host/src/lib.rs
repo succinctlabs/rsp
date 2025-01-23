@@ -224,6 +224,8 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             parent_state: state,
             state_requests,
             bytecodes: rpc_db.get_bytecodes(),
+            executor_block_input: executor_block_input.block,
+            senders: executor_block_input.senders,
         };
         tracing::info!("successfully generated client input");
 

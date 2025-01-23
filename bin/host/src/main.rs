@@ -135,9 +135,10 @@ async fn main() -> eyre::Result<()> {
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match variant {
         ChainVariant::Ethereum => include_elf!("rsp-client-eth"),
-        ChainVariant::Optimism => include_elf!("rsp-client-op"),
-        ChainVariant::Linea => include_elf!("rsp-client-linea"),
-        ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
+        _ => panic!("unsupported variant"),
+        // ChainVariant::Optimism => include_elf!("rsp-client-op"),
+        // ChainVariant::Linea => include_elf!("rsp-client-linea"),
+        // ChainVariant::Sepolia => include_elf!("rsp-client-sepolia"),
     });
 
     // Execute the block inside the zkVM.

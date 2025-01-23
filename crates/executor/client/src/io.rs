@@ -30,6 +30,10 @@ pub struct ClientExecutorInput {
     pub state_requests: HashMap<Address, Vec<U256>>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
+    /// blockwithsenders: block
+    pub executor_block_input: Block,
+    /// blockwithsenders: senders
+    pub senders: Vec<Address>,
 }
 
 impl ClientExecutorInput {
