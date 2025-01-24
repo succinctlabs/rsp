@@ -32,7 +32,7 @@ In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply suppply a block number and an RPC URL:
+The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
