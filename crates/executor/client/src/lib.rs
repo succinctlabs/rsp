@@ -29,7 +29,7 @@ use revm_primitives::{address, U256};
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
 
-/// Chain ID for OP Mainnnet.
+/// Chain ID for OP Mainnet.
 pub const CHAIN_ID_OP_MAINNET: u64 = 0xa;
 
 /// Chain ID for Linea Mainnet.
