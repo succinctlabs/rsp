@@ -16,6 +16,9 @@ sp1-zkvm = "4.0.0"
 # Statically turns off logging
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
 tracing = { version = "0.1", features = ["max_level_off", "release_max_level_off"] }
+serde_json = "1.0.94"
+serde = { version = "1.0", default-features = false }
+reth-primitives = { git = "https://github.com/sp1-patches/reth", tag = "rsp-20240830", default-features = false }
 
 [patch.crates-io]
 # Precompile patches

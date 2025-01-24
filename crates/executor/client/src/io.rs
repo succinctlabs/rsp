@@ -30,6 +30,8 @@ pub struct ClientExecutorInput {
     pub state_requests: HashMap<Address, Vec<U256>>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
+    /// The genesis block. Used when proving on custom chains.
+    pub genesis: Option<String>,
 }
 
 impl ClientExecutorInput {

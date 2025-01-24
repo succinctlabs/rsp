@@ -1,17 +1,14 @@
 mod error;
 pub use error::Error as HostError;
 
-use std::{collections::BTreeSet, marker::PhantomData};
+use std::{collections::BTreeSet, fs, marker::PhantomData, path::PathBuf};
 
 use alloy_provider::{network::AnyNetwork, Provider};
 use alloy_transport::Transport;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::{proofs, Block, Bloom, Receipts, B256};
 use revm::db::CacheDB;
-use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, EthereumVariant, LineaVariant, OptimismVariant,
-    SepoliaVariant, Variant,
-};
+use rsp_client_executor::{io::ClientExecutorInput, ChainVariant, Variant};
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
@@ -35,20 +32,9 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
     pub async fn execute(
         &self,
         block_number: u64,
-        variant: ChainVariant,
+        variant: &ChainVariant,
+        genesis_path: Option<PathBuf>,
     ) -> Result<ClientExecutorInput, HostError> {
-        match variant {
-            ChainVariant::Ethereum => self.execute_variant::<EthereumVariant>(block_number).await,
-            ChainVariant::Optimism => self.execute_variant::<OptimismVariant>(block_number).await,
-            ChainVariant::Linea => self.execute_variant::<LineaVariant>(block_number).await,
-            ChainVariant::Sepolia => self.execute_variant::<SepoliaVariant>(block_number).await,
-        }
-    }
-
-    async fn execute_variant<V>(&self, block_number: u64) -> Result<ClientExecutorInput, HostError>
-    where
-        V: Variant,
-    {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
         let current_block = self
@@ -65,10 +51,6 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             .ok_or(HostError::ExpectedBlock(block_number))
             .map(|block| Block::try_from(block.inner))??;
 
-        // Setup the spec for the block executor.
-        tracing::info!("setting up the spec for the block executor");
-        let spec = V::spec();
-
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
         let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
@@ -81,18 +63,19 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             current_block.body.len()
         );
 
-        let executor_block_input = V::pre_process_block(&current_block)
+        let executor_block_input = variant
+            .pre_process_block(&current_block)
             .with_recovered_senders()
             .ok_or(HostError::FailedToRecoverSenders)?;
 
         let executor_difficulty = current_block.header.difficulty;
-        let executor_output = V::execute(&executor_block_input, executor_difficulty, cache_db)?;
+        let executor_output =
+            variant.execute(&executor_block_input, executor_difficulty, cache_db)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        V::validate_block_post_execution(
+        variant.validate_block_post_execution(
             &executor_block_input,
-            &spec,
             &executor_output.receipts,
             &executor_output.requests,
         )?;
@@ -217,13 +200,20 @@ impl<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone> HostExecutor<T, P
             ancestor_headers.push(block.inner.header.try_into()?);
         }
 
+        let genesis = if let Some(genesis_path) = genesis_path {
+            Some(fs::read_to_string(genesis_path)?)
+        } else {
+            None
+        };
+
         // Create the client input.
         let client_input = ClientExecutorInput {
-            current_block: V::pre_process_block(&current_block),
+            current_block: variant.pre_process_block(&current_block),
             ancestor_headers,
             parent_state: state,
             state_requests,
             bytecodes: rpc_db.get_bytecodes(),
+            genesis,
         };
         tracing::info!("successfully generated client input");
 

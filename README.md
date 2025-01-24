@@ -32,13 +32,19 @@ In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You
 
 ### Running the CLI
 
-The host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
+For the supported chains (Ethereum Mainnet and Sepolia, OP Stack Mainnet, and Linea Mainnet), the host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>
 ```
 
-which outputs logs similar to:
+If you want to run RSP on another EVM chain, you must specify the genesis JSON file with `--genesis-path`:
+
+```console
+rsp --block-number 18884864 --rpc-url <RPC> --genesis-path <GENESIS_PATH>
+```
+
+You should see logs similar to:
 
 ```log
 2024-07-15T00:49:03.857638Z  INFO rsp_host_executor: fetching the current block and the previous block

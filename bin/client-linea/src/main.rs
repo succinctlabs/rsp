@@ -1,7 +1,7 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use rsp_client_executor::{io::ClientExecutorInput, ClientExecutor, LineaVariant};
+use rsp_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
 
 pub fn main() {
     // Read the input.
@@ -10,7 +10,8 @@ pub fn main() {
 
     // Execute the block.
     let executor = ClientExecutor;
-    let header = executor.execute::<LineaVariant>(input).expect("failed to execute client");
+    let header =
+        executor.execute(input, &ChainVariant::linea_mainnet()).expect("failed to execute client");
     let block_hash = header.hash_slow();
 
     // Commit the block hash.

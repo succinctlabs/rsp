@@ -1,38 +1,47 @@
+use std::{fs, path::PathBuf};
+
 use alloy_provider::ReqwestProvider;
-use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, ClientExecutor, EthereumVariant, LineaVariant,
-    OptimismVariant, SepoliaVariant, Variant,
-};
+use rsp_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
 use rsp_host_executor::HostExecutor;
 use tracing_subscriber::{
-    filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
+    fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
 };
 use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
-    run_e2e::<EthereumVariant>(ChainVariant::Ethereum, "RPC_1", 18884864).await;
+    run_e2e(ChainVariant::mainnet(), "RPC_1", 18884864, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
-    run_e2e::<OptimismVariant>(ChainVariant::Optimism, "RPC_10", 122853660).await;
+    run_e2e(ChainVariant::op_mainnet(), "RPC_10", 122853660, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_linea() {
-    run_e2e::<LineaVariant>(ChainVariant::Linea, "RPC_59144", 5600000).await;
+    run_e2e(ChainVariant::linea_mainnet(), "RPC_59144", 5600000, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_sepolia() {
-    run_e2e::<SepoliaVariant>(ChainVariant::Sepolia, "RPC_11155111", 6804324).await;
+    let genesis_path = fs::canonicalize("./tests/fixtures/sepolia_genesis.json").unwrap();
+
+    run_e2e(
+        ChainVariant::from_genesis_path(&genesis_path).unwrap(),
+        "RPC_11155111",
+        6804324,
+        Some(genesis_path),
+    )
+    .await;
 }
 
-async fn run_e2e<V>(variant: ChainVariant, env_var_key: &str, block_number: u64)
-where
-    V: Variant,
-{
+async fn run_e2e(
+    variant: ChainVariant,
+    env_var_key: &str,
+    block_number: u64,
+    genesis_path: Option<PathBuf>,
+) {
     // Intialize the environment variables.
     dotenv::dotenv().ok();
 
@@ -51,14 +60,16 @@ where
     let host_executor = HostExecutor::new(provider);
 
     // Execute the host.
-    let client_input =
-        host_executor.execute(block_number, variant).await.expect("failed to execute host");
+    let client_input = host_executor
+        .execute(block_number, &variant, genesis_path)
+        .await
+        .expect("failed to execute host");
 
     // Setup the client executor.
     let client_executor = ClientExecutor;
 
     // Execute the client.
-    client_executor.execute::<V>(client_input.clone()).expect("failed to execute client");
+    client_executor.execute(client_input.clone(), &variant).expect("failed to execute client");
 
     // Save the client input to a buffer.
     let buffer = bincode::serialize(&client_input).unwrap();

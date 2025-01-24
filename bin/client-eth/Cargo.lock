@@ -2815,7 +2815,10 @@ version = "0.0.0"
 dependencies = [
  "bincode",
  "log",
+ "reth-primitives",
  "rsp-client-executor",
+ "serde",
+ "serde_json",
  "sp1-zkvm",
  "tracing",
 ]
