@@ -9,16 +9,8 @@ pub struct EthProofsClient {
 }
 
 impl EthProofsClient {
-    pub fn new(
-        cluster_id: u64,
-        eth_proofs_endpoint: Option<String>,
-        eth_proofs_api_token: Option<String>,
-    ) -> Option<Self> {
-        if let (Some(endpoint), Some(api_token)) = (eth_proofs_endpoint, eth_proofs_api_token) {
-            Some(Self { cluster_id, endpoint, api_token, client: reqwest::Client::new() })
-        } else {
-            None
-        }
+    pub fn new(cluster_id: u64, endpoint: String, api_token: String) -> Self {
+        Self { cluster_id, endpoint, api_token, client: reqwest::Client::new() }
     }
 
     pub async fn queued(&self, block_number: u64) -> eyre::Result<()> {

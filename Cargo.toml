@@ -111,6 +111,7 @@ alloy-transport = { version = "0.3" }
 alloy-transport-http = { version = "0.3", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
+alloy-transport-ws = { version = "0.3" }
 alloy-eips = { version = "0.3", default-features = false }
 alloy-trie = "0.5.0"
 

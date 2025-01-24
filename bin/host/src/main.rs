@@ -1,6 +1,5 @@
 use alloy_provider::ReqwestProvider;
 use clap::Parser;
-use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
 use reth_primitives::B256;
 use rsp_client_executor::{
@@ -18,8 +17,6 @@ mod execute;
 
 mod cli;
 use cli::ProviderArgs;
-
-mod eth_proofs;
 
 /// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
@@ -76,15 +73,6 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
     let provider_config = args.provider.clone().into_provider().await?;
-    let eth_proofs_client = EthProofsClient::new(
-        args.eth_proofs_cluster_id,
-        args.eth_proofs_endpoint,
-        args.eth_proofs_api_token,
-    );
-
-    if let Some(eth_proofs_client) = &eth_proofs_client {
-        eth_proofs_client.queued(args.block_number).await?;
-    }
 
     let variant = match &args.genesis_path {
         Some(genesis_path) => ChainVariant::from_genesis_path(genesis_path)?,
@@ -146,7 +134,7 @@ async fn main() -> eyre::Result<()> {
     let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
-    let (pk, vk) = client.setup(match variant {
+    let (pk, _) = client.setup(match variant {
         ChainVariant::Ethereum(_) => include_elf!("rsp-client-eth"),
         ChainVariant::Optimism(_) => include_elf!("rsp-client-op"),
         ChainVariant::Linea(_) => include_elf!("rsp-client-linea"),
@@ -164,34 +152,14 @@ async fn main() -> eyre::Result<()> {
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
 
-    if eth_proofs_client.is_none() {
-        // Process the execute report, print it out, and save data to a CSV specified by
-        // report_path.
-        process_execution_report(
-            variant,
-            client_input,
-            &execution_report,
-            args.report_path.clone(),
-        )?;
-    }
+    // Process the execute report, print it out, and save data to a CSV specified by
+    // report_path.
+    process_execution_report(variant, client_input, &execution_report, args.report_path.clone())?;
 
     if args.prove {
         println!("Starting proof generation.");
 
-        if let Some(eth_proofs_client) = &eth_proofs_client {
-            eth_proofs_client.proving(args.block_number).await?;
-        }
-
-        let start = std::time::Instant::now();
-        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
-        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
-        let elapsed = start.elapsed().as_secs_f32();
-
-        if let Some(eth_proofs_client) = &eth_proofs_client {
-            eth_proofs_client
-                .proved(&proof_bytes, args.block_number, &execution_report, elapsed, &vk)
-                .await?;
-        }
+        client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
     }
 
     Ok(())

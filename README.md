@@ -134,23 +134,22 @@ To run benchmarking with [ETH proofs](https://staging--ethproofs.netlify.app/), 
    ```bash
    export ETH_PROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
    export ETH_PROOFS_API_TOKEN=<your_api_token>
-   export RPC_URL=<your_eth_mainnet_rpc>
+   export HTTP_RPC_URL=<your_http_eth_mainnet_rpc>
+   export WS_RPC_URL=<your_ws_eth_mainnet_rpc>
    ```
 
 3. Run the benchmarking recipe:
    ```bash
-   # Run with default cluster ID (1) and sleep time (900s)
+   # Run with default cluster ID (1) and block interval (100)
    just run-eth-proofs
 
-   # Run with custom cluster ID and sleep time (in seconds)
-   just run-eth-proofs 5 600
+   # Run with custom cluster ID and block interval
+   just run-eth-proofs 5 20
    ```
 
 This will continuously:
 - Fetch the latest block number
-- Round it down to the nearest 100
-- Generate a proof and submit its proving time
-- Sleep for the specified duration before the next iteration
+- When block_number % block_interval == 0: generate a proof and submit its proving time
 
 ## FAQ
 
