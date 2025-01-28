@@ -19,11 +19,11 @@ mod eth_proofs_client;
 #[derive(Debug, Clone, Parser)]
 struct Args {
     /// The HTTP rpc url used to fetch data about the block.
-    #[clap(long)]
+    #[clap(long, env)]
     http_rpc_url: Url,
 
     /// The WS rpc url used to fetch data about the block.
-    #[clap(long)]
+    #[clap(long, env)]
     ws_rpc_url: Url,
 
     /// The interval at which to execute blocks.
