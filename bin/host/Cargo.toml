@@ -19,7 +19,9 @@ rsp-host-executor.workspace = true
 rsp-client-executor.workspace = true
 
 # alloy
+alloy-rpc-types = { workspace = true, features = ["eth"] }
 alloy-provider = { workspace = true, features = ["ws"] }
+alloy-transport.workspace = true
 alloy-transport-ws.workspace = true
 
 # reth 

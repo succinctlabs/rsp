@@ -4939,6 +4939,8 @@ name = "rsp"
 version = "0.1.0"
 dependencies = [
  "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-transport",
  "alloy-transport-ws",
  "base64 0.22.1",
  "bincode",

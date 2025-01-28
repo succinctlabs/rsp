@@ -1,4 +1,6 @@
-use alloy_provider::{Provider, ProviderBuilder, ReqwestProvider};
+use alloy_provider::{network::AnyNetwork, Provider, ProviderBuilder, ReqwestProvider};
+use alloy_rpc_types::Block;
+use alloy_transport::Transport;
 use alloy_transport_ws::WsConnect;
 use clap::Parser;
 use eth_proofs_client::EthProofsClient;
@@ -6,8 +8,8 @@ use futures::{future::ready, StreamExt};
 use reth_primitives::B256;
 use rsp_client_executor::ChainVariant;
 use rsp_host_executor::HostExecutor;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use tracing::info;
+use sp1_sdk::{include_elf, EnvProver, ProverClient, SP1ProvingKey, SP1Stdin, SP1VerifyingKey};
+use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use url::Url;
 
@@ -79,47 +81,64 @@ async fn main() -> eyre::Result<()> {
     info!("Latest block number: {}", http_provider.get_block_number().await?);
 
     while let Some(block) = stream.next().await {
-        let block_number = block.header.number;
-
-        //Report we stated working on the block.
-        eth_proofs_client.queued(block_number).await?;
-
-        info!("Executing block {block_number} in the host");
-
-        // Execute the host.
-        let client_input = host_executor.execute(block_number, &variant, None).await?;
-
-        info!("Executing block {block_number} inside the zkVM");
-
-        // Execute the block inside the zkVM.
-        let mut stdin = SP1Stdin::new();
-        let buffer = bincode::serialize(&client_input).unwrap();
-        stdin.write_vec(buffer);
-
-        // Only execute the program.
-        let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
-
-        // Read the block hash.
-        let block_hash = public_values.read::<B256>();
-        info!("Success! block hash: {block_hash}");
-
-        // Report we stated proving.
-        eth_proofs_client.proving(block_number).await?;
-
-        info!("Starting proof generation.");
-
-        let start = std::time::Instant::now();
-        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
-        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
-        let elapsed = start.elapsed().as_secs_f32();
-
-        // Report we proved.
-        eth_proofs_client
-            .proved(&proof_bytes, block_number, &execution_report, elapsed, &vk)
-            .await?;
-
-        info!("Block {block_number} proved in {elapsed} seconds.");
+        if let Err(err) =
+            handle_block(block, &variant, &pk, &vk, &host_executor, &client, &eth_proofs_client)
+                .await
+        {
+            error!("Error handling block: {err}");
+        }
     }
+
+    Ok(())
+}
+
+async fn handle_block<T: Transport + Clone, P: Provider<T, AnyNetwork> + Clone>(
+    block: Block,
+    variant: &ChainVariant,
+    pk: &SP1ProvingKey,
+    vk: &SP1VerifyingKey,
+    host_executor: &HostExecutor<T, P>,
+    client: &EnvProver,
+    eth_proofs_client: &EthProofsClient,
+) -> eyre::Result<()> {
+    let block_number = block.header.number;
+
+    //Report we stated working on the block.
+    eth_proofs_client.queued(block_number).await?;
+
+    info!("Executing block {block_number} in the host");
+
+    // Execute the host.
+    let client_input = host_executor.execute(block_number, variant, None).await?;
+
+    info!("Executing block {block_number} inside the zkVM");
+
+    // Execute the block inside the zkVM.
+    let mut stdin = SP1Stdin::new();
+    let buffer = bincode::serialize(&client_input)?;
+    stdin.write_vec(buffer);
+
+    // Only execute the program.
+    let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
+
+    // Read the block hash.
+    let block_hash = public_values.read::<B256>();
+    info!("Success! block hash: {block_hash}");
+
+    // Report we stated proving.
+    eth_proofs_client.proving(block_number).await?;
+
+    info!("Starting proof generation.");
+
+    let start = std::time::Instant::now();
+    let proof = client.prove(pk, &stdin).compressed().run().expect("Proving should work.");
+    let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+    let elapsed = start.elapsed().as_secs_f32();
+
+    // Report we proved.
+    eth_proofs_client.proved(&proof_bytes, block_number, &execution_report, elapsed, vk).await?;
+
+    info!("Block {block_number} proved in {elapsed} seconds.");
 
     Ok(())
 }
