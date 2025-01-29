@@ -345,12 +345,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.93"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c95c10ba0b00a02636238b814946408b1322d5ac4760326e6fb8ec956d85775"
-
-[[package]]
 name = "ark-ff"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -958,7 +952,7 @@ dependencies = [
  "hex-literal",
  "rfc6979",
  "signature",
- "sp1-lib 4.0.0",
+ "sp1-lib",
  "spki",
 ]
 
@@ -1603,9 +1597,9 @@ dependencies = [
 
 [[package]]
 name = "kzg-rs"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0850eb19206463a61bede4f7b7e6b21731807137619044b1f3c287ebcfe2b3b0"
+checksum = "08151404e9f89dfc6149ccb2d3e03f2c4ec4f253b721770975da1a1644c6b79f"
 dependencies = [
  "ff",
  "hex",
@@ -3009,30 +3003,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
-name = "scale-info"
-version = "2.11.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aa7ffc1c0ef49b0452c6e2986abf2b07743320641ffd5fc63d552458e3b779b"
-dependencies = [
- "cfg-if",
- "derive_more",
- "parity-scale-codec",
- "scale-info-derive",
-]
-
-[[package]]
-name = "scale-info-derive"
-version = "2.11.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46385cc24172cf615450267463f937c10072516359b3ff1cb24228a4a08bf951"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 2.0.87",
-]
-
-[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3222,30 +3192,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "snowbridge-amcl"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "460a9ed63cdf03c1b9847e8a12a5f5ba19c4efd5869e4a737e05be25d7c427e5"
-dependencies = [
- "parity-scale-codec",
- "scale-info",
-]
-
-[[package]]
-name = "sp1-lib"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bea7811abd2d3a991007fcb284f41152840b8388c171288d0c52c6793956609c"
-dependencies = [
- "anyhow",
- "bincode",
- "cfg-if",
- "hex",
- "serde",
- "snowbridge-amcl",
-]
-
-[[package]]
 name = "sp1-lib"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3286,22 +3232,22 @@ dependencies = [
  "libm",
  "rand",
  "sha2",
- "sp1-lib 4.0.0",
+ "sp1-lib",
  "sp1-primitives",
 ]
 
 [[package]]
 name = "sp1_bls12_381"
-version = "0.8.0"
+version = "0.8.0-sp1-4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a27c4b8901334dc09099dd82f80a72ddfc76b0046f4b342584c808f1931bed5a"
+checksum = "260e07035fec67f2018dbb70359bed671582160bbcb2419deb812e583c8c975a"
 dependencies = [
  "cfg-if",
  "ff",
  "group",
  "pairing",
  "rand_core",
- "sp1-lib 1.2.0",
+ "sp1-lib",
  "subtle",
 ]
 
@@ -3377,7 +3323,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "rand",
  "rustc-hex",
- "sp1-lib 4.0.0",
+ "sp1-lib",
 ]
 
 [[package]]
