@@ -1,5 +1,5 @@
-use reth_trie::{AccountProof, HashedPostState, TrieAccount};
-use revm::primitives::{Address, HashMap, B256};
+use alloy_primitives::{map::HashMap, Address, B256};
+use reth_trie::{AccountProof, HashedPostState, HashedStorage, TrieAccount};
 use serde::{Deserialize, Serialize};
 
 /// Module containing MPT code adapted from `zeth`.
@@ -39,7 +39,11 @@ impl EthereumState {
 
             match account {
                 Some(account) => {
-                    let state_storage = &post_state.storages.get(hashed_address).unwrap();
+                    let state_storage = &post_state
+                        .storages
+                        .get(hashed_address)
+                        .cloned()
+                        .unwrap_or_else(|| HashedStorage::new(false));
                     let storage_root = {
                         let storage_trie = self.storage_tries.get_mut(hashed_address).unwrap();
 

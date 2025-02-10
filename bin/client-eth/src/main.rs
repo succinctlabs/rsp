@@ -1,24 +1,24 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use reth_primitives::Genesis;
-use rsp_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
+use std::sync::Arc;
+
+use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
+use reth_primitives::EthPrimitives;
+use rsp_client_executor::{
+    custom::CustomEthEvmConfig, executor::EthClientExecutor, io::ClientExecutorInput,
+};
 
 pub fn main() {
     // Read the input.
     let input = sp1_zkvm::io::read_vec();
-    let input = bincode::deserialize::<ClientExecutorInput>(&input).unwrap();
-
-    let variant = if let Some(genesis) = &input.genesis {
-        let genesis = serde_json::from_str::<Genesis>(genesis).unwrap();
-        ChainVariant::from_genesis(genesis)
-    } else {
-        ChainVariant::mainnet()
-    };
+    let input = bincode::deserialize::<ClientExecutorInput<EthPrimitives>>(&input).unwrap();
+    //let genesis = serde_json::from_str::<Genesis>(&input.genesis_json).unwrap();
 
     // Execute the block.
-    let executor = ClientExecutor;
-    let header = executor.execute(input, &variant).expect("failed to execute client");
+    let chain_spec = rsp_primitives::chain_spec::mainnet();
+    let executor = EthClientExecutor::eth(chain_spec /*Arc::new(genesis.into())*/);
+    let header = executor.execute(input).expect("failed to execute client");
     let block_hash = header.hash_slow();
 
     // Commit the block hash.

@@ -1,14 +1,17 @@
-use std::{collections::HashMap, iter::once};
+use std::iter::once;
 
+use alloy_consensus::{BlockHeader, Header};
+use alloy_primitives::map::HashMap;
 use itertools::Itertools;
 use reth_errors::ProviderError;
-use reth_primitives::{revm_primitives::AccountInfo, Address, Block, Header, B256, U256};
+use reth_primitives::NodePrimitives;
 use reth_trie::TrieAccount;
-use revm_primitives::{keccak256, Bytecode};
+use revm_primitives::{keccak256, AccountInfo, Address, Bytecode, B256, U256};
 use rsp_mpt::EthereumState;
 //use rsp_witness_db::WitnessDb;
 use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 
 use crate::error::ClientError;
 
@@ -17,12 +20,14 @@ use crate::error::ClientError;
 ///
 /// Instead of passing in the entire state, we only pass in the state roots along with merkle proofs
 /// for the storage slots that were modified and accessed.
+#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ClientExecutorInput {
+pub struct ClientExecutorInput<P: NodePrimitives> {
     /// The current block (which will be executed inside the client).
-    pub current_block: Block,
+    pub current_block: BincodeSerializableBlock<P>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.
+    #[serde_as(as = "Vec<alloy_consensus::serde_bincode_compat::Header>")]
     pub ancestor_headers: Vec<Header>,
     /// Network state as of the parent block.
     pub parent_state: EthereumState,
@@ -30,11 +35,11 @@ pub struct ClientExecutorInput {
     pub state_requests: HashMap<Address, Vec<U256>>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
-    /// The genesis block. Used when proving on custom chains.
-    pub genesis: Option<String>,
+    /// The genesis block, as a json string.
+    pub genesis_json: String,
 }
 
-impl ClientExecutorInput {
+impl<P: NodePrimitives> ClientExecutorInput<P> {
     /// Gets the immediate parent block's header.
     #[inline(always)]
     pub fn parent_header(&self) -> &Header {
@@ -43,11 +48,11 @@ impl ClientExecutorInput {
 
     /// Creates a [`WitnessDb`].
     pub fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
-        <Self as WitnessInput>::witness_db(self)
+        <Self as WitnessInput<P>>::witness_db(self)
     }
 }
 
-impl WitnessInput for ClientExecutorInput {
+impl<P: NodePrimitives> WitnessInput<P> for ClientExecutorInput<P> {
     #[inline(always)]
     fn state(&self) -> &EthereumState {
         &self.parent_state
@@ -55,7 +60,7 @@ impl WitnessInput for ClientExecutorInput {
 
     #[inline(always)]
     fn state_anchor(&self) -> B256 {
-        self.parent_header().state_root
+        self.parent_header().state_root()
     }
 
     #[inline(always)]
@@ -68,10 +73,18 @@ impl WitnessInput for ClientExecutorInput {
         self.bytecodes.iter()
     }
 
-    #[inline(always)]
+    //#[inline(always)]
     fn headers(&self) -> impl Iterator<Item = &Header> {
         once(&self.current_block.header).chain(self.ancestor_headers.iter())
     }
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BincodeSerializableBlock<P: NodePrimitives> {
+    #[serde_as(as = "alloy_consensus::serde_bincode_compat::Header")]
+    pub header: Header,
+    pub body: P::BlockBody,
 }
 
 #[derive(Debug)]
@@ -144,7 +157,7 @@ impl<'a> DatabaseRef for TrieDB<'a> {
 }
 
 /// A trait for constructing [`WitnessDb`].
-pub trait WitnessInput {
+pub trait WitnessInput<P: NodePrimitives> {
     /// Gets a reference to the state from which account info and storage slots are loaded.
     fn state(&self) -> &EthereumState;
 
@@ -183,24 +196,24 @@ pub trait WitnessInput {
             self.bytecodes().map(|code| (code.hash_slow(), code)).collect::<HashMap<_, _>>();
 
         // Verify and build block hashes
-        let mut block_hashes: HashMap<u64, B256> = HashMap::new();
+        let mut block_hashes: HashMap<u64, B256> = HashMap::with_hasher(Default::default());
         for (child_header, parent_header) in self.headers().tuple_windows() {
-            if parent_header.number != child_header.number - 1 {
+            if parent_header.number() != child_header.number() - 1 {
                 return Err(ClientError::InvalidHeaderBlockNumber(
-                    parent_header.number + 1,
-                    child_header.number,
+                    parent_header.number() + 1,
+                    child_header.number(),
                 ));
             }
 
             let parent_header_hash = parent_header.hash_slow();
-            if parent_header_hash != child_header.parent_hash {
+            if parent_header_hash != child_header.parent_hash() {
                 return Err(ClientError::InvalidHeaderParentHash(
                     parent_header_hash,
-                    child_header.parent_hash,
+                    child_header.parent_hash(),
                 ));
             }
 
-            block_hashes.insert(parent_header.number, child_header.parent_hash);
+            block_hashes.insert(parent_header.number(), child_header.parent_hash());
         }
 
         Ok(TrieDB::new(state, block_hashes, bytecodes_by_hash))

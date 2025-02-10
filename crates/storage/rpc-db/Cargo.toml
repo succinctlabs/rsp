@@ -20,13 +20,13 @@ rsp-primitives.workspace = true
 # reth
 reth-primitives.workspace = true
 reth-storage-errors.workspace = true
-reth-revm.workspace = true
 reth-trie.workspace = true
 
 # revm
 revm-primitives.workspace = true
 
 # alloy
+alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rlp.workspace = true
 alloy-rpc-types.workspace = true

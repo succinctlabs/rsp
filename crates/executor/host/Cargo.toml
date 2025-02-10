@@ -27,7 +27,10 @@ rsp-primitives.workspace = true
 
 # reth
 reth-codecs.workspace = true
+reth-evm.workspace = true
+reth-evm-ethereum.workspace = true
 reth-primitives = { workspace = true, features = ["secp256k1"] }
+reth-primitives-traits.workspace = true
 reth-storage-errors.workspace = true
 reth-trie.workspace = true
 reth-execution-types.workspace = true
@@ -39,6 +42,7 @@ revm.workspace = true
 revm-primitives.workspace = true
 
 # alloy
+alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true
 alloy-provider.workspace = true
@@ -49,6 +53,7 @@ alloy-rpc-types.workspace = true
 
 [dev-dependencies]
 alloy-primitives.workspace = true
+alloy-genesis.workspace = true
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 bincode = "1.3.3"
 dotenv = "0.15.0"
