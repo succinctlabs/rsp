@@ -23,7 +23,6 @@ rsp-mpt.workspace = true
 # reth
 reth-consensus.workspace = true
 reth-ethereum-primitives = { workspace = true, features = ["serde-bincode-compat"] }
-# reth-optimism-consensus.workspace = true
 reth-execution-types.workspace = true
 reth-primitives.workspace = true
 reth-primitives-traits.workspace = true

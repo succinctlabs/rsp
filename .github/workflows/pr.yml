@@ -23,10 +23,8 @@ jobs:
       - name: "Update lock files"
         run: |
           cargo tree
-          (cd ./bin/client-eth && cargo tree)
+          (cd ./bin/client && cargo tree)
           (cd ./bin/client-op && cargo tree)
-          (cd ./bin/client-linea && cargo tree)
-          (cd ./bin/client-sepolia && cargo tree)
           
       - name: "Assert no changes"
         run: |

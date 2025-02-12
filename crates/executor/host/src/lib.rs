@@ -1,39 +1,31 @@
 #![warn(unused_crate_dependencies)]
 
 use account_proof::eip1186_proof_to_account_proof;
-use alloy_consensus::Header;
+use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_genesis::Genesis;
-use alloy_primitives::Bloom;
-use alloy_provider::Network;
+use alloy_primitives::{Bloom, Sealable};
+use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockTransactionsKind;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;
-use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_evm::BasicOpReceiptBuilder;
-use reth_optimism_evm::OpExecutionStrategyFactory;
-use reth_optimism_primitives::OpPrimitives;
-use reth_trie::KeccakKeyHasher;
-
-use alloy_consensus::BlockHeader;
-use alloy_consensus::TxReceipt;
-use alloy_primitives::Sealable;
-use alloy_provider::Provider;
 use reth_evm::execute::{BlockExecutionStrategy, BlockExecutionStrategyFactory};
 use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
 use reth_execution_types::ExecutionOutcome;
+use reth_optimism_chainspec::OpChainSpec;
+use reth_optimism_evm::{BasicOpReceiptBuilder, OpExecutionStrategyFactory};
+use reth_optimism_primitives::OpPrimitives;
 use reth_primitives_traits::{Block as BlockTrait, BlockBody};
+use reth_trie::KeccakKeyHasher;
 use revm::db::CacheDB;
-use revm_primitives::Address;
-use revm_primitives::B256;
-use rsp_client_executor::custom::CustomEthEvmConfig;
-use rsp_client_executor::custom::CustomOpEvmConfig;
-use rsp_client_executor::io::ClientExecutorInput;
-use rsp_client_executor::IntoInput;
-use rsp_client_executor::IntoPrimitives;
+use revm_primitives::{Address, B256};
+use rsp_client_executor::{
+    custom::{CustomEthEvmConfig, CustomOpEvmConfig},
+    io::ClientExecutorInput,
+    IntoInput, IntoPrimitives,
+};
 use rsp_mpt::EthereumState;
 use rsp_rpc_db::RpcDb;
-use std::collections::BTreeSet;
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
 
 mod account_proof;
 
