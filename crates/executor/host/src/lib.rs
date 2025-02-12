@@ -1,15 +1,22 @@
 #![warn(unused_crate_dependencies)]
 
+use alloy_consensus::Header;
+use alloy_genesis::Genesis;
 use alloy_primitives::Bloom;
+use alloy_provider::Network;
 use alloy_rpc_types::BlockTransactionsKind;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;
+use reth_optimism_chainspec::OpChainSpec;
+use reth_optimism_evm::BasicOpReceiptBuilder;
+use reth_optimism_evm::OpExecutionStrategyFactory;
+use reth_optimism_primitives::OpPrimitives;
 use reth_trie::KeccakKeyHasher;
 
 use alloy_consensus::BlockHeader;
 use alloy_consensus::TxReceipt;
 use alloy_primitives::Sealable;
-use alloy_provider::{network::AnyNetwork, Provider};
+use alloy_provider::Provider;
 use reth_evm::execute::{BlockExecutionStrategy, BlockExecutionStrategyFactory};
 use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
 use reth_execution_types::ExecutionOutcome;
@@ -17,16 +24,42 @@ use reth_primitives_traits::{Block as BlockTrait, BlockBody};
 use revm::db::CacheDB;
 use revm_primitives::B256;
 use rsp_client_executor::custom::CustomEthEvmConfig;
-use rsp_client_executor::{io::ClientExecutorInput, FromAny};
+use rsp_client_executor::custom::CustomOpEvmConfig;
+use rsp_client_executor::io::ClientExecutorInput;
+use rsp_client_executor::IntoInput;
+use rsp_client_executor::IntoPrimitives;
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
+use std::collections::BTreeSet;
 use std::sync::Arc;
-use std::{collections::BTreeSet, fs, path::PathBuf};
 
 mod error;
 
 pub type EthHostExecutor = HostExecutor<EthExecutionStrategyFactory<CustomEthEvmConfig>>;
+
+pub type OpHostExecutor =
+    HostExecutor<OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig>>;
+
+pub fn create_eth_block_execution_strategy_factory(
+    genesis: Genesis,
+) -> EthExecutionStrategyFactory<CustomEthEvmConfig> {
+    let chain_spec = Arc::new(ChainSpec::from_genesis(genesis));
+
+    EthExecutionStrategyFactory::new(chain_spec.clone(), CustomEthEvmConfig::eth(chain_spec))
+}
+
+pub fn create_op_block_execution_strategy_factory(
+    genesis: Genesis,
+) -> OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig> {
+    let chain_spec = Arc::new(OpChainSpec::from_genesis(genesis));
+
+    OpExecutionStrategyFactory::new(
+        chain_spec.clone(),
+        CustomOpEvmConfig::optimism(chain_spec),
+        BasicOpReceiptBuilder::default(),
+    )
+}
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
@@ -45,6 +78,18 @@ impl EthHostExecutor {
     }
 }
 
+impl OpHostExecutor {
+    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
+        Self {
+            block_execution_strategy_factory: OpExecutionStrategyFactory::new(
+                chain_spec.clone(),
+                CustomOpEvmConfig::optimism(chain_spec),
+                BasicOpReceiptBuilder::default(),
+            ),
+        }
+    }
+}
+
 impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
     /// Creates a new [HostExecutor].
     pub fn new(block_execution_strategy_factory: F) -> Self {
@@ -52,16 +97,17 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
     }
 
     /// Executes the block with the given block number.
-    pub async fn execute<'a, P>(
+    pub async fn execute<'a, P, N>(
         &self,
         block_number: u64,
-        rpc_db: &'a RpcDb<P>,
+        rpc_db: &'a RpcDb<P, N>,
         provider: &P,
         genesis_json: String,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
-        F::Primitives: FromAny,
-        P: Provider<AnyNetwork> + Clone,
+        F::Primitives: IntoPrimitives<N> + IntoInput,
+        P: Provider<N> + Clone,
+        N: Network,
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
@@ -69,13 +115,13 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             .get_block_by_number(block_number.into(), BlockTransactionsKind::Full)
             .await?
             .ok_or(HostError::ExpectedBlock(block_number))
-            .map(F::Primitives::try_from_rpc_block)??;
+            .map(F::Primitives::into_primitive_block)?;
 
         let previous_block = provider
             .get_block_by_number((block_number - 1).into(), BlockTransactionsKind::Full)
             .await?
             .ok_or(HostError::ExpectedBlock(block_number))
-            .map(F::Primitives::try_from_rpc_block)??;
+            .map(F::Primitives::into_primitive_block)?;
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
@@ -189,23 +235,30 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         // Derive the block header.
         //
         // Note: the receipts root and gas used are verified by `validate_block_post_execution`.
-        let mut header = current_block.header().clone();
-        /*
-        header.parent_hash = previous_block.hash_slow();
-        header.ommers_hash = proofs::calculate_ommers_root(&current_block.ommers);
-        header.state_root = current_block.state_root;
-        header.transactions_root = proofs::calculate_transaction_root(&current_block.body);
-        header.receipts_root = current_block.header.receipts_root;
-        header.withdrawals_root = current_block
-            .withdrawals
-            .clone()
-            .map(|w| proofs::calculate_withdrawals_root(w.into_inner().as_slice()));
-        */
-        //header.logs_bloom = logs_bloom;
-        /*
-        header.requests_root =
-            current_block.requests.as_ref().map(|r| proofs::calculate_requests_root(&r.0));
-        */
+        let header = Header {
+            parent_hash: current_block.header().parent_hash(),
+            ommers_hash: current_block.header().ommers_hash(),
+            beneficiary: current_block.header().beneficiary(),
+            state_root,
+            transactions_root: current_block.header().transactions_root(),
+            receipts_root: current_block.header().receipts_root(),
+            logs_bloom,
+            difficulty: current_block.header().difficulty(),
+            number: current_block.header().number(),
+            gas_limit: current_block.header().gas_limit(),
+            gas_used: current_block.header().gas_used(),
+            timestamp: current_block.header().timestamp(),
+            extra_data: current_block.header().extra_data().clone(),
+            mix_hash: current_block.header().mix_hash().unwrap(),
+            nonce: current_block.header().nonce().unwrap(),
+            base_fee_per_gas: current_block.header().base_fee_per_gas(),
+            withdrawals_root: current_block.header().withdrawals_root(),
+            blob_gas_used: current_block.header().blob_gas_used(),
+            excess_blob_gas: current_block.header().excess_blob_gas(),
+            parent_beacon_block_root: current_block.header().parent_beacon_block_root(),
+            requests_hash: None,
+        };
+
         // Assert the derived header is correct.
         let constructed_header_hash = header.hash_slow();
         let target_hash = current_block.header().hash_slow();
@@ -217,7 +270,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         tracing::info!(
             "successfully executed block: block_number={}, block_hash={}, state_root={}",
             current_block.header().number(),
-            header.hash_slow(),
+            constructed_header_hash,
             state_root
         );
 
@@ -231,7 +284,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
                 .await?
                 .ok_or(HostError::ExpectedBlock(height))?;
 
-            ancestor_headers.push(F::Primitives::try_from_rpc_header(block.inner.header)?);
+            ancestor_headers.push(F::Primitives::into_primitive_header(block))
         }
 
         // Create the client input.

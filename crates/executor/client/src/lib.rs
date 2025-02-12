@@ -1,5 +1,7 @@
 #![warn(unused_crate_dependencies)]
 
+use alloy_eips as _;
+
 /// Client program input data types.
 pub mod io;
 #[macro_use]
@@ -8,8 +10,8 @@ pub mod custom;
 pub mod error;
 pub mod executor;
 
-mod from_any;
-pub use from_any::FromAny;
+mod into_primitives;
+pub use into_primitives::{FromInput, IntoInput, IntoPrimitives};
 
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;

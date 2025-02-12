@@ -1,13 +1,13 @@
 use std::{fs, sync::Arc};
 
 use alloy_genesis::Genesis;
-use alloy_provider::{network::AnyNetwork, RootProvider};
+use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
-    FromAny,
+    FromInput, IntoInput, IntoPrimitives,
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
 use rsp_rpc_db::RpcDb;
@@ -26,7 +26,25 @@ async fn test_e2e_ethereum() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
-    //run_e2e(ChainVariant::op_mainnet(), "RPC_10", 122853660, None).await;
+    let genesis_path = fs::canonicalize("../../../bin/host/genesis/10.json").unwrap();
+    let genesis_json = fs::read_to_string(genesis_path).unwrap();
+    let genesis = serde_json::from_str::<Genesis>(&genesis_json).unwrap();
+    let chain_spec = Arc::new(reth_optimism_chainspec::OpChainSpec::from_genesis(genesis));
+
+    // Setup the host executor.
+    let host_executor = rsp_host_executor::OpHostExecutor::optimism(chain_spec.clone());
+
+    // Setup the client executor.
+    let client_executor = rsp_client_executor::executor::OpClientExecutor::optimism(chain_spec);
+
+    run_e2e::<_, op_alloy_network::Optimism>(
+        host_executor,
+        client_executor,
+        "RPC_10",
+        122853660,
+        genesis_json,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -53,10 +71,11 @@ async fn run_eth_e2e(genesis_json: String, env_var_key: &str, block_number: u64)
     // Setup the client executor.
     let client_executor = EthClientExecutor::eth(chain_spec);
 
-    run_e2e(host_executor, client_executor, env_var_key, block_number, genesis_json).await;
+    run_e2e::<_, Ethereum>(host_executor, client_executor, env_var_key, block_number, genesis_json)
+        .await;
 }
 
-async fn run_e2e<F>(
+async fn run_e2e<F, N>(
     host_executor: HostExecutor<F>,
     client_executor: ClientExecutor<F>,
     env_var_key: &str,
@@ -64,7 +83,8 @@ async fn run_e2e<F>(
     genesis_json: String,
 ) where
     F: BlockExecutionStrategyFactory,
-    F::Primitives: FromAny + Serialize + DeserializeOwned,
+    F::Primitives: FromInput + IntoPrimitives<N> + IntoInput + Serialize + DeserializeOwned,
+    N: Network,
 {
     // Intialize the environment variables.
     dotenv::dotenv().ok();
@@ -78,7 +98,7 @@ async fn run_e2e<F>(
     // Setup the provider.
     let rpc_url =
         Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
-    let provider = RootProvider::<AnyNetwork>::new_http(rpc_url);
+    let provider = RootProvider::<N>::new_http(rpc_url);
 
     let rpc_db = RpcDb::new(provider.clone(), block_number - 1);
 

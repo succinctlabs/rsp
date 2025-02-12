@@ -21,6 +21,9 @@ use std::sync::Arc;
 
 pub type CustomEthEvmConfig = CustomEvmConfig<EthEvmConfig>;
 
+#[cfg(feature = "optimism")]
+pub type CustomOpEvmConfig = CustomEvmConfig<reth_optimism_evm::OpEvmConfig>;
+
 /// Create an annotated precompile that tracks the cycle count of a precompile.
 /// This is useful for tracking how many cycles in total are consumed by calls to a given
 /// precompile.
@@ -114,8 +117,47 @@ impl CustomEvmConfig<EthEvmConfig> {
     }
 }
 
+#[cfg(feature = "optimism")]
+impl CustomEvmConfig<reth_optimism_evm::OpEvmConfig> {
+    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
+        Self { evm_config: reth_optimism_evm::OpEvmConfig::new(chain_spec) }
+    }
+}
+
 impl ConfigureEvm for CustomEvmConfig<EthEvmConfig> {
     type Evm<'a, DB: Database + 'a, I: 'a> = EthEvm<'a, I, DB>;
+    type EvmError<DBError: core::error::Error + Send + Sync + 'static> = EVMError<DBError>;
+    type HaltReason = HaltReason;
+
+    fn evm_with_env<DB: reth_evm::Database>(
+        &self,
+        db: DB,
+        evm_env: EvmEnv<Self::Spec>,
+    ) -> Self::Evm<'_, DB, ()> {
+        let mut evm = self.evm_config.evm_with_env(db, evm_env);
+        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
+        evm
+    }
+
+    fn evm_with_env_and_inspector<DB, I>(
+        &self,
+        db: DB,
+        evm_env: EvmEnv<Self::Spec>,
+        inspector: I,
+    ) -> Self::Evm<'_, DB, I>
+    where
+        DB: reth_evm::Database,
+        I: revm::GetInspector<DB>,
+    {
+        let mut evm = self.evm_config.evm_with_env_and_inspector(db, evm_env, inspector);
+        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
+        evm
+    }
+}
+
+#[cfg(feature = "optimism")]
+impl ConfigureEvm for CustomEvmConfig<reth_optimism_evm::OpEvmConfig> {
+    type Evm<'a, DB: Database + 'a, I: 'a> = reth_optimism_evm::OpEvm<'a, I, DB>;
     type EvmError<DBError: core::error::Error + Send + Sync + 'static> = EVMError<DBError>;
     type HaltReason = HaltReason;
 

@@ -10,9 +10,21 @@ use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
 use revm::db::WrapDatabaseRef;
 
-use crate::{custom::CustomEthEvmConfig, error::ClientError, io::ClientExecutorInput, FromAny};
+use crate::{
+    custom::CustomEthEvmConfig, error::ClientError, into_primitives::FromInput,
+    io::ClientExecutorInput,
+};
 
 pub type EthClientExecutor = ClientExecutor<EthExecutionStrategyFactory<CustomEthEvmConfig>>;
+
+#[cfg(feature = "optimism")]
+pub type OpClientExecutor = ClientExecutor<
+    reth_optimism_evm::OpExecutionStrategyFactory<
+        reth_optimism_primitives::OpPrimitives,
+        reth_optimism_chainspec::OpChainSpec,
+        crate::custom::CustomOpEvmConfig,
+    >,
+>;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone)]
@@ -23,7 +35,7 @@ pub struct ClientExecutor<F: BlockExecutionStrategyFactory> {
 impl<F> ClientExecutor<F>
 where
     F: BlockExecutionStrategyFactory,
-    F::Primitives: FromAny,
+    F::Primitives: FromInput,
 {
     pub fn execute(
         &self,
@@ -70,7 +82,7 @@ where
         let executor_outcome = ExecutionOutcome::new(
             state,
             vec![executor_output.receipts],
-            input.current_block.header.number(),
+            input.current_block.header().number(),
             vec![requests],
         );
 
@@ -80,19 +92,37 @@ where
             input.parent_state.state_root()
         });
 
-        if state_root != input.current_block.header.state_root() {
+        if state_root != input.current_block.header().state_root() {
             return Err(ClientError::MismatchedStateRoot);
         }
 
         // Derive the block header.
         // Note: the receipts root and gas used are verified by `validate_block_post_execution`.
-        let mut header = input.current_block.header.clone();
-        header.parent_hash = input.parent_header().hash_slow();
-        header.state_root = state_root;
-        header.logs_bloom = logs_bloom;
-        header.requests_hash = Some(executor_outcome.requests[0].requests_hash());
+        let header = Header {
+            parent_hash: input.current_block.header().parent_hash(),
+            ommers_hash: input.current_block.header().ommers_hash(),
+            beneficiary: input.current_block.header().beneficiary(),
+            state_root,
+            transactions_root: input.current_block.header().transactions_root(),
+            receipts_root: input.current_block.header().receipts_root(),
+            logs_bloom,
+            difficulty: input.current_block.header().difficulty(),
+            number: input.current_block.header().number(),
+            gas_limit: input.current_block.header().gas_limit(),
+            gas_used: input.current_block.header().gas_used(),
+            timestamp: input.current_block.header().timestamp(),
+            extra_data: input.current_block.header().extra_data().clone(),
+            mix_hash: input.current_block.header().mix_hash().unwrap(),
+            nonce: input.current_block.header().nonce().unwrap(),
+            base_fee_per_gas: input.current_block.header().base_fee_per_gas(),
+            withdrawals_root: input.current_block.header().withdrawals_root(),
+            blob_gas_used: input.current_block.header().blob_gas_used(),
+            excess_blob_gas: input.current_block.header().excess_blob_gas(),
+            parent_beacon_block_root: input.current_block.header().parent_beacon_block_root(),
+            requests_hash: None,
+        };
 
-        Ok(input.current_block.header.clone())
+        Ok(header)
     }
 }
 
@@ -102,6 +132,19 @@ impl EthClientExecutor {
             block_execution_strategy_factory: EthExecutionStrategyFactory::new(
                 chain_spec.clone(),
                 CustomEthEvmConfig::eth(chain_spec),
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "optimism")]
+impl OpClientExecutor {
+    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
+        Self {
+            block_execution_strategy_factory: reth_optimism_evm::OpExecutionStrategyFactory::new(
+                chain_spec.clone(),
+                crate::custom::CustomOpEvmConfig::optimism(chain_spec),
+                reth_optimism_evm::BasicOpReceiptBuilder::default(),
             ),
         }
     }

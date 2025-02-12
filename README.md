@@ -110,7 +110,7 @@ This will generate proofs locally on your machine. Given how large these program
 
 #### Run with prover network
 
-If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/generating-proofs/prover-network.html), follow the sign-up instructions, and run the command with the following environment variables prefixed:
+If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/docs/sp1/generating-proofs/prover-network), follow the sign-up instructions, and run the command with the following environment variables prefixed:
 
 ```bash
 SP1_PROVER=network SP1_PRIVATE_KEY=

@@ -1,17 +1,21 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
 };
 
 use alloy_primitives::{map::HashMap, U256};
-use alloy_provider::{network::AnyNetwork, Provider};
+use alloy_provider::{
+    network::{primitives::HeaderResponse, BlockResponse},
+    Network, Provider,
+};
 use alloy_rpc_types::{BlockId, BlockTransactionsKind};
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::{db::DatabaseRef, AccountInfo, Address, Bytecode, B256};
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]
-pub struct RpcDb<P> {
+pub struct RpcDb<P, N> {
     /// The provider which fetches data.
     pub provider: P,
     /// The block to fetch data from.
@@ -22,6 +26,8 @@ pub struct RpcDb<P> {
     pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
     /// The oldest block whose header/hash has been requested.
     pub oldest_ancestor: RefCell<u64>,
+
+    phantom: std::marker::PhantomData<N>,
 }
 
 /// Errors that can occur when interacting with the [RpcDb].
@@ -35,7 +41,7 @@ pub enum RpcDbError {
     PreimageNotFound,
 }
 
-impl<P: Provider<AnyNetwork> + Clone> RpcDb<P> {
+impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
     /// Create a new [`RpcDb`].
     pub fn new(provider: P, block: u64) -> Self {
         RpcDb {
@@ -44,6 +50,7 @@ impl<P: Provider<AnyNetwork> + Clone> RpcDb<P> {
             accounts: RefCell::new(HashMap::with_hasher(Default::default())),
             storage: RefCell::new(HashMap::with_hasher(Default::default())),
             oldest_ancestor: RefCell::new(block),
+            phantom: PhantomData,
         }
     }
 
@@ -119,7 +126,7 @@ impl<P: Provider<AnyNetwork> + Clone> RpcDb<P> {
 
         // Record the block hash to the state.
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
-        let hash = block.header.hash;
+        let hash = block.header().hash();
 
         let mut oldest_ancestor = self.oldest_ancestor.borrow_mut();
         *oldest_ancestor = number.min(*oldest_ancestor);
@@ -160,7 +167,7 @@ impl<P: Provider<AnyNetwork> + Clone> RpcDb<P> {
     }
 }
 
-impl<P: Provider<AnyNetwork> + Clone> DatabaseRef for RpcDb<P> {
+impl<P: Provider<N> + Clone, N: Network> DatabaseRef for RpcDb<P, N> {
     type Error = ProviderError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {

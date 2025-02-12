@@ -1,19 +1,24 @@
 use std::iter::once;
 
-use alloy_consensus::{BlockHeader, Header};
+use alloy_consensus::{Block, BlockHeader, Header};
+use alloy_genesis::Genesis;
 use alloy_primitives::map::HashMap;
 use itertools::Itertools;
 use reth_errors::ProviderError;
-use reth_primitives::NodePrimitives;
+use reth_primitives::{EthPrimitives, NodePrimitives};
 use reth_trie::TrieAccount;
+use revm::DatabaseRef;
 use revm_primitives::{keccak256, AccountInfo, Address, Bytecode, B256, U256};
 use rsp_mpt::EthereumState;
-//use rsp_witness_db::WitnessDb;
-use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
 use crate::error::ClientError;
+
+pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
+
+#[cfg(feature = "optimism")]
+pub type OpClientExecutorInput = ClientExecutorInput<reth_optimism_primitives::OpPrimitives>;
 
 /// The input for the client to execute a block and fully verify the STF (state transition
 /// function).
@@ -24,7 +29,10 @@ use crate::error::ClientError;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientExecutorInput<P: NodePrimitives> {
     /// The current block (which will be executed inside the client).
-    pub current_block: BincodeSerializableBlock<P>,
+    #[serde_as(
+        as = "reth_primitives_traits::serde_bincode_compat::Block<'_, P::SignedTx, Header>"
+    )]
+    pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.
     #[serde_as(as = "Vec<alloy_consensus::serde_bincode_compat::Header>")]
@@ -49,6 +57,11 @@ impl<P: NodePrimitives> ClientExecutorInput<P> {
     /// Creates a [`WitnessDb`].
     pub fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
         <Self as WitnessInput<P>>::witness_db(self)
+    }
+
+    pub fn genesis(&self) -> Result<Genesis, ClientError> {
+        serde_json::from_str::<Genesis>(&self.genesis_json)
+            .map_err(ClientError::FailedToDeserializeGenesisFile)
     }
 }
 
@@ -77,14 +90,6 @@ impl<P: NodePrimitives> WitnessInput<P> for ClientExecutorInput<P> {
     fn headers(&self) -> impl Iterator<Item = &Header> {
         once(&self.current_block.header).chain(self.ancestor_headers.iter())
     }
-}
-
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct BincodeSerializableBlock<P: NodePrimitives> {
-    #[serde_as(as = "alloy_consensus::serde_bincode_compat::Header")]
-    pub header: Header,
-    pub body: P::BlockBody,
 }
 
 #[derive(Debug)]

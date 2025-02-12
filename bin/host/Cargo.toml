@@ -21,10 +21,14 @@ rsp-rpc-db.workspace = true
 rsp-primitives.workspace = true
 
 # alloy
-alloy-provider.workspace = true
 alloy-consensus.workspace = true
+alloy-genesis.workspace = true
+alloy-provider.workspace = true
+op-alloy-network.workspace = true
+
 
 # reth 
+reth-evm.workspace = true
 reth-primitives.workspace = true
 reth-primitives-traits.workspace = true
 

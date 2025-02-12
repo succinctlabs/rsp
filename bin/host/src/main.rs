@@ -1,12 +1,18 @@
 #![warn(unused_crate_dependencies)]
 
-use alloy_provider::RootProvider;
+use alloy_genesis::Genesis;
+use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
-use reth_primitives::{EthPrimitives, NodePrimitives};
-use rsp_client_executor::io::ClientExecutorInput;
-use rsp_host_executor::EthHostExecutor;
+use op_alloy_network::{Ethereum, Optimism};
+use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_primitives::NodePrimitives;
+use rsp_client_executor::{io::ClientExecutorInput, IntoInput, IntoPrimitives};
+use rsp_host_executor::{
+    create_eth_block_execution_strategy_factory, create_op_block_execution_strategy_factory,
+    HostExecutor,
+};
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{include_elf, network::B256, ProverClient, SP1Stdin};
@@ -18,7 +24,7 @@ use tracing_subscriber::{
 mod execute;
 
 mod cli;
-use cli::ProviderArgs;
+use cli::{ProviderArgs, ProviderConfig};
 
 mod eth_proofs;
 
@@ -79,15 +85,15 @@ async fn main() -> eyre::Result<()> {
     let provider_config = args.provider.clone().into_provider().await?;
     let eth_proofs_client = EthProofsClient::new(
         args.eth_proofs_cluster_id,
-        args.eth_proofs_endpoint,
-        args.eth_proofs_api_token,
+        args.eth_proofs_endpoint.clone(),
+        args.eth_proofs_api_token.clone(),
     );
 
     if let Some(eth_proofs_client) = &eth_proofs_client {
         eth_proofs_client.queued(args.block_number).await?;
     }
 
-    let genesis_json = if let Some(genesis_path) = args.genesis_path {
+    let genesis_json = if let Some(genesis_path) = &args.genesis_path {
         fs::read_to_string(genesis_path)
             .map_err(|err| eyre::eyre!("Failed to read genesis file: {err}"))?
     } else {
@@ -103,7 +109,50 @@ async fn main() -> eyre::Result<()> {
         fs::read_to_string(genesis_path).unwrap()
     };
 
-    let client_input_from_cache = try_load_input_from_cache(
+    let genesis = serde_json::from_str::<Genesis>(&genesis_json)
+        .map_err(|err| eyre::eyre!("Failed to parse genesis file: {err}"))?;
+
+    if provider_config.chain_id == 10 {
+        let block_execution_strategy_factory = create_op_block_execution_strategy_factory(genesis);
+
+        execute::<Optimism, _, _>(
+            args,
+            provider_config,
+            genesis_json,
+            eth_proofs_client,
+            block_execution_strategy_factory,
+        )
+        .await?;
+    } else {
+        let block_execution_strategy_factory = create_eth_block_execution_strategy_factory(genesis);
+
+        execute::<Ethereum, _, _>(
+            args,
+            provider_config,
+            genesis_json,
+            eth_proofs_client,
+            block_execution_strategy_factory,
+        )
+        .await?;
+    }
+
+    todo!()
+}
+
+async fn execute<N, NP, F>(
+    args: HostArgs,
+    provider_config: ProviderConfig,
+    genesis_json: String,
+    eth_proofs_client: Option<EthProofsClient>,
+    block_execution_strategy_factory: F,
+) -> eyre::Result<()>
+where
+    N: Network,
+    NP: NodePrimitives + DeserializeOwned,
+    F: BlockExecutionStrategyFactory<Primitives = NP>,
+    F::Primitives: IntoPrimitives<N> + IntoInput,
+{
+    let client_input_from_cache = try_load_input_from_cache::<NP>(
         args.cache_dir.as_ref(),
         provider_config.chain_id,
         args.block_number,
@@ -112,12 +161,10 @@ async fn main() -> eyre::Result<()> {
     let client_input = match (client_input_from_cache, provider_config.rpc_url) {
         (Some(client_input_from_cache), _) => client_input_from_cache,
         (None, Some(rpc_url)) => {
-            // Cache not found but we have RPC
-            // Setup the provider.
-            let provider = RootProvider::new_http(rpc_url);
+            let provider = RootProvider::<N>::new_http(rpc_url);
 
             // Setup the host executor.
-            let host_executor = EthHostExecutor::eth(rsp_primitives::chain_spec::mainnet());
+            let host_executor = HostExecutor::new(block_execution_strategy_factory);
 
             let rpc_db = RpcDb::new(provider.clone(), args.block_number - 1);
 
@@ -148,19 +195,14 @@ async fn main() -> eyre::Result<()> {
     let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
-    //let (pk, vk) = client.setup(match variant {
-    //    ChainVariant::Ethereum(_) => include_elf!("rsp-client-eth"),
-    //    ChainVariant::Optimism(_) => include_elf!("rsp-client-op"),
-    //    ChainVariant::Linea(_) => include_elf!("rsp-client-linea"),
-    //});
-    let (pk, vk) = client.setup(include_elf!("rsp-client-eth"));
+    let (pk, vk) = client.setup(match provider_config.chain_id {
+        10 => include_elf!("rsp-client-op"),
+        _ => include_elf!("rsp-client-eth"),
+    });
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
     let buffer = bincode::serialize(&client_input).unwrap();
-
-    let _ = bincode::deserialize::<ClientExecutorInput<EthPrimitives>>(&buffer)
-        .expect("FAIL TO DESER INPUT");
 
     stdin.write_vec(buffer);
 
