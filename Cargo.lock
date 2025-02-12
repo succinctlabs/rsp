@@ -4957,7 +4957,6 @@ dependencies = [
  "rsp-client-executor",
  "rsp-mpt",
  "rsp-rpc-db",
- "rsp-witness-db",
  "serde",
  "serde_json",
  "thiserror 1.0.69",

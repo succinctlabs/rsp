@@ -1,5 +1,3 @@
-#![warn(unused_crate_dependencies)]
-
 use account_proof::eip1186_proof_to_account_proof;
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_genesis::Genesis;
