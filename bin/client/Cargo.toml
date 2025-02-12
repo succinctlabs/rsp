@@ -1,6 +1,6 @@
 [workspace.package]
 [package]
-name = "rsp-client-eth"
+name = "rsp-client"
 description = ""
 edition = "2021"
 

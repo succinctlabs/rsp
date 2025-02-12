@@ -1,7 +1,7 @@
 #![warn(unused_crate_dependencies)]
 
 use alloy_genesis::Genesis;
-use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
+use alloy_provider::{Network, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
@@ -197,7 +197,7 @@ where
     // Setup the proving key and verification key.
     let (pk, vk) = client.setup(match provider_config.chain_id {
         10 => include_elf!("rsp-client-op"),
-        _ => include_elf!("rsp-client-eth"),
+        _ => include_elf!("rsp-client"),
     });
 
     // Execute the block inside the zkVM.
