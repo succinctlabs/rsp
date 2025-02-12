@@ -14,11 +14,10 @@
     "muirGlacierBlock": 0,
     "berlinBlock": 0,
     "londonBlock": 0,
-    "arrowGlacierBlock": 0,
-    "grayGlacierBlock": 0,
-    "mergeNetsplitBlock": 0,
-    "terminalTotalDifficulty": "0",
-    "shanghaiTime": 0,
-    "cancunTime": 1706655072
+    "mergeNetsplitBlock": 1735371,
+    "terminalTotalDifficulty": "17000000000000000",
+    "shanghaiTime": 1677557088,
+    "cancunTime": 1706655072,
+    "pragueTime": 1741159776
   }
 }
