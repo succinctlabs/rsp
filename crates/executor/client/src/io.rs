@@ -45,6 +45,8 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
     pub genesis_json: String,
+    /// The genesis block, as a json string.
+    pub custom_beneficiary: Option<Address>,
 }
 
 impl<P: NodePrimitives> ClientExecutorInput<P> {

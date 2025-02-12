@@ -1,6 +1,6 @@
 use alloy_consensus::{Block, Header};
 use alloy_network::{Ethereum, Network};
-use reth_primitives::{EthPrimitives, NodePrimitives, TransactionSigned};
+use reth_primitives::{EthPrimitives, NodePrimitives};
 
 pub trait IntoPrimitives<N: Network>: NodePrimitives {
     fn into_primitive_block(block: N::BlockResponse) -> Self::Block;

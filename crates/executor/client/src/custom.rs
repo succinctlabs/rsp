@@ -109,18 +109,27 @@ where
 #[derive(Debug, Clone)]
 pub struct CustomEvmConfig<C> {
     evm_config: C,
+
+    // Some chains uses the Clique consensus, which is not implemented in reth.
+    // The main difference for the execution part is the block beneficiary:
+    // reth will credit the block reward to the beneficiary address (coinbase)
+    // whereas in clique, the block reward is credited to the signer.
+    custom_beneficiary: Option<Address>,
 }
 
 impl CustomEvmConfig<EthEvmConfig> {
-    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
-        Self { evm_config: EthEvmConfig::new(chain_spec) }
+    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
+        Self { evm_config: EthEvmConfig::new(chain_spec), custom_beneficiary }
     }
 }
 
 #[cfg(feature = "optimism")]
 impl CustomEvmConfig<reth_optimism_evm::OpEvmConfig> {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self { evm_config: reth_optimism_evm::OpEvmConfig::new(chain_spec) }
+        Self {
+            evm_config: reth_optimism_evm::OpEvmConfig::new(chain_spec),
+            custom_beneficiary: None,
+        }
     }
 }
 
@@ -199,8 +208,13 @@ impl<C: ConfigureEvmEnv> ConfigureEvmEnv for CustomEvmConfig<C> {
     }
 
     fn evm_env(&self, header: &Self::Header) -> EvmEnv<Self::Spec> {
-        // TODO: handle custom beneficiary for chain with Clique consensus
-        self.evm_config.evm_env(header)
+        let mut evm_env = self.evm_config.evm_env(header);
+
+        if let Some(beneficiary) = self.custom_beneficiary {
+            evm_env.block_env.coinbase = beneficiary;
+        }
+
+        evm_env
     }
 
     fn next_evm_env(

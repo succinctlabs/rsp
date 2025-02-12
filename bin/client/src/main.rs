@@ -12,7 +12,7 @@ pub fn main() {
     let genesis = input.genesis().unwrap();
 
     // Execute the block.
-    let executor = EthClientExecutor::eth(Arc::new(genesis.into()));
+    let executor = EthClientExecutor::eth(Arc::new(genesis.into()), input.custom_beneficiary);
     let header = executor.execute(input).expect("failed to execute client");
     let block_hash = header.hash_slow();
 

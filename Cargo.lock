@@ -4868,6 +4868,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-consensus",
  "alloy-genesis",
+ "alloy-primitives",
  "alloy-provider",
  "base64",
  "bincode",

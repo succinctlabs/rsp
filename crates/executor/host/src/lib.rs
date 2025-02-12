@@ -23,6 +23,7 @@ use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::{Block as BlockTrait, BlockBody};
 use revm::db::CacheDB;
+use revm_primitives::Address;
 use revm_primitives::B256;
 use rsp_client_executor::custom::CustomEthEvmConfig;
 use rsp_client_executor::custom::CustomOpEvmConfig;
@@ -45,10 +46,14 @@ pub type OpHostExecutor =
 
 pub fn create_eth_block_execution_strategy_factory(
     genesis: Genesis,
+    custom_beneficiary: Option<Address>,
 ) -> EthExecutionStrategyFactory<CustomEthEvmConfig> {
     let chain_spec = Arc::new(ChainSpec::from_genesis(genesis));
 
-    EthExecutionStrategyFactory::new(chain_spec.clone(), CustomEthEvmConfig::eth(chain_spec))
+    EthExecutionStrategyFactory::new(
+        chain_spec.clone(),
+        CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
+    )
 }
 
 pub fn create_op_block_execution_strategy_factory(
@@ -70,11 +75,11 @@ pub struct HostExecutor<F: BlockExecutionStrategyFactory> {
 }
 
 impl EthHostExecutor {
-    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
+    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
             block_execution_strategy_factory: EthExecutionStrategyFactory::new(
                 chain_spec.clone(),
-                CustomEthEvmConfig::eth(chain_spec),
+                CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
             ),
         }
     }
@@ -105,6 +110,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         rpc_db: &'a RpcDb<P, N>,
         provider: &P,
         genesis_json: String,
+        custom_beneficiary: Option<Address>,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
         F::Primitives: IntoPrimitives<N> + IntoInput,
@@ -297,6 +303,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             state_requests,
             bytecodes: rpc_db.get_bytecodes(),
             genesis_json,
+            custom_beneficiary,
         };
         tracing::info!("successfully generated client input");
 

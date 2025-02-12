@@ -4,6 +4,7 @@ use alloy_genesis::Genesis;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::execute::BlockExecutionStrategyFactory;
+use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
@@ -21,7 +22,7 @@ use url::Url;
 async fn test_e2e_ethereum() {
     let genesis_path = fs::canonicalize("../../../bin/host/genesis/1.json").unwrap();
 
-    run_eth_e2e(fs::read_to_string(genesis_path).unwrap(), "RPC_1", 18884864).await;
+    run_eth_e2e(fs::read_to_string(genesis_path).unwrap(), "RPC_1", 18884864, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -43,6 +44,7 @@ async fn test_e2e_optimism() {
         "RPC_10",
         122853660,
         genesis_json,
+        None,
     )
     .await;
 }
@@ -50,29 +52,47 @@ async fn test_e2e_optimism() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_linea() {
     let genesis_path = fs::canonicalize("../../../bin/host/genesis/59144.json").unwrap();
-    run_eth_e2e(fs::read_to_string(genesis_path).unwrap(), "RPC_59144", 5600000).await;
+    run_eth_e2e(
+        fs::read_to_string(genesis_path).unwrap(),
+        "RPC_59144",
+        5600000,
+        Some(address!("8f81e2e3f8b46467523463835f965ffe476e1c9e")),
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_sepolia() {
     let genesis_path = fs::canonicalize("../../../bin/host/genesis/11155111.json").unwrap();
 
-    run_eth_e2e(fs::read_to_string(genesis_path).unwrap(), "RPC_11155111", 6804324).await;
+    run_eth_e2e(fs::read_to_string(genesis_path).unwrap(), "RPC_11155111", 6804324, None).await;
 }
 
-async fn run_eth_e2e(genesis_json: String, env_var_key: &str, block_number: u64) {
+async fn run_eth_e2e(
+    genesis_json: String,
+    env_var_key: &str,
+    block_number: u64,
+    custom_beneficiary: Option<Address>,
+) {
     let genesis = serde_json::from_str::<Genesis>(&genesis_json).unwrap();
 
     let chain_spec = Arc::<ChainSpec>::new(genesis.into());
 
     // Setup the host executor.
-    let host_executor = EthHostExecutor::eth(chain_spec.clone());
+    let host_executor = EthHostExecutor::eth(chain_spec.clone(), custom_beneficiary);
 
     // Setup the client executor.
-    let client_executor = EthClientExecutor::eth(chain_spec);
+    let client_executor = EthClientExecutor::eth(chain_spec, custom_beneficiary);
 
-    run_e2e::<_, Ethereum>(host_executor, client_executor, env_var_key, block_number, genesis_json)
-        .await;
+    run_e2e::<_, Ethereum>(
+        host_executor,
+        client_executor,
+        env_var_key,
+        block_number,
+        genesis_json,
+        custom_beneficiary,
+    )
+    .await;
 }
 
 async fn run_e2e<F, N>(
@@ -81,6 +101,7 @@ async fn run_e2e<F, N>(
     env_var_key: &str,
     block_number: u64,
     genesis_json: String,
+    custom_beneficiary: Option<Address>,
 ) where
     F: BlockExecutionStrategyFactory,
     F::Primitives: FromInput + IntoPrimitives<N> + IntoInput + Serialize + DeserializeOwned,
@@ -104,7 +125,7 @@ async fn run_e2e<F, N>(
 
     // Execute the host.
     let client_input = host_executor
-        .execute(block_number, &rpc_db, &provider, genesis_json)
+        .execute(block_number, &rpc_db, &provider, genesis_json, custom_beneficiary)
         .await
         .expect("failed to execute host");
 

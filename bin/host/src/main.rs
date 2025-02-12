@@ -1,6 +1,7 @@
 #![warn(unused_crate_dependencies)]
 
 use alloy_genesis::Genesis;
+use alloy_primitives::Address;
 use alloy_provider::{Network, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
@@ -41,6 +42,10 @@ struct HostArgs {
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
     genesis_path: Option<PathBuf>,
+
+    /// The custom beneficiary address, used with Clique consensus.
+    #[clap(long)]
+    custom_beneficiary: Option<Address>,
 
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
@@ -124,7 +129,8 @@ async fn main() -> eyre::Result<()> {
         )
         .await?;
     } else {
-        let block_execution_strategy_factory = create_eth_block_execution_strategy_factory(genesis);
+        let block_execution_strategy_factory =
+            create_eth_block_execution_strategy_factory(genesis, args.custom_beneficiary);
 
         execute::<Ethereum, _, _>(
             args,
@@ -169,8 +175,15 @@ where
             let rpc_db = RpcDb::new(provider.clone(), args.block_number - 1);
 
             // Execute the host.
-            let client_input =
-                host_executor.execute(args.block_number, &rpc_db, &provider, genesis_json).await?;
+            let client_input = host_executor
+                .execute(
+                    args.block_number,
+                    &rpc_db,
+                    &provider,
+                    genesis_json,
+                    args.custom_beneficiary,
+                )
+                .await?;
 
             if let Some(ref cache_dir) = args.cache_dir {
                 let input_folder = cache_dir.join(format!("input/{}", provider_config.chain_id));

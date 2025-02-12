@@ -20,6 +20,7 @@ rsp-client-executor.workspace = true
 rsp-rpc-db.workspace = true
 
 # alloy
+alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-genesis.workspace = true
 alloy-provider.workspace = true

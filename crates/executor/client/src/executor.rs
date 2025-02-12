@@ -9,6 +9,7 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
 use revm::db::WrapDatabaseRef;
+use revm_primitives::Address;
 
 use crate::{
     custom::CustomEthEvmConfig, error::ClientError, into_primitives::FromInput,
@@ -127,11 +128,11 @@ where
 }
 
 impl EthClientExecutor {
-    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
+    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
             block_execution_strategy_factory: EthExecutionStrategyFactory::new(
                 chain_spec.clone(),
-                CustomEthEvmConfig::eth(chain_spec),
+                CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
             ),
         }
     }
