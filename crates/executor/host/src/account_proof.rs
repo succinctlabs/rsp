@@ -3,7 +3,7 @@ use reth_primitives::Account;
 use reth_trie::{AccountProof, StorageProof, EMPTY_ROOT_HASH};
 
 /// Converts an [EIP1186AccountProofResponse] to an [AccountProof].
-pub fn eip1186_proof_to_account_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
+pub(crate) fn eip1186_proof_to_account_proof(proof: EIP1186AccountProofResponse) -> AccountProof {
     let address = proof.address;
     let balance = proof.balance;
     let code_hash = proof.code_hash;

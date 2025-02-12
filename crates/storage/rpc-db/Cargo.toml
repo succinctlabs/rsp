@@ -14,9 +14,6 @@ thiserror.workspace = true
 tracing.workspace = true
 rayon.workspace = true
 
-# workspace
-rsp-primitives.workspace = true
-
 # reth
 reth-primitives.workspace = true
 reth-storage-errors.workspace = true

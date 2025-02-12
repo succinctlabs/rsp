@@ -1,5 +1,6 @@
 #![warn(unused_crate_dependencies)]
 
+use account_proof::eip1186_proof_to_account_proof;
 use alloy_consensus::Header;
 use alloy_genesis::Genesis;
 use alloy_primitives::Bloom;
@@ -29,10 +30,11 @@ use rsp_client_executor::io::ClientExecutorInput;
 use rsp_client_executor::IntoInput;
 use rsp_client_executor::IntoPrimitives;
 use rsp_mpt::EthereumState;
-use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use rsp_rpc_db::RpcDb;
 use std::collections::BTreeSet;
 use std::sync::Arc;
+
+mod account_proof;
 
 mod error;
 

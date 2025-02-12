@@ -2079,24 +2079,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "op-alloy-rpc-types"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ed9af4583c4b3ea93f54092ebfe41172974de2042672e9850500f4d1f99844e"
-dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-network-primitives",
- "alloy-primitives",
- "alloy-rpc-types-eth",
- "alloy-serde",
- "derive_more",
- "op-alloy-consensus",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2787,41 +2769,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reth-optimism-chainspec"
-version = "1.1.5"
-source = "git+https://github.com/paradigmxyz/reth?rev=9a805b06db7f15d5dfc6b68d4f45031106c23568#9a805b06db7f15d5dfc6b68d4f45031106c23568"
-dependencies = [
- "alloy-chains",
- "alloy-consensus",
- "alloy-eips",
- "alloy-genesis",
- "alloy-primitives",
- "derive_more",
- "once_cell",
- "op-alloy-consensus",
- "op-alloy-rpc-types",
- "reth-chainspec",
- "reth-ethereum-forks",
- "reth-network-peers",
- "reth-optimism-forks",
- "reth-primitives-traits",
- "serde_json",
- "thiserror 2.0.11",
-]
-
-[[package]]
-name = "reth-optimism-forks"
-version = "1.1.5"
-source = "git+https://github.com/paradigmxyz/reth?rev=9a805b06db7f15d5dfc6b68d4f45031106c23568#9a805b06db7f15d5dfc6b68d4f45031106c23568"
-dependencies = [
- "alloy-chains",
- "alloy-primitives",
- "auto_impl",
- "once_cell",
- "reth-ethereum-forks",
-]
-
-[[package]]
 name = "reth-primitives"
 version = "1.1.5"
 source = "git+https://github.com/paradigmxyz/reth?rev=9a805b06db7f15d5dfc6b68d4f45031106c23568#9a805b06db7f15d5dfc6b68d4f45031106c23568"
@@ -3145,28 +3092,8 @@ dependencies = [
  "revm",
  "revm-primitives",
  "rlp",
- "rsp-primitives",
  "serde",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "rsp-primitives"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-rpc-types",
- "reth-chainspec",
- "reth-optimism-chainspec",
- "reth-optimism-forks",
- "reth-primitives",
- "reth-trie",
- "revm-interpreter",
- "revm-precompile",
- "revm-primitives",
- "serde",
- "serde_json",
- "tracing",
 ]
 
 [[package]]

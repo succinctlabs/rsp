@@ -3239,28 +3239,8 @@ dependencies = [
  "revm",
  "revm-primitives",
  "rlp",
- "rsp-primitives",
  "serde",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "rsp-primitives"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-rpc-types",
- "reth-chainspec",
- "reth-optimism-chainspec",
- "reth-optimism-forks",
- "reth-primitives",
- "reth-trie",
- "revm-interpreter",
- "revm-precompile",
- "revm-primitives",
- "serde",
- "serde_json",
- "tracing",
 ]
 
 [[package]]

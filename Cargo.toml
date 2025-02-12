@@ -4,7 +4,6 @@ members = [
     "crates/executor/client",
     "crates/executor/host",
     "crates/mpt",
-    "crates/primitives",
     "crates/storage/rpc-db",
     "crates/storage/witness-db",
 ]
@@ -44,7 +43,6 @@ rsp-witness-db = { path = "./crates/storage/witness-db" }
 rsp-client-executor = { path = "./crates/executor/client" }
 rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
-rsp-primitives = { path = "./crates/primitives" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "9a805b06db7f15d5dfc6b68d4f45031106c23568", default-features = false, features = [

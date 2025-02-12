@@ -16,9 +16,6 @@ serde.workspace = true
 thiserror.workspace = true
 itertools = "0.13.0"
 
-# workspace
-rsp-primitives.workspace = true
-
 # reth
 reth-primitives.workspace = true
 reth-trie.workspace = true

@@ -4882,7 +4882,6 @@ dependencies = [
  "reth-primitives-traits",
  "rsp-client-executor",
  "rsp-host-executor",
- "rsp-primitives",
  "rsp-rpc-db",
  "serde",
  "serde_json",
@@ -4957,7 +4956,6 @@ dependencies = [
  "revm-primitives",
  "rsp-client-executor",
  "rsp-mpt",
- "rsp-primitives",
  "rsp-rpc-db",
  "rsp-witness-db",
  "serde",
@@ -4986,29 +4984,9 @@ dependencies = [
  "revm-primitives",
  "rlp",
  "rsp-mpt",
- "rsp-primitives",
  "serde",
  "thiserror 1.0.69",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "rsp-primitives"
-version = "0.1.0"
-dependencies = [
- "alloy-consensus",
- "alloy-rpc-types",
- "reth-chainspec",
- "reth-optimism-chainspec",
- "reth-optimism-forks",
- "reth-primitives",
- "reth-trie",
- "revm-interpreter",
- "revm-precompile",
- "revm-primitives",
- "serde",
- "serde_json",
- "tracing",
 ]
 
 [[package]]
@@ -5026,7 +5004,6 @@ dependencies = [
  "reth-storage-errors",
  "reth-trie",
  "revm-primitives",
- "rsp-primitives",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -5040,7 +5017,6 @@ dependencies = [
  "reth-primitives",
  "reth-storage-errors",
  "revm-primitives",
- "rsp-primitives",
  "serde",
 ]
 

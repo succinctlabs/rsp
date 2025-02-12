@@ -18,7 +18,6 @@ csv = "1.1"
 rsp-host-executor.workspace = true
 rsp-client-executor.workspace = true
 rsp-rpc-db.workspace = true
-rsp-primitives.workspace = true
 
 # alloy
 alloy-consensus.workspace = true

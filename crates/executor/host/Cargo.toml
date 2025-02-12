@@ -19,7 +19,6 @@ rsp-rpc-db.workspace = true
 rsp-witness-db.workspace = true
 rsp-client-executor ={ workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
-rsp-primitives.workspace = true
 
 # reth
 reth-evm.workspace = true
