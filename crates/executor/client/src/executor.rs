@@ -8,7 +8,7 @@ use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
-use revm::db::WrapDatabaseRef;
+use revm::db::{states::bundle_state::BundleRetention, WrapDatabaseRef};
 use revm_primitives::Address;
 
 use crate::{
@@ -62,14 +62,14 @@ where
 
         let requests = strategy.apply_post_execution_changes(&block, &executor_output.receipts)?;
 
-        let state = strategy.finish();
-
         // Validate the block post execution.
         profile!("validate block post-execution", {
             strategy.validate_block_post_execution(&block, &executor_output.receipts, &requests)
         })?;
 
-        drop(strategy);
+        let mut state = strategy.into_state();
+
+        state.merge_transitions(BundleRetention::Reverts);
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
@@ -81,7 +81,7 @@ where
 
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
-            state,
+            state.take_bundle(),
             vec![executor_output.receipts],
             input.current_block.header().number(),
             vec![requests],

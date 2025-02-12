@@ -16,7 +16,7 @@ use reth_optimism_evm::{BasicOpReceiptBuilder, OpExecutionStrategyFactory};
 use reth_optimism_primitives::OpPrimitives;
 use reth_primitives_traits::{Block as BlockTrait, BlockBody};
 use reth_trie::KeccakKeyHasher;
-use revm::db::CacheDB;
+use revm::db::{states::bundle_state::BundleRetention, CacheDB};
 use revm_primitives::{Address, B256};
 use rsp_client_executor::{
     custom::{CustomEthEvmConfig, CustomOpEvmConfig},
@@ -149,8 +149,6 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         let requests = strategy
             .apply_post_execution_changes(&executor_block_input, &executor_output.receipts)?;
 
-        let state = strategy.finish();
-
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
         strategy.validate_block_post_execution(
@@ -158,6 +156,10 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             &executor_output.receipts,
             &requests,
         )?;
+
+        let mut state = strategy.into_state();
+
+        state.merge_transitions(BundleRetention::Reverts);
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");
@@ -168,7 +170,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
 
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
-            state,
+            state.take_bundle(),
             vec![executor_output.receipts],
             current_block.header().number(),
             vec![requests],
