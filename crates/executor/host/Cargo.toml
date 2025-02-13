@@ -18,6 +18,7 @@ tracing.workspace = true
 rsp-rpc-db.workspace = true
 rsp-client-executor ={ workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
+rsp-primitives.workspace = true
 
 # reth
 reth-evm.workspace = true
@@ -46,7 +47,6 @@ alloy-transport.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]
-rsp-primitives.workspace = true
 alloy-primitives.workspace = true
 alloy-genesis.workspace = true
 op-alloy-network.workspace = true
