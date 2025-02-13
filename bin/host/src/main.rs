@@ -230,7 +230,7 @@ where
         // Process the execute report, print it out, and save data to a CSV specified by
         // report_path.
         process_execution_report(
-            1, // TODO: set chain id
+            provider_config.chain_id,
             client_input,
             &execution_report,
             args.report_path.clone(),

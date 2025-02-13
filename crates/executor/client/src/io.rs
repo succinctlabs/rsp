@@ -88,7 +88,7 @@ impl<P: NodePrimitives> WitnessInput<P> for ClientExecutorInput<P> {
         self.bytecodes.iter()
     }
 
-    //#[inline(always)]
+    #[inline(always)]
     fn headers(&self) -> impl Iterator<Item = &Header> {
         once(&self.current_block.header).chain(self.ancestor_headers.iter())
     }

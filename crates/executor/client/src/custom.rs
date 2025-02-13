@@ -110,10 +110,10 @@ where
 pub struct CustomEvmConfig<C> {
     evm_config: C,
 
-    // Some chains uses the Clique consensus, which is not implemented in reth.
-    // The main difference for the execution part is the block beneficiary:
-    // reth will credit the block reward to the beneficiary address (coinbase)
-    // whereas in clique, the block reward is credited to the signer.
+    // Some chains uses Clique consensus, which is not implemented in Reth.
+    // The main difference for execution is the block beneficiary: Reth will
+    // credit the block reward to the beneficiary address, whereas in Clique,
+    // the reward is credited to the signer.
     custom_beneficiary: Option<Address>,
 }
 

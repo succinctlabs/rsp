@@ -156,7 +156,6 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         )?;
 
         let mut state = strategy.into_state();
-
         state.merge_transitions(BundleRetention::Reverts);
 
         // Accumulate the logs bloom.
