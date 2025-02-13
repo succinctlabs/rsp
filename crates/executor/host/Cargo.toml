@@ -46,6 +46,7 @@ alloy-transport.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]
+rsp-primitives.workspace = true
 alloy-primitives.workspace = true
 alloy-genesis.workspace = true
 op-alloy-network.workspace = true

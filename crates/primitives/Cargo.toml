@@ -1,0 +1,20 @@
+[package]
+name = "rsp-primitives"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+eyre = "0.6.12"
+
+# reth
+reth-primitives.workspace = true
+reth-chainspec.workspace = true
+reth-optimism-chainspec.workspace = true
+
+# alloy
+alloy-genesis.workspace = true

@@ -4954,6 +4954,7 @@ dependencies = [
  "revm-primitives",
  "rsp-client-executor",
  "rsp-mpt",
+ "rsp-primitives",
  "rsp-rpc-db",
  "serde",
  "serde_json",
@@ -4984,6 +4985,18 @@ dependencies = [
  "serde",
  "thiserror 1.0.69",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "rsp-primitives"
+version = "0.1.0"
+dependencies = [
+ "alloy-genesis",
+ "eyre",
+ "reth-chainspec",
+ "reth-optimism-chainspec",
+ "reth-primitives",
+ "serde_json",
 ]
 
 [[package]]
