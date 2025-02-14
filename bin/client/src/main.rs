@@ -1,9 +1,8 @@
 #![no_main]
 sp1_zkvm::entrypoint!(main);
 
-use std::sync::Arc;
-
 use rsp_client_executor::{executor::EthClientExecutor, io::EthClientExecutorInput};
+use std::sync::Arc;
 
 pub fn main() {
     // Read the input.
