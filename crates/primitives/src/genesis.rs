@@ -43,22 +43,6 @@ impl TryFrom<&Genesis> for ChainSpec {
         match value {
             Genesis::Mainnet => {
                 let mainnet = ChainSpec {
-                    chain: Chain::sepolia(),
-                    genesis_hash: Default::default(),
-                    genesis: Default::default(),
-                    genesis_header: Default::default(),
-                    paris_block_and_final_difficulty: Default::default(),
-                    hardforks: EthereumHardfork::sepolia().into(),
-                    deposit_contract: Default::default(),
-                    base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
-                    prune_delete_limit: 10000,
-                    blob_params: Default::default(),
-                };
-
-                Ok(mainnet)
-            }
-            Genesis::Sepolia => {
-                let sepolia = ChainSpec {
                     chain: Chain::mainnet(),
                     genesis_hash: Default::default(),
                     genesis: Default::default(),
@@ -68,6 +52,22 @@ impl TryFrom<&Genesis> for ChainSpec {
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                     prune_delete_limit: 20000,
+                    blob_params: Default::default(),
+                };
+
+                Ok(mainnet)
+            }
+            Genesis::Sepolia => {
+                let sepolia = ChainSpec {
+                    chain: Chain::sepolia(),
+                    genesis_hash: Default::default(),
+                    genesis: Default::default(),
+                    genesis_header: Default::default(),
+                    paris_block_and_final_difficulty: Default::default(),
+                    hardforks: EthereumHardfork::sepolia().into(),
+                    deposit_contract: Default::default(),
+                    base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+                    prune_delete_limit: 10000,
                     blob_params: Default::default(),
                 };
                 Ok(sepolia)
