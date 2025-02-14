@@ -1,5 +1,4 @@
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
-use alloy_genesis::Genesis;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockTransactionsKind;
@@ -21,7 +20,7 @@ use rsp_client_executor::{
     IntoInput, IntoPrimitives,
 };
 use rsp_mpt::EthereumState;
-use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
+use rsp_primitives::{account_proof::eip1186_proof_to_account_proof, genesis::Genesis};
 use rsp_rpc_db::RpcDb;
 use std::{collections::BTreeSet, sync::Arc};
 
@@ -33,10 +32,10 @@ pub type OpHostExecutor =
     HostExecutor<OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig>>;
 
 pub fn create_eth_block_execution_strategy_factory(
-    genesis: Genesis,
+    genesis: &Genesis,
     custom_beneficiary: Option<Address>,
 ) -> EthExecutionStrategyFactory<CustomEthEvmConfig> {
-    let chain_spec = Arc::new(ChainSpec::from_genesis(genesis));
+    let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     EthExecutionStrategyFactory::new(
         chain_spec.clone(),
@@ -45,9 +44,9 @@ pub fn create_eth_block_execution_strategy_factory(
 }
 
 pub fn create_op_block_execution_strategy_factory(
-    genesis: Genesis,
+    genesis: &Genesis,
 ) -> OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig> {
-    let chain_spec = Arc::new(OpChainSpec::from_genesis(genesis));
+    let chain_spec: Arc<OpChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     OpExecutionStrategyFactory::new(
         chain_spec.clone(),
@@ -97,7 +96,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         block_number: u64,
         rpc_db: &'a RpcDb<P, N>,
         provider: &P,
-        genesis_json: String,
+        genesis: Genesis,
         custom_beneficiary: Option<Address>,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
@@ -291,7 +290,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             parent_state: state,
             state_requests,
             bytecodes: rpc_db.get_bytecodes(),
-            genesis_json,
+            genesis,
             custom_beneficiary,
         };
         tracing::info!("successfully generated client input");

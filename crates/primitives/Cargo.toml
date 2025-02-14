@@ -8,6 +8,7 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+serde.workspace = true
 serde_json.workspace = true
 eyre = "0.6.12"
 
@@ -15,6 +16,7 @@ eyre = "0.6.12"
 reth-primitives.workspace = true
 reth-chainspec.workspace = true
 reth-optimism-chainspec.workspace = true
+reth-optimism-forks.workspace = true
 reth-trie.workspace = true
 
 # alloy

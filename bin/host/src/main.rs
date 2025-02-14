@@ -1,7 +1,6 @@
 #![warn(unused_crate_dependencies)]
 
 use alloy_chains::Chain;
-use alloy_genesis::Genesis;
 use alloy_primitives::Address;
 use alloy_provider::{Network, RootProvider};
 use clap::Parser;
@@ -15,6 +14,7 @@ use rsp_host_executor::{
     create_eth_block_execution_strategy_factory, create_op_block_execution_strategy_factory,
     HostExecutor,
 };
+use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{include_elf, network::B256, ProverClient, SP1Stdin};
@@ -100,32 +100,22 @@ async fn main() -> eyre::Result<()> {
         eth_proofs_client.queued(args.block_number).await?;
     }
 
-    let genesis_json = if let Some(genesis_path) = &args.genesis_path {
-        fs::read_to_string(genesis_path)
-            .map_err(|err| eyre::eyre!("Failed to read genesis file: {err}"))?
-    } else {
-        let genesis_path =
-            fs::canonicalize(format!("./bin/host/genesis/{}.json", provider_config.chain_id))
-                .map_err(|_| {
-                    eyre::eyre!(
-                        "The chain '{}' (inferred from the provided RPC endoint) is not supported",
-                        provider_config.chain_id
-                    )
-                })?;
+    let genesis = if let Some(genesis_path) = &args.genesis_path {
+        let genesis_json = fs::read_to_string(genesis_path)
+            .map_err(|err| eyre::eyre!("Failed to read genesis file: {err}"))?;
 
-        fs::read_to_string(genesis_path).unwrap()
+        Genesis::Custom(genesis_json)
+    } else {
+        provider_config.chain_id.try_into()?
     };
 
-    let genesis = serde_json::from_str::<Genesis>(&genesis_json)
-        .map_err(|err| eyre::eyre!("Failed to parse genesis file: {err}"))?;
-
     if is_optimism {
-        let block_execution_strategy_factory = create_op_block_execution_strategy_factory(genesis);
+        let block_execution_strategy_factory = create_op_block_execution_strategy_factory(&genesis);
 
         execute::<Optimism, _, _>(
             args,
             provider_config,
-            genesis_json,
+            genesis,
             eth_proofs_client,
             block_execution_strategy_factory,
             true,
@@ -133,12 +123,12 @@ async fn main() -> eyre::Result<()> {
         .await?;
     } else {
         let block_execution_strategy_factory =
-            create_eth_block_execution_strategy_factory(genesis, args.custom_beneficiary);
+            create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
 
         execute::<Ethereum, _, _>(
             args,
             provider_config,
-            genesis_json,
+            genesis,
             eth_proofs_client,
             block_execution_strategy_factory,
             false,
@@ -146,13 +136,13 @@ async fn main() -> eyre::Result<()> {
         .await?;
     }
 
-    todo!()
+    Ok(())
 }
 
 async fn execute<N, NP, F>(
     args: HostArgs,
     provider_config: ProviderConfig,
-    genesis_json: String,
+    genesis: Genesis,
     eth_proofs_client: Option<EthProofsClient>,
     block_execution_strategy_factory: F,
     is_optimism: bool,
@@ -181,13 +171,7 @@ where
 
             // Execute the host.
             let client_input = host_executor
-                .execute(
-                    args.block_number,
-                    &rpc_db,
-                    &provider,
-                    genesis_json,
-                    args.custom_beneficiary,
-                )
+                .execute(args.block_number, &rpc_db, &provider, genesis, args.custom_beneficiary)
                 .await?;
 
             if let Some(ref cache_dir) = args.cache_dir {

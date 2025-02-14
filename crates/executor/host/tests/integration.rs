@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use alloy_genesis::Genesis;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_optimism_chainspec::OpChainSpec;
 use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
@@ -11,6 +11,7 @@ use rsp_client_executor::{
     FromInput, IntoInput, IntoPrimitives,
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
+use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing_subscriber::{
@@ -20,12 +21,12 @@ use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
-    run_eth_e2e(rsp_primitives::chain_spec::MAINNET_GENESIS_JSON, "RPC_1", 18884864, None).await;
+    run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
-    let chain_spec = Arc::new(rsp_primitives::chain_spec::op_mainnet().unwrap());
+    let chain_spec: Arc<OpChainSpec> = Arc::new((&Genesis::OpMainnet).try_into().unwrap());
 
     // Setup the host executor.
     let host_executor = rsp_host_executor::OpHostExecutor::optimism(chain_spec.clone());
@@ -38,7 +39,7 @@ async fn test_e2e_optimism() {
         client_executor,
         "RPC_10",
         122853660,
-        rsp_primitives::chain_spec::OP_MAINNET_GENESIS_JSON,
+        &Genesis::OpMainnet,
         None,
     )
     .await;
@@ -47,7 +48,7 @@ async fn test_e2e_optimism() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_linea() {
     run_eth_e2e(
-        rsp_primitives::chain_spec::LINEA_GENESIS_JSON,
+        &Genesis::Linea,
         "RPC_59144",
         5600000,
         Some(address!("8f81e2e3f8b46467523463835f965ffe476e1c9e")),
@@ -57,19 +58,16 @@ async fn test_e2e_linea() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_sepolia() {
-    run_eth_e2e(rsp_primitives::chain_spec::SEPOLIA_GENESIS_JSON, "RPC_11155111", 6804324, None)
-        .await;
+    run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324, None).await;
 }
 
 async fn run_eth_e2e(
-    genesis_json: &str,
+    genesis: &Genesis,
     env_var_key: &str,
     block_number: u64,
     custom_beneficiary: Option<Address>,
 ) {
-    let genesis = serde_json::from_str::<Genesis>(genesis_json).unwrap();
-
-    let chain_spec = Arc::<ChainSpec>::new(genesis.into());
+    let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     // Setup the host executor.
     let host_executor = EthHostExecutor::eth(chain_spec.clone(), custom_beneficiary);
@@ -82,7 +80,7 @@ async fn run_eth_e2e(
         client_executor,
         env_var_key,
         block_number,
-        genesis_json,
+        genesis,
         custom_beneficiary,
     )
     .await;
@@ -93,7 +91,7 @@ async fn run_e2e<F, N>(
     client_executor: ClientExecutor<F>,
     env_var_key: &str,
     block_number: u64,
-    genesis_json: &str,
+    genesis: &Genesis,
     custom_beneficiary: Option<Address>,
 ) where
     F: BlockExecutionStrategyFactory,
@@ -118,7 +116,7 @@ async fn run_e2e<F, N>(
 
     // Execute the host.
     let client_input = host_executor
-        .execute(block_number, &rpc_db, &provider, genesis_json.to_string(), custom_beneficiary)
+        .execute(block_number, &rpc_db, &provider, genesis.clone(), custom_beneficiary)
         .await
         .expect("failed to execute host");
 

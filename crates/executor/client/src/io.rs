@@ -1,7 +1,6 @@
 use std::iter::once;
 
 use alloy_consensus::{Block, BlockHeader, Header};
-use alloy_genesis::Genesis;
 use alloy_primitives::map::HashMap;
 use itertools::Itertools;
 use reth_errors::ProviderError;
@@ -10,6 +9,7 @@ use reth_trie::TrieAccount;
 use revm::DatabaseRef;
 use revm_primitives::{keccak256, AccountInfo, Address, Bytecode, B256, U256};
 use rsp_mpt::EthereumState;
+use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -44,7 +44,7 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
-    pub genesis_json: String,
+    pub genesis: Genesis,
     /// The genesis block, as a json string.
     pub custom_beneficiary: Option<Address>,
 }
@@ -59,11 +59,6 @@ impl<P: NodePrimitives> ClientExecutorInput<P> {
     /// Creates a [`WitnessDb`].
     pub fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
         <Self as WitnessInput<P>>::witness_db(self)
-    }
-
-    pub fn genesis(&self) -> Result<Genesis, ClientError> {
-        serde_json::from_str::<Genesis>(&self.genesis_json)
-            .map_err(ClientError::FailedToDeserializeGenesisFile)
     }
 }
 

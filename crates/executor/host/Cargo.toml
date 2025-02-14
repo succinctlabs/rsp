@@ -16,7 +16,7 @@ tracing.workspace = true
 
 # workspace
 rsp-rpc-db.workspace = true
-rsp-client-executor ={ workspace = true, features = ["optimism"] }
+rsp-client-executor = { workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
 rsp-primitives.workspace = true
 
@@ -39,7 +39,6 @@ revm-primitives.workspace = true
 
 # alloy
 alloy-consensus.workspace = true
-alloy-genesis.workspace = true
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true
 alloy-provider.workspace = true
@@ -48,7 +47,6 @@ alloy-rpc-types.workspace = true
 
 [dev-dependencies]
 alloy-primitives.workspace = true
-alloy-genesis.workspace = true
 op-alloy-network.workspace = true
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde.workspace = true

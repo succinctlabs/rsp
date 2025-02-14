@@ -19,6 +19,7 @@ itertools = "0.13.0"
 
 # workspace
 rsp-mpt.workspace = true
+rsp-primitives.workspace = true
 
 # reth
 reth-consensus.workspace = true

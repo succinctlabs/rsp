@@ -1,45 +1,26 @@
-use alloy_genesis::Genesis;
 use reth_chainspec::ChainSpec;
 use reth_optimism_chainspec::OpChainSpec;
 
-pub const MAINNET_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/1.json");
-pub const OP_MAINNET_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/10.json");
-pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
-pub const SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/11155111.json");
+use crate::genesis::Genesis;
 
 /// Returns the [ChainSpec] for Ethereum mainnet.
 pub fn mainnet() -> eyre::Result<ChainSpec> {
-    let genesis = genesis_from_json(MAINNET_GENESIS_JSON)?;
-
-    Ok(ChainSpec::from_genesis(genesis))
+    (&Genesis::Mainnet).try_into()
 }
 
 /// Returns the [ChainSpec] for OP Mainnet.
 pub fn op_mainnet() -> eyre::Result<OpChainSpec> {
-    let genesis = genesis_from_json(OP_MAINNET_GENESIS_JSON)?;
-
-    Ok(OpChainSpec::from_genesis(genesis))
+    (&Genesis::OpMainnet).try_into()
 }
 
 /// Returns the [ChainSpec] for Linea Mainnet.
 pub fn linea_mainnet() -> eyre::Result<ChainSpec> {
-    let genesis = genesis_from_json(LINEA_GENESIS_JSON)?;
-
-    Ok(ChainSpec::from_genesis(genesis))
+    (&Genesis::Linea).try_into()
 }
 
 /// Returns the [ChainSpec] for Sepolia testnet.
 pub fn sepolia() -> eyre::Result<ChainSpec> {
-    let genesis = genesis_from_json(SEPOLIA_GENESIS_JSON)?;
-
-    Ok(ChainSpec::from_genesis(genesis))
-}
-
-/// Returns the [Genesis] fron a json string.
-pub fn genesis_from_json(json: &str) -> eyre::Result<Genesis> {
-    let genesis = serde_json::from_str::<Genesis>(json)?;
-
-    Ok(genesis)
+    (&Genesis::Sepolia).try_into()
 }
 
 #[cfg(test)]
