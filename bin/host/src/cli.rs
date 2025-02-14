@@ -1,4 +1,4 @@
-use alloy_provider::{network::AnyNetwork, Provider as _, ReqwestProvider};
+use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
 use url::Url;
 
@@ -41,8 +41,7 @@ impl ProviderArgs {
             }
             (Some(rpc_url), None) => {
                 // We can find out about chain ID from RPC.
-                let provider: ReqwestProvider<AnyNetwork> =
-                    ReqwestProvider::new_http(rpc_url.clone());
+                let provider = RootProvider::<AnyNetwork>::new_http(rpc_url.clone());
                 let chain_id = provider.get_chain_id().await?;
 
                 (Some(rpc_url), chain_id)

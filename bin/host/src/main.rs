@@ -1,15 +1,24 @@
-use alloy_provider::ReqwestProvider;
+#![warn(unused_crate_dependencies)]
+
+use alloy_chains::Chain;
+use alloy_primitives::Address;
+use alloy_provider::{Network, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
-use reth_primitives::B256;
-use rsp_client_executor::{
-    io::ClientExecutorInput, ChainVariant, CHAIN_ID_ETH_MAINNET, CHAIN_ID_LINEA_MAINNET,
-    CHAIN_ID_OP_MAINNET, CHAIN_ID_SEPOLIA,
+use op_alloy_network::{Ethereum, Optimism};
+use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_primitives::NodePrimitives;
+use rsp_client_executor::{io::ClientExecutorInput, IntoInput, IntoPrimitives};
+use rsp_host_executor::{
+    create_eth_block_execution_strategy_factory, create_op_block_execution_strategy_factory,
+    HostExecutor,
 };
-use rsp_host_executor::HostExecutor;
-use sp1_sdk::{include_elf, ProverClient, SP1Stdin};
-use std::path::PathBuf;
+use rsp_primitives::genesis::Genesis;
+use rsp_rpc_db::RpcDb;
+use serde::de::DeserializeOwned;
+use sp1_sdk::{include_elf, network::B256, ProverClient, SP1Stdin};
+use std::{fs, path::PathBuf};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -17,7 +26,7 @@ use tracing_subscriber::{
 mod execute;
 
 mod cli;
-use cli::ProviderArgs;
+use cli::{ProviderArgs, ProviderConfig};
 
 mod eth_proofs;
 
@@ -34,6 +43,10 @@ struct HostArgs {
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
     genesis_path: Option<PathBuf>,
+
+    /// The custom beneficiary address, used with Clique consensus.
+    #[clap(long)]
+    custom_beneficiary: Option<Address>,
 
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
@@ -76,34 +89,71 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
     let provider_config = args.provider.clone().into_provider().await?;
+    let is_optimism = Chain::from_id(provider_config.chain_id).is_optimism();
     let eth_proofs_client = EthProofsClient::new(
         args.eth_proofs_cluster_id,
-        args.eth_proofs_endpoint,
-        args.eth_proofs_api_token,
+        args.eth_proofs_endpoint.clone(),
+        args.eth_proofs_api_token.clone(),
     );
 
     if let Some(eth_proofs_client) = &eth_proofs_client {
         eth_proofs_client.queued(args.block_number).await?;
     }
 
-    let variant = match &args.genesis_path {
-        Some(genesis_path) => ChainVariant::from_genesis_path(genesis_path)?,
-        None => match provider_config.chain_id {
-            CHAIN_ID_ETH_MAINNET => ChainVariant::mainnet(),
-            CHAIN_ID_OP_MAINNET => ChainVariant::op_mainnet(),
-            CHAIN_ID_LINEA_MAINNET => ChainVariant::linea_mainnet(),
-            CHAIN_ID_SEPOLIA => ChainVariant::sepolia(),
-            _ => {
-                eyre::bail!("Unknown chain ID: {}", provider_config.chain_id);
-            }
-        },
+    let genesis = if let Some(genesis_path) = &args.genesis_path {
+        let genesis_json = fs::read_to_string(genesis_path)
+            .map_err(|err| eyre::eyre!("Failed to read genesis file: {err}"))?;
+
+        Genesis::Custom(genesis_json)
+    } else {
+        provider_config.chain_id.try_into()?
     };
 
-    if args.genesis_path.is_some() && variant.chain_id() != provider_config.chain_id {
-        eyre::bail!("The chain ID in the genesis file does not match the provided RPC");
+    if is_optimism {
+        let block_execution_strategy_factory = create_op_block_execution_strategy_factory(&genesis);
+
+        execute::<Optimism, _, _>(
+            args,
+            provider_config,
+            genesis,
+            eth_proofs_client,
+            block_execution_strategy_factory,
+            true,
+        )
+        .await?;
+    } else {
+        let block_execution_strategy_factory =
+            create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
+
+        execute::<Ethereum, _, _>(
+            args,
+            provider_config,
+            genesis,
+            eth_proofs_client,
+            block_execution_strategy_factory,
+            false,
+        )
+        .await?;
     }
 
-    let client_input_from_cache = try_load_input_from_cache(
+    Ok(())
+}
+
+async fn execute<N, NP, F>(
+    args: HostArgs,
+    provider_config: ProviderConfig,
+    genesis: Genesis,
+    eth_proofs_client: Option<EthProofsClient>,
+    block_execution_strategy_factory: F,
+    is_optimism: bool,
+) -> eyre::Result<()>
+where
+    N: Network,
+    NP: NodePrimitives + DeserializeOwned,
+    F: BlockExecutionStrategyFactory<Primitives = NP>,
+    F::Primitives: IntoPrimitives<N> + IntoInput,
+{
+    let client_input_from_cache = try_load_input_from_cache::<NP>(
         args.cache_dir.as_ref(),
         provider_config.chain_id,
         args.block_number,
@@ -112,16 +162,17 @@ async fn main() -> eyre::Result<()> {
     let client_input = match (client_input_from_cache, provider_config.rpc_url) {
         (Some(client_input_from_cache), _) => client_input_from_cache,
         (None, Some(rpc_url)) => {
-            // Cache not found but we have RPC
-            // Setup the provider.
-            let provider = ReqwestProvider::new_http(rpc_url);
+            let provider = RootProvider::<N>::new_http(rpc_url);
 
             // Setup the host executor.
-            let host_executor = HostExecutor::new(provider);
+            let host_executor = HostExecutor::new(block_execution_strategy_factory);
+
+            let rpc_db = RpcDb::new(provider.clone(), args.block_number - 1);
 
             // Execute the host.
-            let client_input =
-                host_executor.execute(args.block_number, &variant, args.genesis_path).await?;
+            let client_input = host_executor
+                .execute(args.block_number, &rpc_db, &provider, genesis, args.custom_beneficiary)
+                .await?;
 
             if let Some(ref cache_dir) = args.cache_dir {
                 let input_folder = cache_dir.join(format!("input/{}", provider_config.chain_id));
@@ -146,15 +197,16 @@ async fn main() -> eyre::Result<()> {
     let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
-    let (pk, vk) = client.setup(match variant {
-        ChainVariant::Ethereum(_) => include_elf!("rsp-client-eth"),
-        ChainVariant::Optimism(_) => include_elf!("rsp-client-op"),
-        ChainVariant::Linea(_) => include_elf!("rsp-client-linea"),
+    let (pk, vk) = client.setup(if is_optimism {
+        include_elf!("rsp-client-op")
+    } else {
+        include_elf!("rsp-client")
     });
 
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
     let buffer = bincode::serialize(&client_input).unwrap();
+
     stdin.write_vec(buffer);
 
     // Only execute the program.
@@ -168,7 +220,7 @@ async fn main() -> eyre::Result<()> {
         // Process the execute report, print it out, and save data to a CSV specified by
         // report_path.
         process_execution_report(
-            variant,
+            provider_config.chain_id,
             client_input,
             &execution_report,
             args.report_path.clone(),
@@ -197,18 +249,18 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
-fn try_load_input_from_cache(
+fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
     cache_dir: Option<&PathBuf>,
     chain_id: u64,
     block_number: u64,
-) -> eyre::Result<Option<ClientExecutorInput>> {
+) -> eyre::Result<Option<ClientExecutorInput<P>>> {
     Ok(if let Some(cache_dir) = cache_dir {
         let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, block_number));
 
         if cache_path.exists() {
             // TODO: prune the cache if invalid instead
             let mut cache_file = std::fs::File::open(cache_path)?;
-            let client_input: ClientExecutorInput = bincode::deserialize_from(&mut cache_file)?;
+            let client_input: ClientExecutorInput<P> = bincode::deserialize_from(&mut cache_file)?;
 
             Some(client_input)
         } else {

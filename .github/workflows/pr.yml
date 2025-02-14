@@ -23,10 +23,8 @@ jobs:
       - name: "Update lock files"
         run: |
           cargo tree
-          (cd ./bin/client-eth && cargo tree)
+          (cd ./bin/client && cargo tree)
           (cd ./bin/client-op && cargo tree)
-          (cd ./bin/client-linea && cargo tree)
-          (cd ./bin/client-sepolia && cargo tree)
           
       - name: "Assert no changes"
         run: |
@@ -124,7 +122,7 @@ jobs:
 
       - name: "Set up test fixture"
         run: |
-          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-01-18 --depth 1 ../rsp-tests
+          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-02-13 --depth 1 ../rsp-tests
           cd ../rsp-tests/
           docker compose up -d
 

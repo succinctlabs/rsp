@@ -1,0 +1,34 @@
+{
+    "config": {
+      "chainId": 10,
+      "homesteadBlock": 0,
+      "daoForkBlock": 0,
+      "daoForkSupport": true,
+      "eip150Block": 0,
+      "eip155Block": 0,
+      "eip158Block": 0,
+      "byzantiumBlock": 0,
+      "constantinopleBlock": 0,
+      "petersburgBlock": 0,
+      "istanbulBlock": 0,
+      "muirGlacierBlock": 0,
+      "berlinBlock": 3950000,
+      "londonBlock": 105235063,
+      "arrowGlacierBlock": 105235063,
+      "grayGlacierBlock": 105235063,
+      "bedrockBlock": 105235063,
+      "mergeNetsplitBlock": 105235063,
+      "terminalTotalDifficulty": "0",
+      "regolithTime": 0,
+      "shanghaiTime": 1704992401,
+      "canyonTime": 1704992401,
+      "cancunTime": 1710374401,
+      "ecotoneTime": 1710374401,
+      "fjordTime": 1720627201,
+      "graniteTime": 1726070401,
+      "holoceneTime": 1736445601,
+      "isthmusTime": 1736445601
+    }
+  }
+ 
+  

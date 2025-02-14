@@ -12,23 +12,22 @@ workspace = true
 
 [dependencies]
 thiserror.workspace = true
-serde_json.workspace = true
-url.workspace = true
-serde.workspace = true
-tokio.workspace = true
 tracing.workspace = true
 
 # workspace
 rsp-rpc-db.workspace = true
-rsp-witness-db.workspace = true
-rsp-client-executor.workspace = true
+rsp-client-executor = { workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
 rsp-primitives.workspace = true
 
 # reth
-reth-codecs.workspace = true
+reth-evm.workspace = true
+reth-evm-ethereum.workspace = true
+reth-optimism-evm = { workspace = true }
+reth-optimism-primitives = { workspace = true }
+reth-optimism-chainspec = { workspace = true }
 reth-primitives = { workspace = true, features = ["secp256k1"] }
-reth-storage-errors.workspace = true
+reth-primitives-traits.workspace = true
 reth-trie.workspace = true
 reth-execution-types.workspace = true
 reth-errors.workspace = true
@@ -39,16 +38,21 @@ revm.workspace = true
 revm-primitives.workspace = true
 
 # alloy
+alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
-itertools = "0.13.0"
-futures.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]
 alloy-primitives.workspace = true
+op-alloy-network.workspace = true
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+url.workspace = true
 bincode = "1.3.3"
 dotenv = "0.15.0"
+

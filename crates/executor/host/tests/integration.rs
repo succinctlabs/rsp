@@ -1,8 +1,19 @@
-use std::{fs, path::PathBuf};
+use std::sync::Arc;
 
-use alloy_provider::ReqwestProvider;
-use rsp_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
-use rsp_host_executor::HostExecutor;
+use alloy_provider::{network::Ethereum, Network, RootProvider};
+use reth_chainspec::ChainSpec;
+use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_optimism_chainspec::OpChainSpec;
+use revm_primitives::{address, Address};
+use rsp_client_executor::{
+    executor::{ClientExecutor, EthClientExecutor},
+    io::ClientExecutorInput,
+    FromInput, IntoInput, IntoPrimitives,
+};
+use rsp_host_executor::{EthHostExecutor, HostExecutor};
+use rsp_primitives::genesis::Genesis;
+use rsp_rpc_db::RpcDb;
+use serde::{de::DeserializeOwned, Serialize};
 use tracing_subscriber::{
     fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
 };
@@ -10,38 +21,83 @@ use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
-    run_e2e(ChainVariant::mainnet(), "RPC_1", 18884864, None).await;
+    run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_optimism() {
-    run_e2e(ChainVariant::op_mainnet(), "RPC_10", 122853660, None).await;
-}
+    let chain_spec: Arc<OpChainSpec> = Arc::new((&Genesis::OpMainnet).try_into().unwrap());
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_linea() {
-    run_e2e(ChainVariant::linea_mainnet(), "RPC_59144", 5600000, None).await;
-}
+    // Setup the host executor.
+    let host_executor = rsp_host_executor::OpHostExecutor::optimism(chain_spec.clone());
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_sepolia() {
-    let genesis_path = fs::canonicalize("./tests/fixtures/sepolia_genesis.json").unwrap();
+    // Setup the client executor.
+    let client_executor = rsp_client_executor::executor::OpClientExecutor::optimism(chain_spec);
 
-    run_e2e(
-        ChainVariant::from_genesis_path(&genesis_path).unwrap(),
-        "RPC_11155111",
-        6804324,
-        Some(genesis_path),
+    run_e2e::<_, op_alloy_network::Optimism>(
+        host_executor,
+        client_executor,
+        "RPC_10",
+        122853660,
+        &Genesis::OpMainnet,
+        None,
     )
     .await;
 }
 
-async fn run_e2e(
-    variant: ChainVariant,
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_linea() {
+    run_eth_e2e(
+        &Genesis::Linea,
+        "RPC_59144",
+        5600000,
+        Some(address!("8f81e2e3f8b46467523463835f965ffe476e1c9e")),
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_sepolia() {
+    run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324, None).await;
+}
+
+async fn run_eth_e2e(
+    genesis: &Genesis,
     env_var_key: &str,
     block_number: u64,
-    genesis_path: Option<PathBuf>,
+    custom_beneficiary: Option<Address>,
 ) {
+    let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
+
+    // Setup the host executor.
+    let host_executor = EthHostExecutor::eth(chain_spec.clone(), custom_beneficiary);
+
+    // Setup the client executor.
+    let client_executor = EthClientExecutor::eth(chain_spec, custom_beneficiary);
+
+    run_e2e::<_, Ethereum>(
+        host_executor,
+        client_executor,
+        env_var_key,
+        block_number,
+        genesis,
+        custom_beneficiary,
+    )
+    .await;
+}
+
+async fn run_e2e<F, N>(
+    host_executor: HostExecutor<F>,
+    client_executor: ClientExecutor<F>,
+    env_var_key: &str,
+    block_number: u64,
+    genesis: &Genesis,
+    custom_beneficiary: Option<Address>,
+) where
+    F: BlockExecutionStrategyFactory,
+    F::Primitives: FromInput + IntoPrimitives<N> + IntoInput + Serialize + DeserializeOwned,
+    N: Network,
+{
     // Intialize the environment variables.
     dotenv::dotenv().ok();
 
@@ -54,26 +110,22 @@ async fn run_e2e(
     // Setup the provider.
     let rpc_url =
         Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
-    let provider = ReqwestProvider::new_http(rpc_url);
+    let provider = RootProvider::<N>::new_http(rpc_url);
 
-    // Setup the host executor.
-    let host_executor = HostExecutor::new(provider);
+    let rpc_db = RpcDb::new(provider.clone(), block_number - 1);
 
     // Execute the host.
     let client_input = host_executor
-        .execute(block_number, &variant, genesis_path)
+        .execute(block_number, &rpc_db, &provider, genesis.clone(), custom_beneficiary)
         .await
         .expect("failed to execute host");
 
-    // Setup the client executor.
-    let client_executor = ClientExecutor;
-
     // Execute the client.
-    client_executor.execute(client_input.clone(), &variant).expect("failed to execute client");
+    client_executor.execute(client_input.clone()).expect("failed to execute client");
 
     // Save the client input to a buffer.
     let buffer = bincode::serialize(&client_input).unwrap();
 
     // Load the client input from a buffer.
-    let _: ClientExecutorInput = bincode::deserialize(&buffer).unwrap();
+    let _: ClientExecutorInput<F::Primitives> = bincode::deserialize(&buffer).unwrap();
 }

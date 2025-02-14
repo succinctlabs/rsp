@@ -1,0 +1,23 @@
+{
+  "config": {
+    "chainId": 11155111,
+    "homesteadBlock": 0,
+    "daoForkBlock": 0,
+    "daoForkSupport": true,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "berlinBlock": 0,
+    "londonBlock": 0,
+    "mergeNetsplitBlock": 1735371,
+    "terminalTotalDifficulty": "17000000000000000",
+    "shanghaiTime": 1677557088,
+    "cancunTime": 1706655072,
+    "pragueTime": 1741159776
+  }
+}

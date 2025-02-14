@@ -14,37 +14,49 @@ workspace = true
 thiserror.workspace = true
 serde_json.workspace = true
 serde.workspace = true
-tokio.workspace = true
+serde_with = "3.12.0"
+itertools = "0.13.0"
 
 # workspace
-rsp-witness-db.workspace = true
-rsp-primitives.workspace = true
 rsp-mpt.workspace = true
+rsp-primitives.workspace = true
 
 # reth
 reth-consensus.workspace = true
-reth-ethereum-consensus.workspace = true
-reth-optimism-consensus.workspace = true
+reth-ethereum-primitives = { workspace = true, features = ["serde-bincode-compat"] }
 reth-execution-types.workspace = true
 reth-primitives.workspace = true
-reth-storage-errors.workspace = true
+reth-primitives-traits.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true
 reth-evm-ethereum.workspace = true
-reth-evm-optimism.workspace = true
+reth-optimism-evm = { workspace = true, optional = true }
+reth-optimism-chainspec = { workspace = true, optional = true }
+reth-optimism-primitives = { workspace = true, optional = true, features = ["serde", "serde-bincode-compat"]}
 reth-errors.workspace = true
 reth-chainspec.workspace = true
-reth-revm.workspace = true
 
 # revm
 revm.workspace = true
 revm-primitives.workspace = true
 
 # alloy
+alloy-eips = { workspace = true, features = ["sha2"] }
+alloy-genesis.workspace = true
 alloy-primitives.workspace = true
-alloy-rlp.workspace = true
-itertools = "0.13.0"
-url.workspace = true
-futures.workspace = true
+alloy-consensus.workspace = true
+alloy-network.workspace = true
+alloy-rpc-types.workspace = true
+op-alloy-network = { workspace = true, optional = true }
+op-alloy-rpc-types = { workspace = true, optional = true }
 
-[dev-dependencies]
+
+[features]
+optimism = [
+    "dep:op-alloy-network",
+    "dep:op-alloy-rpc-types",
+    "dep:reth-optimism-evm",
+    "dep:reth-optimism-chainspec",
+    "dep:reth-optimism-primitives",
+    "reth-optimism-evm/optimism"
+]

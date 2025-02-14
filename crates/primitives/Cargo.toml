@@ -8,21 +8,17 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde_json.workspace = true
 serde.workspace = true
-tracing.workspace = true
+serde_json.workspace = true
+eyre = "0.6.12"
 
 # reth
 reth-primitives.workspace = true
-reth-revm.workspace = true
-reth-trie.workspace = true
 reth-chainspec.workspace = true
 reth-optimism-chainspec.workspace = true
-
-# revm
-revm-interpreter.workspace = true
-revm-precompile.workspace = true
-revm-primitives.workspace = true
+reth-optimism-forks.workspace = true
+reth-trie.workspace = true
 
 # alloy
+alloy-genesis.workspace = true
 alloy-rpc-types.workspace = true

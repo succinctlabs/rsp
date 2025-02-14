@@ -44,7 +44,12 @@ If you want to run RSP on another EVM chain, you must specify the genesis JSON f
 rsp --block-number 18884864 --rpc-url <RPC> --genesis-path <GENESIS_PATH>
 ```
 
-You should see logs similar to:
+> [!TIP]
+>
+> The genesis json file only need to contains the chain id and hardforks block/timestamps. You can have a look at the folder 
+> `bin/host/genesis` for examples.
+
+When running RSP, you should see logs similar to:
 
 ```log
 2024-07-15T00:49:03.857638Z  INFO rsp_host_executor: fetching the current block and the previous block
@@ -68,6 +73,10 @@ or by providing the RPC URL in the `.env` file (or otherwise setting the relevan
 ```bash
 cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id>
 ```
+
+#### Chain using the Clique consensus
+
+If you want to run RSP on a chain using the Clique consensus (for instance Linea), you will have to specify the the block beneficiary as the `--custom-beneficiary` CLI argument, as Clique is not implemented in reth.
 
 #### Using cached client input
 
@@ -110,7 +119,7 @@ This will generate proofs locally on your machine. Given how large these program
 
 #### Run with prover network
 
-If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/generating-proofs/prover-network.html), follow the sign-up instructions, and run the command with the following environment variables prefixed:
+If you want to run proofs using Succinct's [prover network](https://docs.succinct.xyz/docs/sp1/generating-proofs/prover-network), follow the sign-up instructions, and run the command with the following environment variables prefixed:
 
 ```bash
 SP1_PROVER=network SP1_PRIVATE_KEY=

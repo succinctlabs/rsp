@@ -1,5 +1,8 @@
+use alloy_consensus::BlockHeader;
 use csv::WriterBuilder;
-use rsp_client_executor::{io::ClientExecutorInput, ChainVariant};
+use reth_primitives::NodePrimitives;
+use reth_primitives_traits::BlockBody;
+use rsp_client_executor::io::ClientExecutorInput;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::ExecutionReport;
 use std::{fs::OpenOptions, path::PathBuf};
@@ -19,19 +22,18 @@ struct ExecutionReportData {
 }
 
 /// Given an execution report, print it out and write it to a CSV specified by report_path.
-pub fn process_execution_report(
-    variant: ChainVariant,
-    client_input: ClientExecutorInput,
+pub fn process_execution_report<P: NodePrimitives>(
+    chain_id: u64,
+    client_input: ClientExecutorInput<P>,
     execution_report: &ExecutionReport,
     report_path: PathBuf,
 ) -> eyre::Result<()> {
     println!("\nExecution report:\n{}", execution_report);
 
-    let chain_id = variant.chain_id();
     let executed_block = client_input.current_block;
-    let block_number = executed_block.header.number;
-    let gas_used = executed_block.header.gas_used;
-    let tx_count = executed_block.body.len();
+    let block_number = executed_block.header.number();
+    let gas_used = executed_block.header.gas_used();
+    let tx_count = executed_block.body.transaction_count();
     let number_cycles = execution_report.total_instruction_count();
     let number_syscalls = execution_report.total_syscall_count();
 

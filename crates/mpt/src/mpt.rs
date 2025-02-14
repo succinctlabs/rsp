@@ -20,7 +20,7 @@
 #![allow(dead_code)]
 
 use alloc::boxed::Box;
-use alloy_primitives::{b256, B256};
+use alloy_primitives::{b256, map::HashMap, B256};
 use alloy_rlp::Encodable;
 use core::{
     cell::RefCell,
@@ -29,13 +29,12 @@ use core::{
     iter, mem,
 };
 use reth_trie::AccountProof;
-use revm::primitives::HashMap;
 
 use rlp::{Decodable, DecoderError, Prototype, Rlp};
 use serde::{Deserialize, Serialize};
 use thiserror::Error as ThisError;
 
-use reth_primitives::Address;
+use alloy_primitives::Address;
 
 use super::{EthereumState, FromProofError};
 
@@ -968,13 +967,14 @@ pub fn proofs_to_tries(
     if proofs.is_empty() {
         return Ok(EthereumState {
             state_trie: node_from_digest(state_root),
-            storage_tries: HashMap::new(),
+            storage_tries: HashMap::with_hasher(Default::default()),
         });
     }
 
-    let mut storage: HashMap<B256, MptNode> = HashMap::with_capacity(proofs.len());
+    let mut storage: HashMap<B256, MptNode> =
+        HashMap::with_capacity_and_hasher(proofs.len(), Default::default());
 
-    let mut state_nodes = HashMap::new();
+    let mut state_nodes = HashMap::with_hasher(Default::default());
     let mut state_root_node = MptNode::default();
     for (address, proof) in proofs {
         let proof_nodes = parse_proof(&proof.proof).unwrap();
@@ -997,7 +997,7 @@ pub fn proofs_to_tries(
             continue;
         }
 
-        let mut storage_nodes = HashMap::new();
+        let mut storage_nodes = HashMap::with_hasher(Default::default());
         let mut storage_root_node = MptNode::default();
         for storage_proof in &proof.storage_proofs {
             let proof_nodes = parse_proof(&storage_proof.proof).unwrap();
@@ -1044,13 +1044,14 @@ pub fn transition_proofs_to_tries(
     if parent_proofs.is_empty() {
         return Ok(EthereumState {
             state_trie: node_from_digest(state_root),
-            storage_tries: HashMap::new(),
+            storage_tries: HashMap::with_hasher(Default::default()),
         });
     }
 
-    let mut storage: HashMap<B256, MptNode> = HashMap::with_capacity(parent_proofs.len());
+    let mut storage: HashMap<B256, MptNode> =
+        HashMap::with_capacity_and_hasher(parent_proofs.len(), Default::default());
 
-    let mut state_nodes = HashMap::new();
+    let mut state_nodes = HashMap::with_hasher(Default::default());
     let mut state_root_node = MptNode::default();
     for (address, proof) in parent_proofs {
         let proof_nodes = parse_proof(&proof.proof).unwrap();
@@ -1078,7 +1079,7 @@ pub fn transition_proofs_to_tries(
             continue;
         }
 
-        let mut storage_nodes = HashMap::new();
+        let mut storage_nodes = HashMap::with_hasher(Default::default());
         let mut storage_root_node = MptNode::default();
         for storage_proof in &proof.storage_proofs {
             let proof_nodes = parse_proof(&storage_proof.proof).unwrap();
