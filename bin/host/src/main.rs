@@ -1,5 +1,6 @@
 #![warn(unused_crate_dependencies)]
 
+use alloy_chains::Chain;
 use alloy_genesis::Genesis;
 use alloy_primitives::Address;
 use alloy_provider::{Network, RootProvider};
@@ -88,6 +89,7 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
     let provider_config = args.provider.clone().into_provider().await?;
+    let is_optimism = Chain::from_id(provider_config.chain_id).is_optimism();
     let eth_proofs_client = EthProofsClient::new(
         args.eth_proofs_cluster_id,
         args.eth_proofs_endpoint.clone(),
@@ -117,7 +119,7 @@ async fn main() -> eyre::Result<()> {
     let genesis = serde_json::from_str::<Genesis>(&genesis_json)
         .map_err(|err| eyre::eyre!("Failed to parse genesis file: {err}"))?;
 
-    if provider_config.chain_id == 10 {
+    if is_optimism {
         let block_execution_strategy_factory = create_op_block_execution_strategy_factory(genesis);
 
         execute::<Optimism, _, _>(
@@ -126,6 +128,7 @@ async fn main() -> eyre::Result<()> {
             genesis_json,
             eth_proofs_client,
             block_execution_strategy_factory,
+            true,
         )
         .await?;
     } else {
@@ -138,6 +141,7 @@ async fn main() -> eyre::Result<()> {
             genesis_json,
             eth_proofs_client,
             block_execution_strategy_factory,
+            false,
         )
         .await?;
     }
@@ -151,6 +155,7 @@ async fn execute<N, NP, F>(
     genesis_json: String,
     eth_proofs_client: Option<EthProofsClient>,
     block_execution_strategy_factory: F,
+    is_optimism: bool,
 ) -> eyre::Result<()>
 where
     N: Network,
@@ -208,9 +213,10 @@ where
     let client = ProverClient::from_env();
 
     // Setup the proving key and verification key.
-    let (pk, vk) = client.setup(match provider_config.chain_id {
-        10 => include_elf!("rsp-client-op"),
-        _ => include_elf!("rsp-client"),
+    let (pk, vk) = client.setup(if is_optimism {
+        include_elf!("rsp-client-op")
+    } else {
+        include_elf!("rsp-client")
     });
 
     // Execute the block inside the zkVM.

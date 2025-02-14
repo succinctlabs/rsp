@@ -89,6 +89,7 @@ revm-interpreter = { version = "15.2.0", default-features = false }
 revm-precompile = { version = "16.0.0", default-features = false }
 
 # alloy
+alloy-chains = { version = "0.1.59", default-features = false }
 alloy-primitives = { version = "0.8.15", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
 alloy-provider = { version = "0.11.1", default-features = false, features = [
     "reqwest",

@@ -4863,6 +4863,7 @@ dependencies = [
 name = "rsp"
 version = "0.1.0"
 dependencies = [
+ "alloy-chains",
  "alloy-consensus",
  "alloy-genesis",
  "alloy-primitives",
