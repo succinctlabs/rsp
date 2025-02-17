@@ -13,12 +13,19 @@ workspace = true
 [dependencies]
 thiserror.workspace = true
 tracing.workspace = true
+serde.workspace = true
+url.workspace = true
+eyre = "0.6.12"
+bincode = "1.3.3"
 
 # workspace
 rsp-rpc-db.workspace = true
 rsp-client-executor = { workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
 rsp-primitives.workspace = true
+
+# sp1
+sp1-sdk = "4.0.0"
 
 # reth
 reth-evm.workspace = true
@@ -38,6 +45,7 @@ revm.workspace = true
 revm-primitives.workspace = true
 
 # alloy
+alloy-chains.workspace = true
 alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin/host",
+    "bin/eth-proofs",
     "crates/executor/client",
     "crates/executor/host",
     "crates/mpt",
@@ -106,6 +107,8 @@ alloy-transport = { version = "0.11.1", default-features = false }
 alloy-transport-http = { version = "0.11.1", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
+alloy-transport-ws = { version = "0.11.1" }
+alloy-rpc-client = { version = "0.11.1", default-features = false }
 alloy-eips = { version = "0.11.1", default-features = false }
 alloy-rlp = "0.3.10"
 alloy-trie = "0.7"

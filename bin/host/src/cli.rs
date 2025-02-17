@@ -1,31 +1,52 @@
+use std::{fs, path::PathBuf};
+
+use alloy_chains::Chain;
+use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
+use rsp_host_executor::Config;
+use rsp_primitives::genesis::Genesis;
 use url::Url;
 
-/// The arguments for configuring the chain data provider.
+/// The arguments for the host executable.
 #[derive(Debug, Clone, Parser)]
-pub struct ProviderArgs {
-    /// The rpc url used to fetch data about the block. If not provided, will use the
-    /// RPC_{chain_id} env var.
+pub struct HostArgs {
+    /// The block number of the block to execute.
     #[clap(long)]
-    rpc_url: Option<Url>,
-    /// The chain ID. If not provided, requires the rpc_url argument to be provided.
+    pub block_number: u64,
+
+    #[clap(flatten)]
+    pub provider: ProviderArgs,
+
+    /// The path to the genesis json file to use for the execution.
     #[clap(long)]
-    chain_id: Option<u64>,
+    pub genesis_path: Option<PathBuf>,
+
+    /// The custom beneficiary address, used with Clique consensus.
+    #[clap(long)]
+    pub custom_beneficiary: Option<Address>,
+
+    /// Whether to generate a proof or just execute the block.
+    #[clap(long)]
+    pub prove: bool,
+
+    /// Optional path to the directory containing cached client input. A new cache file will be
+    /// created from RPC data if it doesn't already exist.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
+
+    /// The path to the CSV file containing the execution data.
+    #[clap(long, default_value = "report.csv")]
+    pub report_path: PathBuf,
 }
 
-pub struct ProviderConfig {
-    pub rpc_url: Option<Url>,
-    pub chain_id: u64,
-}
-
-impl ProviderArgs {
-    pub async fn into_provider(self) -> eyre::Result<ProviderConfig> {
+impl HostArgs {
+    pub async fn into_config(self) -> eyre::Result<Config> {
         // We don't need RPC when using cache with known chain ID, so we leave it as `Option<Url>`
         // here and decide on whether to panic later.
         //
         // On the other hand chain ID is always needed.
-        let (rpc_url, chain_id) = match (self.rpc_url, self.chain_id) {
+        let (rpc_url, chain_id) = match (self.provider.rpc_url, self.provider.chain_id) {
             (Some(rpc_url), Some(chain_id)) => (Some(rpc_url), chain_id),
             (None, Some(chain_id)) => {
                 match std::env::var(format!("RPC_{}", chain_id)) {
@@ -51,6 +72,38 @@ impl ProviderArgs {
             }
         };
 
-        Ok(ProviderConfig { rpc_url, chain_id })
+        let genesis = if let Some(genesis_path) = self.genesis_path {
+            let genesis_json = fs::read_to_string(genesis_path)
+                .map_err(|err| eyre::eyre!("Failed to read genesis file: {err}"))?;
+
+            Genesis::Custom(genesis_json)
+        } else {
+            chain_id.try_into()?
+        };
+
+        let chain = Chain::from_id(chain_id);
+
+        let config = Config {
+            chain,
+            genesis,
+            rpc_url,
+            cache_dir: self.cache_dir.clone(),
+            custom_beneficiary: self.custom_beneficiary,
+            prove: self.prove,
+        };
+
+        Ok(config)
     }
+}
+
+/// The arguments for configuring the chain data provider.
+#[derive(Debug, Clone, Parser)]
+pub struct ProviderArgs {
+    /// The rpc url used to fetch data about the block. If not provided, will use the
+    /// RPC_{chain_id} env var.
+    #[clap(long)]
+    rpc_url: Option<Url>,
+    /// The chain ID. If not provided, requires the rpc_url argument to be provided.
+    #[clap(long)]
+    chain_id: Option<u64>,
 }
