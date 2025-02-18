@@ -55,10 +55,10 @@ impl ExecutionHooks for ExecutionSummary {
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         let path = env::var("GITHUB_OUTPUT")?;
-        let mut file = File::options().append(true).open(path)?;
-        let output = format!("CYCLE_COUNT={}\n", execution_report.total_instruction_count());
+        println!("GITHUB_OUTPUT: {path}");
+        let mut file = File::options().create(true).append(true).open(path)?;
 
-        file.write_all(output.as_bytes())?;
+        writeln!(file, "CYCLE_COUNT={}", execution_report.total_instruction_count())?;
 
         Ok(())
     }
