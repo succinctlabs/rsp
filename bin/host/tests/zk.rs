@@ -11,6 +11,7 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use sp1_sdk::{include_elf, ExecutionReport};
+use thousands::Separable;
 use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -55,10 +56,13 @@ impl ExecutionHooks for ExecutionSummary {
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         let path = env::var("GITHUB_OUTPUT")?;
-        println!("GITHUB_OUTPUT: {path}");
         let mut file = File::options().create(true).append(true).open(path)?;
 
-        writeln!(file, "CYCLE_COUNT={}", execution_report.total_instruction_count())?;
+        writeln!(
+            file,
+            "CYCLE_COUNT={}",
+            execution_report.total_instruction_count().separate_with_commas()
+        )?;
 
         Ok(())
     }
