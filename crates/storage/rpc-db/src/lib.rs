@@ -33,8 +33,14 @@ pub struct RpcDb<P, N> {
 /// Errors that can occur when interacting with the [RpcDb].
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum RpcDbError {
-    #[error("failed to fetch data: {0}")]
-    RpcError(String),
+    #[error("failed fetch proof at {0}: {1}")]
+    GetProofError(Address, String),
+    #[error("failed to fetch code at {0}: {1}")]
+    GetCodeError(Address, String),
+    #[error("failed to fetch storage at {0}, index {1}: {2}")]
+    GetStorageError(Address, U256, String),
+    #[error("failed to fetch block {0}: {1}")]
+    GetBlockError(u64, String),
     #[error("failed to find block")]
     BlockNotFound,
     #[error("failed to find trie node preimage")]
@@ -64,7 +70,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .get_proof(address, vec![])
             .block_id(self.block)
             .await
-            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+            .map_err(|e| RpcDbError::GetProofError(address, e.to_string()))?;
 
         // Fetch the code of the account.
         let code = self
@@ -72,7 +78,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .get_code_at(address)
             .block_id(self.block)
             .await
-            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+            .map_err(|e| RpcDbError::GetCodeError(address, e.to_string()))?;
 
         // Construct the account info & write it to the log.
         let bytecode = Bytecode::new_raw(code);
@@ -103,7 +109,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .get_storage_at(address, index)
             .block_id(self.block)
             .await
-            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+            .map_err(|e| RpcDbError::GetStorageError(address, index, e.to_string()))?;
 
         // Record the storage value to the state.
         let mut storage_values = self.storage.borrow_mut();
@@ -122,7 +128,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .provider
             .get_block_by_number(number.into(), BlockTransactionsKind::Hashes)
             .await
-            .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+            .map_err(|e| RpcDbError::GetBlockError(number, e.to_string()))?;
 
         // Record the block hash to the state.
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
