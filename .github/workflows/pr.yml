@@ -145,6 +145,8 @@ jobs:
           CYCLE_COUNT: ${{ steps.tests.outputs.CYCLE_COUNT }}
         with:
           script: |
+            const { CYCLE_COUNT } = process.env
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
