@@ -1,4 +1,8 @@
+use std::time::Instant;
+
 use base64::{engine::general_purpose::STANDARD, Engine};
+use eyre::bail;
+use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
 
 pub struct EthProofsClient {
@@ -6,18 +10,17 @@ pub struct EthProofsClient {
     endpoint: String,
     api_token: String,
     client: reqwest::Client,
+    proving_start: Option<Instant>,
 }
 
 impl EthProofsClient {
-    pub fn new(
-        cluster_id: u64,
-        eth_proofs_endpoint: Option<String>,
-        eth_proofs_api_token: Option<String>,
-    ) -> Option<Self> {
-        if let (Some(endpoint), Some(api_token)) = (eth_proofs_endpoint, eth_proofs_api_token) {
-            Some(Self { cluster_id, endpoint, api_token, client: reqwest::Client::new() })
-        } else {
-            None
+    pub fn new(cluster_id: u64, endpoint: String, api_token: String) -> Self {
+        Self {
+            cluster_id,
+            endpoint,
+            api_token,
+            client: reqwest::Client::new(),
+            proving_start: None,
         }
     }
 
@@ -102,6 +105,39 @@ impl EthProofsClient {
         println!("Proved submission status: {}", response.status());
         if !response.status().is_success() {
             println!("Error response: {}", response.text().await?);
+        }
+
+        Ok(())
+    }
+}
+
+impl ExecutionHooks for EthProofsClient {
+    async fn on_execution_start(&mut self, block_number: u64) -> eyre::Result<()> {
+        self.queued(block_number).await?;
+
+        Ok(())
+    }
+
+    async fn on_proving_start(&mut self, block_number: u64) -> eyre::Result<()> {
+        self.proving(block_number).await?;
+
+        self.proving_start = Some(Instant::now());
+
+        Ok(())
+    }
+
+    async fn on_proving_end(
+        &self,
+        block_number: u64,
+        proof_bytes: &[u8],
+        vk: &SP1VerifyingKey,
+        execution_report: &ExecutionReport,
+    ) -> eyre::Result<()> {
+        if let Some(start) = self.proving_start {
+            let elapsed = start.elapsed().as_secs_f32();
+            self.proved(proof_bytes, block_number, execution_report, elapsed, vk).await?;
+        } else {
+            bail!("Proving start time not set");
         }
 
         Ok(())
