@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs::File, io::Write};
 
 use alloy_chains::Chain;
 use alloy_network::Ethereum;
@@ -54,10 +54,11 @@ impl ExecutionHooks for ExecutionSummary {
         _client_input: &ClientExecutorInput<P>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
-        env::set_var(
-            "GITHUB_OUTPUT",
-            format!("CYCLE_COUNT={}", execution_report.total_instruction_count()),
-        );
+        let path = env::var("GITHUB_OUTPUT")?;
+        let mut file = File::options().append(true).open(path)?;
+        let output = format!("CYCLE_COUNT={}\n", execution_report.total_instruction_count());
+
+        file.write_all(output.as_bytes())?;
 
         Ok(())
     }
