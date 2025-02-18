@@ -134,6 +134,20 @@ jobs:
           echo "RPC_11155111=http://localhost:9545/main/evm/11155111" >> $GITHUB_ENV
 
       - name: "Run tests"
+        id: tests
         run: |
           export RUST_LOG=info
           cargo test --all -- --nocapture
+
+      - name: "Add cycle count report"
+        uses: actions/github-script@v7
+        env:
+          CYCLE_COUNT: ${{ steps.tests.outputs.CYCLE_COUNT }}
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Cycle count: ${CYCLE_COUNT}'
+            })
