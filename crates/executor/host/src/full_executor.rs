@@ -58,6 +58,7 @@ where
 }
 
 pub trait BlockExecutor {
+    #[allow(async_fn_in_trait)]
     async fn execute(&mut self, block_number: u64) -> eyre::Result<()>;
 }
 

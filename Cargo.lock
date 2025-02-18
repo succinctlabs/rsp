@@ -5056,7 +5056,6 @@ dependencies = [
  "alloy-rpc-client",
  "alloy-rpc-types",
  "alloy-transport",
- "async-trait",
  "bincode",
  "dotenv",
  "either",
