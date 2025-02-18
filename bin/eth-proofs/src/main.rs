@@ -5,7 +5,7 @@ use clap::Parser;
 use cli::Args;
 use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
-use rsp_host_executor::{create_eth_block_execution_strategy_factory, FullExecutor};
+use rsp_host_executor::{create_eth_block_execution_strategy_factory, BlockExecutor, FullExecutor};
 use sp1_sdk::include_elf;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -51,8 +51,13 @@ async fn main() -> eyre::Result<()> {
     let mut stream =
         subscription.into_stream().filter(|h| ready(h.number % args.block_interval == 0));
 
-    let mut executor =
-        FullExecutor::new(elf, block_execution_strategy_factory, eth_proofs_client, config);
+    let mut executor = FullExecutor::new(
+        http_provider.clone(),
+        elf,
+        block_execution_strategy_factory,
+        eth_proofs_client,
+        config,
+    );
 
     info!("Latest block number: {}", http_provider.get_block_number().await?);
 

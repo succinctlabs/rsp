@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use reth_primitives::NodePrimitives;
 use rsp_client_executor::io::ClientExecutorInput;
 use sp1_sdk::{ExecutionReport, SP1VerifyingKey};
