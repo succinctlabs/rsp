@@ -6,6 +6,7 @@ use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
+use futures_util::future::join_all;
 use futures_util::StreamExt;
 use op_alloy_network::{Ethereum, Optimism};
 use reth_evm::execute::BlockExecutionStrategyFactory;
@@ -19,7 +20,9 @@ use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{include_elf, network::B256, ProverClient, SP1Stdin};
+use std::sync::Arc;
 use std::{fs, path::PathBuf};
+use tokio::task;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -38,9 +41,9 @@ struct HostArgs {
     #[clap(long)]
     block_number: u64,
 
-    /// is infinite
+    /// run the host in an infinite loop, processing new blocks as they arrive
     #[clap(long)]
-    infinite: bool,
+    continuous: bool,
 
     #[clap(flatten)]
     provider: ProviderArgs,
@@ -114,7 +117,7 @@ async fn main() -> eyre::Result<()> {
         provider_config.chain_id.try_into()?
     };
 
-    if args.infinite {
+    if args.continuous {
         let provider_args = args.provider.clone();
 
         // change https to wss
@@ -127,7 +130,6 @@ async fn main() -> eyre::Result<()> {
             .replace("https", "wss");
 
         let ws = alloy::providers::WsConnect::new(ws_url);
-
         let provider = ProviderBuilder::new().on_ws(ws).await?;
         let subscription = provider.subscribe_blocks().await?;
         let mut stream = subscription.into_stream();
@@ -135,21 +137,60 @@ async fn main() -> eyre::Result<()> {
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
 
+        let mut handles: Vec<task::JoinHandle<()>> = Vec::new();
+        let rpc_url = provider_config.rpc_url.clone();
+
         while let Some(block) = stream.next().await {
-            println!("{:?}", block.number);
+            let block_number = block.number;
+            println!("Received block: {:?}", block_number);
 
-            let mut new_args = args.clone();
-            new_args.block_number = block.number;
+            let args_clone = args.clone();
+            let provider_config_clone = provider_config.clone();
+            let genesis_clone = genesis.clone();
+            let block_execution_strategy_factory_clone = block_execution_strategy_factory.clone();
 
-            execute::<Ethereum, _, _>(
-                new_args,
-                provider_config.clone(),
-                genesis.clone(),
-                None,
-                block_execution_strategy_factory.clone(),
-                false,
-            )
-            .await?;
+            // Spawn a new task for this block
+            let handle = task::spawn(async move {
+                let mut new_args = args_clone;
+                new_args.block_number = block_number;
+
+                println!("Processing block {}", block_number);
+
+                let result = execute::<Ethereum, _, _>(
+                    new_args,
+                    provider_config_clone,
+                    genesis_clone,
+                    None,
+                    block_execution_strategy_factory_clone,
+                    false,
+                )
+                .await;
+
+                match result {
+                    Ok(_) => println!("Successfully processed block {}", block_number),
+                    Err(e) => eprintln!("Error processing block {}: {}", block_number, e),
+                }
+
+                println!("Processed block {}", block_number);
+            });
+
+            handles.push(handle);
+
+            if handles.len() >= 10 {
+                let (completed, index, pending) = futures_util::future::select_all(handles).await;
+                if let Err(e) = completed {
+                    eprintln!("Task error: {}", e);
+                }
+                handles = pending;
+            }
+        }
+
+        // Wait for all remaining tasks to complete
+        let results = join_all(handles).await;
+        for result in results {
+            if let Err(e) = result {
+                eprintln!("Task error: {}", e);
+            }
         }
     } else {
         if is_optimism {
