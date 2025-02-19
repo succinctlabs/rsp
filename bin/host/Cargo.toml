@@ -38,6 +38,8 @@ sp1-sdk = "4.0.0"
 eyre = "0.6.12"
 reqwest = "0.12.9"
 base64 = "0.22.1"
+alloy = { version = "0.11", features = ["full"] }
+futures-util = "0.3.31"
 
 [build-dependencies]
 sp1-helper = "4.0.0"

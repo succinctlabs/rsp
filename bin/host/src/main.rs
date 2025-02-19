@@ -2,10 +2,11 @@
 
 use alloy_chains::Chain;
 use alloy_primitives::Address;
-use alloy_provider::{Network, RootProvider};
+use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use clap::Parser;
 use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
+use futures_util::StreamExt;
 use op_alloy_network::{Ethereum, Optimism};
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::NodePrimitives;
@@ -36,6 +37,10 @@ struct HostArgs {
     /// The block number of the block to execute.
     #[clap(long)]
     block_number: u64,
+
+    /// is infinite
+    #[clap(long)]
+    infinite: bool,
 
     #[clap(flatten)]
     provider: ProviderArgs,
@@ -109,31 +114,71 @@ async fn main() -> eyre::Result<()> {
         provider_config.chain_id.try_into()?
     };
 
-    if is_optimism {
-        let block_execution_strategy_factory = create_op_block_execution_strategy_factory(&genesis);
+    if args.infinite {
+        let provider_args = args.provider.clone();
 
-        execute::<Optimism, _, _>(
-            args,
-            provider_config,
-            genesis,
-            eth_proofs_client,
-            block_execution_strategy_factory,
-            true,
-        )
-        .await?;
-    } else {
+        // change https to wss
+        let ws_url = provider_args
+            .into_provider()
+            .await?
+            .rpc_url
+            .unwrap()
+            .to_string()
+            .replace("https", "wss");
+
+        let ws = alloy::providers::WsConnect::new(ws_url);
+
+        let provider = ProviderBuilder::new().on_ws(ws).await?;
+        let subscription = provider.subscribe_blocks().await?;
+        let mut stream = subscription.into_stream();
+
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
 
-        execute::<Ethereum, _, _>(
-            args,
-            provider_config,
-            genesis,
-            eth_proofs_client,
-            block_execution_strategy_factory,
-            false,
-        )
-        .await?;
+        while let Some(block) = stream.next().await {
+            println!("{:?}", block.number);
+
+            let mut new_args = args.clone();
+            new_args.block_number = block.number;
+
+            execute::<Ethereum, _, _>(
+                new_args,
+                provider_config.clone(),
+                genesis.clone(),
+                None,
+                block_execution_strategy_factory.clone(),
+                false,
+            )
+            .await?;
+        }
+    } else {
+        if is_optimism {
+            let block_execution_strategy_factory =
+                create_op_block_execution_strategy_factory(&genesis);
+
+            execute::<Optimism, _, _>(
+                args,
+                provider_config,
+                genesis,
+                eth_proofs_client,
+                block_execution_strategy_factory,
+                true,
+            )
+            .await?;
+        } else {
+            let block_execution_strategy_factory =
+                create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
+
+            execute::<Ethereum, _, _>(
+                args,
+                provider_config,
+                genesis,
+                eth_proofs_client,
+                block_execution_strategy_factory,
+                false,
+            )
+            .await?;
+        }
     }
 
     Ok(())

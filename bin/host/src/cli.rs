@@ -14,6 +14,7 @@ pub struct ProviderArgs {
     chain_id: Option<u64>,
 }
 
+#[derive(Debug, Clone)]
 pub struct ProviderConfig {
     pub rpc_url: Option<Url>,
     pub chain_id: u64,
