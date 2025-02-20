@@ -1,6 +1,8 @@
 #![warn(unused_crate_dependencies)]
 
+use alloy::signers::k256::elliptic_curve::rand_core::block;
 use alloy_chains::Chain;
+use alloy_consensus::BlockHeader;
 use alloy_primitives::Address;
 use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use clap::Parser;
@@ -8,9 +10,15 @@ use eth_proofs::EthProofsClient;
 use execute::process_execution_report;
 use futures_util::future::join_all;
 use futures_util::StreamExt;
+use mongodb::{
+    bson::{doc, Bson, Document},
+    options::ClientOptions,
+    Client, Collection,
+};
 use op_alloy_network::{Ethereum, Optimism};
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::NodePrimitives;
+use reth_primitives_traits::BlockBody;
 use rsp_client_executor::{io::ClientExecutorInput, IntoInput, IntoPrimitives};
 use rsp_host_executor::{
     create_eth_block_execution_strategy_factory, create_op_block_execution_strategy_factory,
@@ -18,10 +26,13 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sp1_sdk::{include_elf, network::B256, ProverClient, SP1Stdin};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{fs, path::PathBuf};
+
 use tokio::task;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -39,14 +50,14 @@ mod eth_proofs;
 struct HostArgs {
     /// The block number of the block to execute.
     #[clap(long)]
-    block_number: u64,
-
-    /// run the host in an infinite loop, processing new blocks as they arrive
-    #[clap(long)]
-    continuous: bool,
+    block_number: Option<u64>,
 
     #[clap(flatten)]
     provider: ProviderArgs,
+
+    // database connection
+    #[clap(long)]
+    db_url: String,
 
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
@@ -107,7 +118,8 @@ async fn main() -> eyre::Result<()> {
         provider_config.chain_id.try_into()?
     };
 
-    if args.continuous {
+    if args.block_number.is_none() {
+        println!("🔁 running rsp host in continuous mode");
         let provider_args = args.provider.clone();
 
         // change https to wss
@@ -122,7 +134,7 @@ async fn main() -> eyre::Result<()> {
         let ws = alloy::providers::WsConnect::new(ws_url);
         let provider = ProviderBuilder::new().on_ws(ws).await?;
         let subscription = provider.subscribe_blocks().await?;
-        let mut stream = subscription.into_stream().take(3);
+        let mut stream = subscription.into_stream();
 
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
@@ -130,8 +142,8 @@ async fn main() -> eyre::Result<()> {
         let mut handles: Vec<task::JoinHandle<()>> = Vec::new();
 
         while let Some(block) = stream.next().await {
-            let block_number = block.number;
-            println!("Received block: {:?}", block_number);
+            let block_num = block.number;
+            println!("Received block: {:?}", block_num);
 
             let args_clone = args.clone();
             let provider_config_clone = provider_config.clone();
@@ -141,9 +153,9 @@ async fn main() -> eyre::Result<()> {
             // Spawn a new task for this block
             let handle = task::spawn(async move {
                 let mut new_args = args_clone;
-                new_args.block_number = block_number;
+                new_args.block_number = Some(block_num);
 
-                println!("Processing block {}", block_number);
+                println!("Processing block {}", block_num);
 
                 let result = execute::<Ethereum, _, _>(
                     new_args,
@@ -156,11 +168,11 @@ async fn main() -> eyre::Result<()> {
                 .await;
 
                 match result {
-                    Ok(_) => println!("Successfully processed block {}", block_number),
-                    Err(e) => eprintln!("Error processing block {}: {}", block_number, e),
+                    Ok(_) => println!("Successfully processed block {}", block_num),
+                    Err(e) => eprintln!("Error processing block {}: {}", block_num, e),
                 }
 
-                println!("Processed block {}", block_number);
+                println!("Processed block {}", block_num);
             });
 
             handles.push(handle);
@@ -182,6 +194,8 @@ async fn main() -> eyre::Result<()> {
             }
         }
     } else {
+        let block_number = args.block_number.unwrap();
+
         let is_optimism = Chain::from_id(provider_config.chain_id).is_optimism();
 
         let eth_proofs_client = EthProofsClient::new(
@@ -191,7 +205,7 @@ async fn main() -> eyre::Result<()> {
         );
 
         if let Some(eth_proofs_client) = &eth_proofs_client {
-            eth_proofs_client.queued(args.block_number).await?;
+            eth_proofs_client.queued(block_number).await?;
         }
 
         if is_optimism {
@@ -226,6 +240,97 @@ async fn main() -> eyre::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ProvableBlock {
+    block_number: i64,
+    status: String,
+    gas_used: i64,
+    tx_count: i64,
+    num_cycles: i64,
+    start_time: Option<i64>,
+    end_time: Option<i64>,
+}
+
+async fn init_db_pool(db_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
+    let database_url = db_url;
+    PgPoolOptions::new().max_connections(8).connect(database_url).await
+}
+
+async fn init_db_schema(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS rsp_blocks (
+            block_number BIGINT PRIMARY KEY,
+            status VARCHAR(50) NOT NULL,
+            gas_used BIGINT NOT NULL,
+            tx_count BIGINT NOT NULL,
+            num_cycles BIGINT NOT NULL,
+            start_time BIGINT,
+            end_time BIGINT
+        )
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn insert_block(pool: &Pool<Postgres>, block: &ProvableBlock) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO rsp_blocks 
+        (block_number, status, gas_used, tx_count, num_cycles, start_time, end_time)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        "#,
+    )
+    .bind(block.block_number)
+    .bind(&block.status)
+    .bind(block.gas_used)
+    .bind(block.tx_count)
+    .bind(block.num_cycles)
+    .bind(block.start_time)
+    .bind(block.end_time)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn update_block_status(
+    pool: &Pool<Postgres>,
+    block_number: i64,
+    gas_used: i64,
+    tx_count: i64,
+    num_cycles: i64,
+    end_time: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE rsp_blocks
+        SET status = 'executed',
+            gas_used = $2,
+            tx_count = $3,
+            num_cycles = $4,
+            end_time = $5
+        WHERE block_number = $1
+        "#,
+    )
+    .bind(block_number)
+    .bind(gas_used)
+    .bind(tx_count)
+    .bind(num_cycles)
+    .bind(end_time)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+fn system_time_to_timestamp(time: SystemTime) -> i64 {
+    time.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64
+}
+
 async fn execute<N, NP, F>(
     args: HostArgs,
     provider_config: ProviderConfig,
@@ -240,10 +345,30 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     F::Primitives: IntoPrimitives<N> + IntoInput,
 {
+    // Initialize PostgreSQL connection pool
+    let pool = init_db_pool(&args.db_url).await?;
+
+    // Initialize database schema
+    init_db_schema(&pool).await?;
+
+    let start_time = system_time_to_timestamp(SystemTime::now());
+
+    // Create new block record
+    let block = ProvableBlock {
+        block_number: args.block_number.unwrap() as i64,
+        status: "queued".to_string(),
+        gas_used: 0,
+        tx_count: 0,
+        num_cycles: 0,
+        start_time: Some(start_time),
+        end_time: None,
+    };
+    insert_block(&pool, &block).await?;
+
     let client_input_from_cache = try_load_input_from_cache::<NP>(
         args.cache_dir.as_ref(),
         provider_config.chain_id,
-        args.block_number,
+        args.block_number.unwrap(),
     )?;
 
     let client_input = match (client_input_from_cache, provider_config.rpc_url) {
@@ -254,11 +379,17 @@ where
             // Setup the host executor.
             let host_executor = HostExecutor::new(block_execution_strategy_factory);
 
-            let rpc_db = RpcDb::new(provider.clone(), args.block_number - 1);
+            let rpc_db = RpcDb::new(provider.clone(), args.block_number.unwrap() - 1);
 
             // Execute the host.
             let client_input = host_executor
-                .execute(args.block_number, &rpc_db, &provider, genesis, args.custom_beneficiary)
+                .execute(
+                    args.block_number.unwrap(),
+                    &rpc_db,
+                    &provider,
+                    genesis,
+                    args.custom_beneficiary,
+                )
                 .await?;
 
             if let Some(ref cache_dir) = args.cache_dir {
@@ -267,7 +398,7 @@ where
                     std::fs::create_dir_all(&input_folder)?;
                 }
 
-                let input_path = input_folder.join(format!("{}.bin", args.block_number));
+                let input_path = input_folder.join(format!("{}.bin", args.block_number.unwrap()));
                 let mut cache_file = std::fs::File::create(input_path)?;
 
                 bincode::serialize_into(&mut cache_file, &client_input)?;
@@ -303,6 +434,8 @@ where
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
 
+    let executed_block = client_input.clone().current_block;
+
     if eth_proofs_client.is_none() {
         // Process the execute report, print it out, and save data to a CSV specified by
         // report_path.
@@ -314,11 +447,24 @@ where
         )?;
     }
 
+    let end_time = system_time_to_timestamp(SystemTime::now());
+
+    // Update the block status in PostgreSQL
+    update_block_status(
+        &pool,
+        args.block_number.unwrap() as i64,
+        executed_block.header.gas_used() as i64,
+        executed_block.body.transaction_count() as i64,
+        execution_report.total_instruction_count() as i64,
+        end_time,
+    )
+    .await?;
+
     if args.prove {
         println!("Starting proof generation.");
 
         if let Some(eth_proofs_client) = &eth_proofs_client {
-            eth_proofs_client.proving(args.block_number).await?;
+            eth_proofs_client.proving(args.block_number.unwrap()).await?;
         }
 
         let start = std::time::Instant::now();
@@ -328,7 +474,7 @@ where
 
         if let Some(eth_proofs_client) = &eth_proofs_client {
             eth_proofs_client
-                .proved(&proof_bytes, args.block_number, &execution_report, elapsed, &vk)
+                .proved(&proof_bytes, args.block_number.unwrap(), &execution_report, elapsed, &vk)
                 .await?;
         }
     }

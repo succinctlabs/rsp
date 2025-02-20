@@ -22,9 +22,6 @@ version = "0.1.0"
 
 [workspace.dependencies]
 tracing = { version = "0.1.40", default-features = false }
-cfg-if = "1.0.0"
-spin = { version = "0.9.8", features = ["mutex"] }
-async-trait = "0.1.80"
 tokio = { version = "1.21", default-features = false, features = [
     "rt",
     "rt-multi-thread",
@@ -40,7 +37,6 @@ rlp = "0.5.2"
 
 # workspace
 rsp-rpc-db = { path = "./crates/storage/rpc-db" }
-rsp-witness-db = { path = "./crates/storage/witness-db" }
 rsp-client-executor = { path = "./crates/executor/client" }
 rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
@@ -52,27 +48,18 @@ reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0",
     "std",
 ] }
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-trie-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-execution-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false, features = [
-    "optimism",
-] }
 reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.2.0", default-features = false }
 
 # revm
@@ -84,9 +71,6 @@ revm = { version = "19.5.0", features = [
 revm-primitives = { version = "15.2.0", features = [
     "serde",
 ], default-features = false }
-revm-inspectors = "0.15.0"
-revm-interpreter = { version = "15.2.0", default-features = false }
-revm-precompile = { version = "16.0.0", default-features = false }
 
 # alloy
 alloy-chains = { version = "0.1.59", default-features = false }
@@ -103,9 +87,6 @@ alloy-genesis = { version = "0.11.1", default-features = false }
 alloy-consensus = { version = "0.11.1", default-features = false, features = ["serde", "serde-bincode-compat"] }
 alloy-network = { version = "0.11.1", default-features = false }
 alloy-transport = { version = "0.11.1", default-features = false }
-alloy-transport-http = { version = "0.11.1", features = [
-    "reqwest-rustls-tls",
-], default-features = false }
 alloy-eips = { version = "0.11.1", default-features = false }
 alloy-rlp = "0.3.10"
 alloy-trie = "0.7"
