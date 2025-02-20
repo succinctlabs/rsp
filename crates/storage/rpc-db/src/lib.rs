@@ -1,9 +1,3 @@
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
-    marker::PhantomData,
-};
-
 use alloy_primitives::{map::HashMap, U256};
 use alloy_provider::{
     network::{primitives::HeaderResponse, BlockResponse},
@@ -12,22 +6,27 @@ use alloy_provider::{
 use alloy_rpc_types::{BlockId, BlockTransactionsKind};
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_primitives::{db::DatabaseRef, AccountInfo, Address, Bytecode, B256};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
+    sync::Arc,
+};
+use tokio::sync::RwLock;
 
 /// A database that fetches data from a [Provider] over a [Transport].
-#[derive(Debug, Clone)]
 pub struct RpcDb<P, N> {
     /// The provider which fetches data.
     pub provider: P,
     /// The block to fetch data from.
     pub block: BlockId,
     /// The cached accounts.
-    pub accounts: RefCell<HashMap<Address, AccountInfo>>,
+    pub accounts: RwLock<HashMap<Address, AccountInfo>>,
     /// The cached storage values.
-    pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
+    pub storage: RwLock<HashMap<Address, HashMap<U256, U256>>>,
     /// The oldest block whose header/hash has been requested.
-    pub oldest_ancestor: RefCell<u64>,
+    pub oldest_ancestor: RwLock<u64>,
 
-    phantom: std::marker::PhantomData<N>,
+    phantom: PhantomData<N>,
 }
 
 /// Errors that can occur when interacting with the [RpcDb].
@@ -47,9 +46,9 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         RpcDb {
             provider,
             block: block.into(),
-            accounts: RefCell::new(HashMap::with_hasher(Default::default())),
-            storage: RefCell::new(HashMap::with_hasher(Default::default())),
-            oldest_ancestor: RefCell::new(block),
+            accounts: RwLock::new(HashMap::with_hasher(Default::default())),
+            storage: RwLock::new(HashMap::with_hasher(Default::default())),
+            oldest_ancestor: RwLock::new(block),
             phantom: PhantomData,
         }
     }
@@ -84,7 +83,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         };
 
         // Record the account info to the state.
-        self.accounts.borrow_mut().insert(address, account_info.clone());
+        self.accounts.write().await.insert(address, account_info.clone());
 
         Ok(account_info)
     }
@@ -106,7 +105,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
 
         // Record the storage value to the state.
-        let mut storage_values = self.storage.borrow_mut();
+        let mut storage_values = self.storage.write().await;
         let entry = storage_values.entry(address).or_default();
         entry.insert(index, value);
 
@@ -128,16 +127,16 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
         let hash = block.header().hash();
 
-        let mut oldest_ancestor = self.oldest_ancestor.borrow_mut();
+        let mut oldest_ancestor = self.oldest_ancestor.write().await;
         *oldest_ancestor = number.min(*oldest_ancestor);
 
         Ok(hash)
     }
 
     /// Gets all the state keys used. The client uses this to read the actual state data from tries.
-    pub fn get_state_requests(&self) -> HashMap<Address, Vec<U256>> {
-        let accounts = self.accounts.borrow();
-        let storage = self.storage.borrow();
+    pub async fn get_state_requests(&self) -> HashMap<Address, Vec<U256>> {
+        let accounts = self.accounts.read().await;
+        let storage = self.storage.read().await;
 
         accounts
             .keys()
@@ -154,8 +153,8 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
     }
 
     /// Gets all account bytecodes.
-    pub fn get_bytecodes(&self) -> Vec<Bytecode> {
-        let accounts = self.accounts.borrow();
+    pub async fn get_bytecodes(&self) -> Vec<Bytecode> {
+        let accounts = self.accounts.read().await;
 
         accounts
             .values()

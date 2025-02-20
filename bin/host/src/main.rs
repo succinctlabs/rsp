@@ -97,16 +97,6 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = HostArgs::parse();
     let provider_config = args.provider.clone().into_provider().await?;
-    let is_optimism = Chain::from_id(provider_config.chain_id).is_optimism();
-    let eth_proofs_client = EthProofsClient::new(
-        args.eth_proofs_cluster_id,
-        args.eth_proofs_endpoint.clone(),
-        args.eth_proofs_api_token.clone(),
-    );
-
-    if let Some(eth_proofs_client) = &eth_proofs_client {
-        eth_proofs_client.queued(args.block_number).await?;
-    }
 
     let genesis = if let Some(genesis_path) = &args.genesis_path {
         let genesis_json = fs::read_to_string(genesis_path)
@@ -132,13 +122,12 @@ async fn main() -> eyre::Result<()> {
         let ws = alloy::providers::WsConnect::new(ws_url);
         let provider = ProviderBuilder::new().on_ws(ws).await?;
         let subscription = provider.subscribe_blocks().await?;
-        let mut stream = subscription.into_stream();
+        let mut stream = subscription.into_stream().take(3);
 
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&genesis, args.custom_beneficiary);
 
         let mut handles: Vec<task::JoinHandle<()>> = Vec::new();
-        let rpc_url = provider_config.rpc_url.clone();
 
         while let Some(block) = stream.next().await {
             let block_number = block.number;
@@ -176,7 +165,7 @@ async fn main() -> eyre::Result<()> {
 
             handles.push(handle);
 
-            if handles.len() >= 10 {
+            if handles.len() >= 8 {
                 let (completed, index, pending) = futures_util::future::select_all(handles).await;
                 if let Err(e) = completed {
                     eprintln!("Task error: {}", e);
@@ -193,6 +182,18 @@ async fn main() -> eyre::Result<()> {
             }
         }
     } else {
+        let is_optimism = Chain::from_id(provider_config.chain_id).is_optimism();
+
+        let eth_proofs_client = EthProofsClient::new(
+            args.eth_proofs_cluster_id,
+            args.eth_proofs_endpoint.clone(),
+            args.eth_proofs_api_token.clone(),
+        );
+
+        if let Some(eth_proofs_client) = &eth_proofs_client {
+            eth_proofs_client.queued(args.block_number).await?;
+        }
+
         if is_optimism {
             let block_execution_strategy_factory =
                 create_op_block_execution_strategy_factory(&genesis);

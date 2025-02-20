@@ -126,3 +126,27 @@ bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-4.0.0",
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-4.1.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-4.1.0" }
+
+[patch."https://github.com/paradigmxyz/reth"]
+reth-primitives = { path = "../reth/crates/primitives" }
+reth-primitives-traits = { path = "../reth/crates/primitives-traits" }
+reth-codecs = { path = "../reth/crates/storage/codecs" }
+reth-consensus = { path = "../reth/crates/consensus/consensus" }
+reth-evm = { path = "../reth/crates/evm" }
+reth-node-ethereum = { path = "../reth/crates/ethereum/node" }
+reth-evm-ethereum = { path = "../reth/crates/ethereum/evm" }
+reth-optimism-evm = { path = "../reth/crates/optimism/evm" }
+reth-optimism-primitives = { path = "../reth/crates/optimism/primitives" }
+reth-storage-errors = { path = "../reth/crates/storage/errors" }
+reth-trie = { path = "../reth/crates/trie/trie" }
+reth-trie-common = { path = "../reth/crates/trie/common" }
+reth-chainspec = { path = "../reth/crates/chainspec" }
+reth-optimism-chainspec = { path = "../reth/crates/optimism/chainspec" }
+reth-execution-errors = { path = "../reth/crates/evm/execution-errors" }
+reth-execution-types = { path = "../reth/crates/evm/execution-types" }
+reth-db = { path = "../reth/crates/storage/db" }
+reth-errors = { path = "../reth/crates/errors" }
+reth-ethereum-consensus = { path = "../reth/crates/ethereum/consensus" }
+reth-ethereum-primitives = { path = "../reth/crates/ethereum/primitives" }
+reth-optimism-consensus = { path = "../reth/crates/optimism/consensus" }
+reth-optimism-forks = { path = "../reth/crates/optimism/hardforks" }

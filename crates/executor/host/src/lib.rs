@@ -170,7 +170,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             vec![requests],
         );
 
-        let state_requests = rpc_db.get_state_requests();
+        let state_requests = rpc_db.get_state_requests().await;
 
         // For every account we touched, fetch the storage proofs for all the slots we touched.
         tracing::info!("fetching storage proofs");
@@ -271,7 +271,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         );
 
         // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
-        let oldest_ancestor = *rpc_db.oldest_ancestor.borrow();
+        let oldest_ancestor = *rpc_db.oldest_ancestor.read().await;
         let mut ancestor_headers = vec![];
         tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
         for height in (oldest_ancestor..=(block_number - 1)).rev() {
@@ -289,7 +289,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             ancestor_headers,
             parent_state: state,
             state_requests,
-            bytecodes: rpc_db.get_bytecodes(),
+            bytecodes: rpc_db.get_bytecodes().await,
             genesis,
             custom_beneficiary,
         };
