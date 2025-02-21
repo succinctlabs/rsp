@@ -32,17 +32,27 @@ In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You
 
 ### Running the CLI
 
-For the supported chains (Ethereum Mainnet and Sepolia, OP Stack Mainnet, and Linea Mainnet), the host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
+For the supported chains (Ethereum Mainnet and Sepolia, OP Stack Mainnet, and Linea Mainnet), the host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL along with postgreSQL database URL to run the host.
 
 ```console
-rsp --block-number 18884864 --rpc-url <RPC>
+rsp --block-number 18884864 --rpc-url <RPC> --db-url <DB_URL>
 ```
 
 If you want to run RSP on another EVM chain, you must specify the genesis JSON file with `--genesis-path`:
 
 ```console
-rsp --block-number 18884864 --rpc-url <RPC> --genesis-path <GENESIS_PATH>
+rsp --block-number 18884864 --rpc-url <RPC> --genesis-path <GENESIS_PATH> --db-url <DB_URL>
 ```
+
+**Running in continuous mode**
+
+You can run the host in continuous mode by not specifying `--block-num` flag. This will continuously fetch the latest block number and execute the block.
+
+```console
+rsp --rpc-url <RPC> --db-url <DB_URL> --num-threads 24
+```
+
+it is recommended to run atleast 24 threads so ethereum blocks aren't queued for long.
 
 > [!TIP]
 >
