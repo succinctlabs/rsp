@@ -49,8 +49,10 @@ rsp --block-number 18884864 --rpc-url <RPC> --genesis-path <GENESIS_PATH> --db-u
 You can run the host in continuous mode by not specifying `--block-num` flag. This will continuously fetch the latest block number and execute the block.
 
 ```console
-rsp --rpc-url <RPC> --db-url <DB_URL>
+rsp --rpc-url <RPC> --db-url <DB_URL> --num-threads 24
 ```
+
+it is recommended to run atleast 24 threads so ethereum blocks aren't queued for long.
 
 > [!TIP]
 >

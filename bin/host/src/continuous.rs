@@ -56,7 +56,7 @@ pub async fn run_continuous_mode(
         handles.push(handle);
 
         if handles.len() >= max_threads {
-            let (completed, index, pending) = futures_util::future::select_all(handles).await;
+            let (completed, _index, pending) = futures_util::future::select_all(handles).await;
             if let Err(e) = completed {
                 eprintln!("Task error: {}", e);
             }

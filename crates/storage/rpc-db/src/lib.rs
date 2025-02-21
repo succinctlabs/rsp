@@ -9,7 +9,6 @@ use revm_primitives::{db::DatabaseRef, AccountInfo, Address, Bytecode, B256};
 use std::{
     collections::{BTreeMap, BTreeSet},
     marker::PhantomData,
-    sync::Arc,
 };
 use tokio::sync::RwLock;
 
