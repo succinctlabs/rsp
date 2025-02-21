@@ -1,6 +1,59 @@
+use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
+use std::path::PathBuf;
 use url::Url;
+
+#[derive(Debug, Clone, Parser)]
+pub struct HostArgs {
+    /// The block number of the block to execute.
+    #[clap(long)]
+    pub block_number: Option<u64>,
+
+    #[clap(flatten)]
+    pub provider: ProviderArgs,
+
+    // database connection
+    #[clap(long)]
+    pub db_url: String,
+
+    // num threads
+    #[clap(long, default_value = "8")]
+    pub num_threads: usize,
+
+    /// The path to the genesis json file to use for the execution.
+    #[clap(long)]
+    pub genesis_path: Option<PathBuf>,
+
+    /// The custom beneficiary address, used with Clique consensus.
+    #[clap(long)]
+    pub custom_beneficiary: Option<Address>,
+
+    /// Whether to generate a proof or just execute the block.
+    #[clap(long)]
+    pub prove: bool,
+
+    /// Optional path to the directory containing cached client input. A new cache file will be
+    /// created from RPC data if it doesn't already exist.
+    #[clap(long)]
+    pub cache_dir: Option<PathBuf>,
+
+    /// The path to the CSV file containing the execution data.
+    #[clap(long, default_value = "report.csv")]
+    pub report_path: PathBuf,
+
+    /// Optional ETH proofs endpoint.
+    #[clap(long, env, requires("eth_proofs_api_token"))]
+    pub eth_proofs_endpoint: Option<String>,
+
+    /// Optional ETH proofs API token.
+    #[clap(long, env)]
+    pub eth_proofs_api_token: Option<String>,
+
+    /// Optional ETH proofs cluster ID.
+    #[clap(long, default_value_t = 1)]
+    pub eth_proofs_cluster_id: u64,
+}
 
 /// The arguments for configuring the chain data provider.
 #[derive(Debug, Clone, Parser)]
