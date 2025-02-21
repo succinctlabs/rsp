@@ -5,8 +5,13 @@ use clap::Parser;
 use cli::Args;
 use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
+use pagerduty_rs::{
+    eventsv2async::EventsV2,
+    types::{AlertTrigger, AlertTriggerPayload, Event, Severity},
+};
 use rsp_host_executor::{create_eth_block_execution_strategy_factory, BlockExecutor, FullExecutor};
 use sp1_sdk::include_elf;
+use time::OffsetDateTime;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -40,6 +45,7 @@ async fn main() -> eyre::Result<()> {
         args.eth_proofs_api_token,
     );
 
+    let ev2 = args.pager_duty_integration_key.map(|key| EventsV2::new(key, None)).transpose()?;
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
     let retry_layer = RetryBackoffLayer::new(3, 1000, 100);
@@ -63,9 +69,43 @@ async fn main() -> eyre::Result<()> {
 
     while let Some(header) = stream.next().await {
         if let Err(err) = executor.execute(header.number).await {
-            error!("Error handling block: {err}");
+            let error_message = format!("Error handling block {}: {err}", header.number);
+            error!(error_message);
+
+            if let Some(ref ev2) = ev2 {
+                send_alert(ev2, error_message, Severity::Error).await;
+            }
         }
     }
 
+    if let Some(ref ev2) = ev2 {
+        send_alert(ev2, "Eth proofs exited".to_string(), Severity::Critical).await;
+    }
+
     Ok(())
+}
+
+async fn send_alert(ev2: &EventsV2, summary: String, severity: Severity) {
+    if let Err(err) = ev2
+        .event(Event::AlertTrigger(AlertTrigger {
+            payload: AlertTriggerPayload::<()> {
+                severity,
+                summary,
+                source: Default::default(),
+                timestamp: Some(OffsetDateTime::now_utc()),
+                component: Some("eth-proofs".to_string()),
+                group: None,
+                class: None,
+                custom_details: None,
+            },
+            dedup_key: None,
+            images: None,
+            links: None,
+            client: None,
+            client_url: None,
+        }))
+        .await
+    {
+        error!("Error sending alert: {err}");
+    }
 }

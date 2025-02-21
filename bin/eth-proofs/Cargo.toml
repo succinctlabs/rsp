@@ -14,7 +14,9 @@ dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
 eyre = "0.6.12"
 reqwest = { version =  "0.12.9", features = ["json"] }
+pagerduty-rs = "0.1.6"
 base64 = "0.22.1"
+time = "0.3.37"
 futures = "0.3"
 
 # workspace
