@@ -59,6 +59,10 @@ struct HostArgs {
     #[clap(long)]
     db_url: String,
 
+    // num threads
+    #[clap(long, default_value = "8")]
+    num_threads: usize,
+
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
     genesis_path: Option<PathBuf>,
@@ -118,6 +122,8 @@ async fn main() -> eyre::Result<()> {
         provider_config.chain_id.try_into()?
     };
 
+    let max_threads = args.num_threads;
+
     if args.block_number.is_none() {
         println!("🔁 running rsp host in continuous mode");
         let provider_args = args.provider.clone();
@@ -153,6 +159,7 @@ async fn main() -> eyre::Result<()> {
             // Spawn a new task for this block
             let handle = task::spawn(async move {
                 let mut new_args = args_clone;
+                let another_clone = new_args.clone();
                 new_args.block_number = Some(block_num);
 
                 println!("Processing block {}", block_num);
@@ -169,7 +176,16 @@ async fn main() -> eyre::Result<()> {
 
                 match result {
                     Ok(_) => println!("Successfully processed block {}", block_num),
-                    Err(e) => eprintln!("Error processing block {}: {}", block_num, e),
+                    Err(e) => {
+                        // update block status as failed
+                        let pool = init_db_pool(&another_clone.db_url).await.unwrap();
+                        let end_time = system_time_to_timestamp(SystemTime::now());
+                        update_block_status_as_failed(&pool, block_num as i64, end_time)
+                            .await
+                            .unwrap();
+
+                        eprintln!("Error processing block {}: {}", block_num, e)
+                    }
                 }
 
                 println!("Processed block {}", block_num);
@@ -177,7 +193,7 @@ async fn main() -> eyre::Result<()> {
 
             handles.push(handle);
 
-            if handles.len() >= 8 {
+            if handles.len() >= max_threads {
                 let (completed, index, pending) = futures_util::future::select_all(handles).await;
                 if let Err(e) = completed {
                     eprintln!("Task error: {}", e);
@@ -253,7 +269,7 @@ struct ProvableBlock {
 
 async fn init_db_pool(db_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
     let database_url = db_url;
-    PgPoolOptions::new().max_connections(8).connect(database_url).await
+    PgPoolOptions::new().max_connections(64).connect(database_url).await
 }
 
 async fn init_db_schema(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
@@ -279,9 +295,17 @@ async fn init_db_schema(pool: &Pool<Postgres>) -> Result<(), sqlx::Error> {
 async fn insert_block(pool: &Pool<Postgres>, block: &ProvableBlock) -> Result<(), sqlx::Error> {
     sqlx::query(
         r#"
-        INSERT INTO rsp_blocks 
+        INSERT INTO rsp_blocks
         (block_number, status, gas_used, tx_count, num_cycles, start_time, end_time)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (block_number) 
+        DO UPDATE SET
+            status = EXCLUDED.status,
+            gas_used = EXCLUDED.gas_used,
+            tx_count = EXCLUDED.tx_count,
+            num_cycles = EXCLUDED.num_cycles,
+            start_time = EXCLUDED.start_time,
+            end_time = EXCLUDED.end_time
         "#,
     )
     .bind(block.block_number)
@@ -320,6 +344,27 @@ async fn update_block_status(
     .bind(gas_used)
     .bind(tx_count)
     .bind(num_cycles)
+    .bind(end_time)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+async fn update_block_status_as_failed(
+    pool: &Pool<Postgres>,
+    block_number: i64,
+    end_time: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        UPDATE rsp_blocks
+        SET status = 'failed',
+            end_time = $2
+        WHERE block_number = $1
+        "#,
+    )
+    .bind(block_number)
     .bind(end_time)
     .execute(pool)
     .await?;
