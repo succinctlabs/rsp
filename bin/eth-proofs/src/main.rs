@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, WsConnect};
 use alloy_rpc_client::RpcClient;
 use alloy_transport::layers::RetryBackoffLayer;
@@ -8,6 +10,7 @@ use futures::{future::ready, StreamExt};
 use pager_duty::send_alert;
 use rsp_host_executor::{create_eth_block_execution_strategy_factory, BlockExecutor, FullExecutor};
 use sp1_sdk::include_elf;
+use tokio::time::sleep;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -66,6 +69,10 @@ async fn main() -> eyre::Result<()> {
     info!("Latest block number: {}", http_provider.get_block_number().await?);
 
     while let Some(header) = stream.next().await {
+        // Sleep for 1s to avoid rare failures when the WS endpoint triggers new block
+        // but it's not yet available via HTTP `eth_getBlockByNumber`.
+        sleep(Duration::from_secs(1)).await;
+
         if let Err(err) = executor.execute(header.number).await {
             let error_message = format!("Error handling block {}: {err}", header.number);
             error!(error_message);
