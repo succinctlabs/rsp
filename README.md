@@ -26,6 +26,10 @@ RSP fetches block and state data from a JSON-RPC node. You must use an archive n
 
 In Geth, the archive mode can be enabled with the `--gcmode=archive` option. You can also use an RPC provider that offers archive data access.
 
+> [!IMPORTANT]  
+>
+> Some RPC providers have issues with `eth_getProof` on older blocks. For instance QuickNode returns invalid data that lead to state mismatch errors.
+
 > [!TIP]
 >
 > Don't have access to such a node but still want to try out RSP? Use [`rsp-tests`](https://github.com/succinctlabs/rsp-tests) to get quickly set up with an offline cache built for selected blocks.
