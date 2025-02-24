@@ -5,6 +5,7 @@ use reth_primitives_traits::BlockBody;
 use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
+use sp1_core_executor::syscalls::SyscallCode;
 use sp1_sdk::ExecutionReport;
 use std::{fs::OpenOptions, path::PathBuf};
 
@@ -20,6 +21,8 @@ struct ExecutionReportData {
     bn_mul_cycles: u64,
     bn_pair_cycles: u64,
     kzg_point_eval_cycles: u64,
+    keccak_count: u64,
+    secp256k1_decompress_count: u64,
 }
 
 #[derive(Debug)]
@@ -55,11 +58,9 @@ impl ExecutionHooks for PersistExecutionReport {
             *execution_report.cycle_tracker.get("precompile-bn-pair").unwrap_or(&0);
         let kzg_point_eval_cycles =
             *execution_report.cycle_tracker.get("precompile-kzg-point-evaluation").unwrap_or(&0);
-
-        // TODO: we can track individual syscalls in our CSV once we have sp1-core as a dependency
-        // let keccak_count = execution_report.syscall_counts.get(SyscallCode::KECCAK_PERMUTE);
-        // let secp256k1_decompress_count =
-        //     execution_report.syscall_counts.get(SyscallCode::SECP256K1_DECOMPRESS);
+        let keccak_count = execution_report.syscall_counts[SyscallCode::KECCAK_PERMUTE];
+        let secp256k1_decompress_count =
+            execution_report.syscall_counts[SyscallCode::SECP256K1_DECOMPRESS];
 
         let report_data = ExecutionReportData {
             chain_id: self.chain_id,
@@ -72,6 +73,8 @@ impl ExecutionHooks for PersistExecutionReport {
             bn_mul_cycles,
             bn_pair_cycles,
             kzg_point_eval_cycles,
+            keccak_count,
+            secp256k1_decompress_count,
         };
 
         // Open the file for appending or create it if it doesn't exist

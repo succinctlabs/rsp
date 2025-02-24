@@ -7,7 +7,7 @@ use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
 use pagerduty_rs::{
     eventsv2async::EventsV2,
-    types::{AlertTrigger, AlertTriggerPayload, Event, Severity},
+    types::{AlertTrigger, AlertTriggerPayload, Change, ChangePayload, Event, Severity},
 };
 use rsp_host_executor::{create_eth_block_execution_strategy_factory, BlockExecutor, FullExecutor};
 use sp1_sdk::include_elf;
@@ -65,6 +65,10 @@ async fn main() -> eyre::Result<()> {
         config,
     );
 
+    if let Some(ref ev2) = ev2 {
+        send_change_event(ev2, "Eth proofs started".to_string()).await;
+    }
+
     info!("Latest block number: {}", http_provider.get_block_number().await?);
 
     while let Some(header) = stream.next().await {
@@ -79,12 +83,13 @@ async fn main() -> eyre::Result<()> {
     }
 
     if let Some(ref ev2) = ev2 {
-        send_alert(ev2, "Eth proofs exited".to_string(), Severity::Critical).await;
+        send_change_event(ev2, "Eth proofs exited".to_string()).await;
     }
 
     Ok(())
 }
 
+// Send an alert to the PageDuty endpoint.
 async fn send_alert(ev2: &EventsV2, summary: String, severity: Severity) {
     if let Err(err) = ev2
         .event(Event::AlertTrigger(AlertTrigger {
@@ -101,8 +106,26 @@ async fn send_alert(ev2: &EventsV2, summary: String, severity: Severity) {
             dedup_key: None,
             images: None,
             links: None,
-            client: None,
+            client: Some("RSP".to_string()),
             client_url: None,
+        }))
+        .await
+    {
+        error!("Error sending alert: {err}");
+    }
+}
+
+/// Send a change event to the PageDuty endpoint.
+async fn send_change_event(ev2: &EventsV2, summary: String) {
+    if let Err(err) = ev2
+        .event(Event::Change(Change {
+            payload: ChangePayload::<()> {
+                summary,
+                timestamp: OffsetDateTime::now_utc(),
+                source: Default::default(),
+                custom_details: None,
+            },
+            links: None,
         }))
         .await
     {
