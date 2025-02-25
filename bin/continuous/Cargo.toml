@@ -1,0 +1,37 @@
+[package]
+version = "0.1.0"
+name = "continuous"
+edition = "2021"
+
+[dependencies]
+serde.workspace = true
+tokio.workspace = true
+url.workspace = true
+tracing.workspace = true
+clap = { version = "4.5.7", features = ["derive", "env"] }
+dotenv = "0.15.0"
+eyre = "0.6.12"
+futures-util = "0.3.31"
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
+tracing-subscriber = "0.3.18"
+
+# workspace
+rsp-host-executor.workspace = true
+rsp-client-executor.workspace = true
+
+# sp1
+sp1-sdk = "4.1.0"
+
+# alloy
+alloy-consensus.workspace = true
+alloy-provider = { workspace = true, features = ["ws"] }
+alloy-rpc-client.workspace = true
+alloy-transport.workspace = true
+alloy-transport-ws.workspace = true
+
+# reth 
+reth-evm.workspace = true
+reth-primitives.workspace = true
+
+[build-dependencies]
+sp1-helper = "4.1.0"

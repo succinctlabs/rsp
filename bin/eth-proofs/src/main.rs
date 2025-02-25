@@ -58,7 +58,7 @@ async fn main() -> eyre::Result<()> {
     let mut stream =
         subscription.into_stream().filter(|h| ready(h.number % args.block_interval == 0));
 
-    let mut executor = FullExecutor::new(
+    let executor = FullExecutor::new(
         http_provider.clone(),
         elf,
         block_execution_strategy_factory,

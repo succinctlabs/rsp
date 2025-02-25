@@ -1,7 +1,6 @@
-use std::time::Instant;
+use std::time::Duration;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use eyre::bail;
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
 
@@ -10,18 +9,11 @@ pub struct EthProofsClient {
     endpoint: String,
     api_token: String,
     client: reqwest::Client,
-    proving_start: Option<Instant>,
 }
 
 impl EthProofsClient {
     pub fn new(cluster_id: u64, endpoint: String, api_token: String) -> Self {
-        Self {
-            cluster_id,
-            endpoint,
-            api_token,
-            client: reqwest::Client::new(),
-            proving_start: None,
-        }
+        Self { cluster_id, endpoint, api_token, client: reqwest::Client::new() }
     }
 
     pub async fn queued(&self, block_number: u64) -> eyre::Result<()> {
@@ -112,16 +104,14 @@ impl EthProofsClient {
 }
 
 impl ExecutionHooks for EthProofsClient {
-    async fn on_execution_start(&mut self, block_number: u64) -> eyre::Result<()> {
+    async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         self.queued(block_number).await?;
 
         Ok(())
     }
 
-    async fn on_proving_start(&mut self, block_number: u64) -> eyre::Result<()> {
+    async fn on_proving_start(&self, block_number: u64) -> eyre::Result<()> {
         self.proving(block_number).await?;
-
-        self.proving_start = Some(Instant::now());
 
         Ok(())
     }
@@ -132,13 +122,16 @@ impl ExecutionHooks for EthProofsClient {
         proof_bytes: &[u8],
         vk: &SP1VerifyingKey,
         execution_report: &ExecutionReport,
+        proving_duration: Duration,
     ) -> eyre::Result<()> {
-        if let Some(start) = self.proving_start {
-            let elapsed = start.elapsed().as_secs_f32();
-            self.proved(proof_bytes, block_number, execution_report, elapsed, vk).await?;
-        } else {
-            bail!("Proving start time not set");
-        }
+        self.proved(
+            proof_bytes,
+            block_number,
+            execution_report,
+            proving_duration.as_secs_f32(),
+            vk,
+        )
+        .await?;
 
         Ok(())
     }
