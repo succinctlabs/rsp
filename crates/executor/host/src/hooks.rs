@@ -1,12 +1,12 @@
-use std::future::Future;
+use std::{future::Future, time::Duration};
 
+use alloy_consensus::Block;
 use reth_primitives::NodePrimitives;
-use rsp_client_executor::io::ClientExecutorInput;
 use sp1_sdk::{ExecutionReport, SP1VerifyingKey};
 
 pub trait ExecutionHooks: Send {
     fn on_execution_start(
-        &mut self,
+        &self,
         _block_number: u64,
     ) -> impl Future<Output = eyre::Result<()>> + Send {
         async { Ok(()) }
@@ -14,14 +14,13 @@ pub trait ExecutionHooks: Send {
 
     fn on_execution_end<P: NodePrimitives>(
         &self,
-        _block_number: u64,
-        _client_input: &ClientExecutorInput<P>,
+        _executed_block: &Block<P::SignedTx>,
         _execution_report: &ExecutionReport,
     ) -> impl Future<Output = eyre::Result<()>> {
         async { Ok(()) }
     }
 
-    fn on_proving_start(&mut self, _block_number: u64) -> impl Future<Output = eyre::Result<()>> {
+    fn on_proving_start(&self, _block_number: u64) -> impl Future<Output = eyre::Result<()>> {
         async { Ok(()) }
     }
 
@@ -31,13 +30,10 @@ pub trait ExecutionHooks: Send {
         _proof_bytes: &[u8],
         _vk: &SP1VerifyingKey,
         _execution_report: &ExecutionReport,
+        _proving_duration: Duration,
     ) -> impl Future<Output = eyre::Result<()>> {
         async { Ok(()) }
     }
 }
 
-/// An execution hook that does nothing.
-#[derive(Debug)]
-pub struct NoopExecutionHooks;
-
-impl ExecutionHooks for NoopExecutionHooks {}
+impl ExecutionHooks for () {}

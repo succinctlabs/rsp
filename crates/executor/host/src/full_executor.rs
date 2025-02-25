@@ -2,6 +2,7 @@ use std::{
     fmt::{Debug, Formatter},
     marker::PhantomData,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use alloy_provider::{Network, Provider};
@@ -61,7 +62,7 @@ where
 
 pub trait BlockExecutor {
     #[allow(async_fn_in_trait)]
-    async fn execute(&mut self, block_number: u64) -> eyre::Result<()>;
+    async fn execute(&self, block_number: u64) -> eyre::Result<()>;
 }
 
 impl<P, N, NP, F, H> BlockExecutor for EitherExecutor<P, N, NP, F, H>
@@ -76,10 +77,10 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
-    async fn execute(&mut self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
-            Either::Left(ref mut executor) => executor.execute(block_number).await,
-            Either::Right(ref mut executor) => executor.execute(block_number).await,
+            Either::Left(ref executor) => executor.execute(block_number).await,
+            Either::Right(ref executor) => executor.execute(block_number).await,
         }
     }
 }
@@ -147,7 +148,7 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
-    async fn execute(&mut self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
 
         let client_input_from_cache = self.config.cache_dir.as_ref().and_then(|cache_dir| {
@@ -199,7 +200,7 @@ where
             &self.client,
             &self.pk,
             &self.vk,
-            &mut self.hooks,
+            &self.hooks,
             self.config.prove,
         )
         .await?;
@@ -252,12 +253,12 @@ where
     NP: NodePrimitives + DeserializeOwned,
     H: ExecutionHooks,
 {
-    async fn execute(&mut self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         let client_input =
             try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
                 .ok_or(eyre::eyre!("No cached input found"))?;
 
-        execute_client(client_input, &self.client, &self.pk, &self.vk, &mut self.hooks, self.prove)
+        execute_client(client_input, &self.client, &self.pk, &self.vk, &self.hooks, self.prove)
             .await
     }
 }
@@ -273,7 +274,7 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
     client: &EnvProver,
     pk: &SP1ProvingKey,
     vk: &SP1VerifyingKey,
-    hooks: &mut H,
+    hooks: &H,
     prove: bool,
 ) -> eyre::Result<()> {
     // Generate the proof.
@@ -290,20 +291,26 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
     let block_hash = public_values.read::<B256>();
     println!("success: block_hash={block_hash}");
 
-    hooks
-        .on_execution_end(client_input.current_block.number, &client_input, &execution_report)
-        .await?;
+    hooks.on_execution_end::<P>(&client_input.current_block, &execution_report).await?;
 
     if prove {
         println!("Starting proof generation.");
 
+        let proving_start = Instant::now();
         hooks.on_proving_start(client_input.current_block.number).await?;
 
         let proof = client.prove(pk, &stdin).compressed().run().expect("Proving should work.");
+        let proving_duration = proving_start.elapsed();
         let proof_bytes = bincode::serialize(&proof.proof).unwrap();
 
         hooks
-            .on_proving_end(client_input.current_block.number, &proof_bytes, vk, &execution_report)
+            .on_proving_end(
+                client_input.current_block.number,
+                &proof_bytes,
+                vk,
+                &execution_report,
+                proving_duration,
+            )
             .await?;
     }
 

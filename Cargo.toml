@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin/host",
+    "bin/continuous",
     "bin/eth-proofs",
     "crates/executor/client",
     "crates/executor/host",

@@ -17,7 +17,7 @@ mod full_executor;
 pub use full_executor::{build_executor, BlockExecutor, EitherExecutor, FullExecutor};
 
 mod hooks;
-pub use hooks::{ExecutionHooks, NoopExecutionHooks};
+pub use hooks::ExecutionHooks;
 
 mod host_executor;
 pub use host_executor::{EthHostExecutor, HostExecutor, OpHostExecutor};
@@ -48,4 +48,16 @@ pub struct Config {
     pub custom_beneficiary: Option<Address>,
     pub prove: bool,
     pub opcode_tracking: bool,
+}
+
+impl Config {
+    pub fn mainnet() -> Self {
+        Self {
+            chain: Chain::mainnet(),
+            genesis: Genesis::Mainnet,
+            cache_dir: None,
+            custom_beneficiary: None,
+            prove: false,
+        }
+    }
 }

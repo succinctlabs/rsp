@@ -1,7 +1,7 @@
 use std::{
-    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     marker::PhantomData,
+    sync::{Arc, RwLock},
 };
 
 use alloy_primitives::{map::HashMap, U256};
@@ -23,11 +23,11 @@ pub struct RpcDb<P, N> {
     /// The block to fetch data from.
     pub block: BlockId,
     /// The cached accounts.
-    pub accounts: RefCell<HashMap<Address, AccountInfo>>,
+    pub accounts: Arc<RwLock<HashMap<Address, AccountInfo>>>,
     /// The cached storage values.
-    pub storage: RefCell<HashMap<Address, HashMap<U256, U256>>>,
+    pub storage: Arc<RwLock<HashMap<Address, HashMap<U256, U256>>>>,
     /// The oldest block whose header/hash has been requested.
-    pub oldest_ancestor: RefCell<u64>,
+    pub oldest_ancestor: Arc<RwLock<u64>>,
 
     phantom: std::marker::PhantomData<N>,
 }
@@ -47,6 +47,8 @@ pub enum RpcDbError {
     BlockNotFound,
     #[error("failed to find trie node preimage")]
     PreimageNotFound,
+    #[error("poisoned lock")]
+    Poisoned,
 }
 
 impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
@@ -55,9 +57,9 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         RpcDb {
             provider,
             block: block.into(),
-            accounts: RefCell::new(HashMap::with_hasher(Default::default())),
-            storage: RefCell::new(HashMap::with_hasher(Default::default())),
-            oldest_ancestor: RefCell::new(block),
+            accounts: Arc::new(RwLock::new(HashMap::with_hasher(Default::default()))),
+            storage: Arc::new(RwLock::new(HashMap::with_hasher(Default::default()))),
+            oldest_ancestor: Arc::new(RwLock::new(block)),
             phantom: PhantomData,
         }
     }
@@ -92,7 +94,10 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         };
 
         // Record the account info to the state.
-        self.accounts.borrow_mut().insert(address, account_info.clone());
+        self.accounts
+            .write()
+            .map_err(|_| RpcDbError::Poisoned)?
+            .insert(address, account_info.clone());
 
         Ok(account_info)
     }
@@ -114,7 +119,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
             .map_err(|e| RpcDbError::GetStorageError(address, index, e.to_string()))?;
 
         // Record the storage value to the state.
-        let mut storage_values = self.storage.borrow_mut();
+        let mut storage_values = self.storage.write().map_err(|_| RpcDbError::Poisoned)?;
         let entry = storage_values.entry(address).or_default();
         entry.insert(index, value);
 
@@ -136,7 +141,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         let block = block.ok_or(RpcDbError::BlockNotFound)?;
         let hash = block.header().hash();
 
-        let mut oldest_ancestor = self.oldest_ancestor.borrow_mut();
+        let mut oldest_ancestor = self.oldest_ancestor.write().map_err(|_| RpcDbError::Poisoned)?;
         *oldest_ancestor = number.min(*oldest_ancestor);
 
         Ok(hash)
@@ -144,8 +149,8 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
 
     /// Gets all the state keys used. The client uses this to read the actual state data from tries.
     pub fn get_state_requests(&self) -> HashMap<Address, Vec<U256>> {
-        let accounts = self.accounts.borrow();
-        let storage = self.storage.borrow();
+        let accounts = self.accounts.read().unwrap();
+        let storage = self.storage.read().unwrap();
 
         accounts
             .keys()
@@ -163,7 +168,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
 
     /// Gets all account bytecodes.
     pub fn get_bytecodes(&self) -> Vec<Bytecode> {
-        let accounts = self.accounts.borrow();
+        let accounts = self.accounts.read().unwrap();
 
         accounts
             .values()
