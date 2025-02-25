@@ -16,7 +16,7 @@ mod full_executor;
 pub use full_executor::{build_executor, BlockExecutor, EitherExecutor, FullExecutor};
 
 mod hooks;
-pub use hooks::{ExecutionHooks, NoopExecutionHooks};
+pub use hooks::ExecutionHooks;
 
 mod host_executor;
 pub use host_executor::{EthHostExecutor, HostExecutor, OpHostExecutor};
@@ -45,11 +45,23 @@ pub fn create_op_block_execution_strategy_factory(
     )
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub chain: Chain,
     pub genesis: Genesis,
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
     pub prove: bool,
+}
+
+impl Config {
+    pub fn mainnet() -> Self {
+        Self {
+            chain: Chain::mainnet(),
+            genesis: Genesis::Mainnet,
+            cache_dir: None,
+            custom_beneficiary: None,
+            prove: false,
+        }
+    }
 }

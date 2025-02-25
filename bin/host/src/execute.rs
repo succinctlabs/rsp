@@ -1,8 +1,7 @@
-use alloy_consensus::BlockHeader;
+use alloy_consensus::{Block, BlockHeader};
 use csv::WriterBuilder;
 use reth_primitives::NodePrimitives;
 use reth_primitives_traits::BlockBody;
-use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
 use sp1_core_executor::syscalls::SyscallCode;
@@ -40,15 +39,14 @@ impl PersistExecutionReport {
 impl ExecutionHooks for PersistExecutionReport {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
-        _block_number: u64,
-        client_input: &ClientExecutorInput<P>,
+        executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         println!("\nExecution report:\n{}", execution_report);
 
-        let block_number = client_input.current_block.header.number();
-        let gas_used = client_input.current_block.header.gas_used();
-        let tx_count = client_input.current_block.body.transaction_count();
+        let block_number = executed_block.number();
+        let gas_used = executed_block.header.gas_used();
+        let tx_count = executed_block.body.transaction_count();
         let number_cycles = execution_report.total_instruction_count();
         let number_syscalls = execution_report.total_syscall_count();
 
