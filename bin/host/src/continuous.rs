@@ -28,7 +28,8 @@ pub async fn run_continuous_mode(
     let ws = alloy::providers::WsConnect::new(ws_url);
     let provider = ProviderBuilder::new().on_ws(ws).await?;
     let subscription = provider.subscribe_blocks().await?;
-    let mut stream = subscription.into_stream().take(3);
+    // let mut stream = subscription.into_stream().take(3);
+    let mut stream = subscription.into_stream(); // Stream all blocks
 
     let mut handles: Vec<task::JoinHandle<()>> = Vec::new();
 
