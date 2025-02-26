@@ -49,7 +49,7 @@ async fn main() -> eyre::Result<()> {
             create_op_block_execution_strategy_factory(&config.genesis);
         let provider = rpc_client.map(RootProvider::<Optimism>::new);
 
-        let mut executor = build_executor(
+        let executor = build_executor(
             elf,
             provider,
             block_execution_strategy_factory,
@@ -64,7 +64,7 @@ async fn main() -> eyre::Result<()> {
             create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
         let provider = rpc_client.map(RootProvider::<Ethereum>::new);
 
-        let mut executor = build_executor(
+        let executor = build_executor(
             elf,
             provider,
             block_execution_strategy_factory,
