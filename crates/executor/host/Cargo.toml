@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time", "rt"] }
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
