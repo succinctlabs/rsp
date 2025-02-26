@@ -2,7 +2,7 @@ use std::{
     fmt::{Debug, Formatter},
     marker::PhantomData,
     path::{Path, PathBuf},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use alloy_provider::{Network, Provider};
@@ -16,6 +16,7 @@ use rsp_client_executor::{
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{EnvProver, SP1ProvingKey, SP1Stdin, SP1VerifyingKey};
+use tokio::time::sleep;
 use tracing::warn;
 
 use crate::{Config, ExecutionHooks, HostExecutor};
@@ -133,6 +134,13 @@ where
             config,
             phantom: Default::default(),
         }
+    }
+
+    pub async fn wait_for_block(&self, block_number: u64) -> eyre::Result<()> {
+        while self.provider.get_block_number().await? < block_number {
+            sleep(Duration::from_millis(100)).await;
+        }
+        Ok(())
     }
 }
 

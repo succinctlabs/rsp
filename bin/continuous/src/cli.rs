@@ -21,6 +21,6 @@ pub struct Args {
     pub max_concurrent_executions: usize,
 
     /// Retry count on failed execution.
-    #[clap(long, env)]
-    pub execution_retries: Option<usize>,
+    #[clap(long, env, default_value_t = 3)]
+    pub execution_retries: usize,
 }
