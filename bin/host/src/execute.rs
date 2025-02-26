@@ -9,7 +9,7 @@ use sp1_core_executor::syscalls::SyscallCode;
 use sp1_sdk::ExecutionReport;
 use std::{fs::OpenOptions, path::PathBuf};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct ExecutionReportData {
     chain_id: u64,
     block_number: u64,
@@ -17,9 +17,15 @@ struct ExecutionReportData {
     tx_count: usize,
     number_cycles: u64,
     number_syscalls: u64,
+    ecrecover_cycles: u64,
+    sha256_cycles: u64,
+    ripemd160_cycles: u64,
+    identity_cycles: u64,
     bn_add_cycles: u64,
     bn_mul_cycles: u64,
     bn_pair_cycles: u64,
+    blake2f_cycles: u64,
+    modexp_cycles: u64,
     kzg_point_eval_cycles: u64,
     keccak_count: u64,
     secp256k1_decompress_count: u64,
@@ -51,13 +57,6 @@ impl ExecutionHooks for PersistExecutionReport {
         let tx_count = client_input.current_block.body.transaction_count();
         let number_cycles = execution_report.total_instruction_count();
         let number_syscalls = execution_report.total_syscall_count();
-
-        let bn_add_cycles = *execution_report.cycle_tracker.get("precompile-bn-add").unwrap_or(&0);
-        let bn_mul_cycles = *execution_report.cycle_tracker.get("precompile-bn-mul").unwrap_or(&0);
-        let bn_pair_cycles =
-            *execution_report.cycle_tracker.get("precompile-bn-pair").unwrap_or(&0);
-        let kzg_point_eval_cycles =
-            *execution_report.cycle_tracker.get("precompile-kzg-point-evaluation").unwrap_or(&0);
         let keccak_count = execution_report.syscall_counts[SyscallCode::KECCAK_PERMUTE];
         let secp256k1_decompress_count =
             execution_report.syscall_counts[SyscallCode::SECP256K1_DECOMPRESS];
@@ -69,13 +68,61 @@ impl ExecutionHooks for PersistExecutionReport {
             tx_count,
             number_cycles,
             number_syscalls,
-            bn_add_cycles,
-            bn_mul_cycles,
-            bn_pair_cycles,
-            kzg_point_eval_cycles,
+            ecrecover_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-ecrecover")
+                .copied()
+                .unwrap_or(0),
+            sha256_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-sha256")
+                .copied()
+                .unwrap_or(0),
+            ripemd160_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-ripemd160")
+                .copied()
+                .unwrap_or(0),
+            identity_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-identity")
+                .copied()
+                .unwrap_or(0),
+            bn_add_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-bn-add")
+                .copied()
+                .unwrap_or(0),
+            bn_mul_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-bn-mul")
+                .copied()
+                .unwrap_or(0),
+            bn_pair_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-bn-pair")
+                .copied()
+                .unwrap_or(0),
+            blake2f_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-blake2f")
+                .copied()
+                .unwrap_or(0),
+            modexp_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-modexp")
+                .copied()
+                .unwrap_or(0),
+            kzg_point_eval_cycles: execution_report
+                .cycle_tracker
+                .get("precompile-kzg-point-evaluation")
+                .copied()
+                .unwrap_or(0),
             keccak_count,
             secp256k1_decompress_count,
         };
+
+        println!("\nPrecompiles:\n{:#?}", report_data);
 
         // Open the file for appending or create it if it doesn't exist
         let file = OpenOptions::new().append(true).create(true).open(self.report_path.clone())?;
