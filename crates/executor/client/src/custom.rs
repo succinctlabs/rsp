@@ -11,8 +11,8 @@ use reth_evm_ethereum::{EthEvm, EthEvmConfig};
 use revm::{
     handler::register::{EvmHandler, HandleRegisters},
     precompile::{
-        bn128, kzg_point_evaluation, secp256k1, Precompile, PrecompileResult, PrecompileSpecId,
-        PrecompileWithAddress,
+        blake2, bn128, hash, identity, kzg_point_evaluation, modexp, secp256k1, Precompile,
+        PrecompileResult, PrecompileSpecId, PrecompileWithAddress,
     },
     ContextPrecompiles,
 };
@@ -70,12 +70,22 @@ pub(crate) const ANNOTATED_KZG_PROOF: PrecompileWithAddress = PrecompileWithAddr
 
 pub(crate) const ANNOTATED_ECRECOVER: PrecompileWithAddress =
     create_annotated_precompile!(secp256k1::ECRECOVER, "ecrecover");
+pub(crate) const ANNOTATED_SHA256: PrecompileWithAddress =
+    create_annotated_precompile!(hash::SHA256, "sha256");
+pub(crate) const ANNOTATED_RIPEMD160: PrecompileWithAddress =
+    create_annotated_precompile!(hash::RIPEMD160, "ripemd160");
+pub(crate) const ANNOTATED_IDENTITY: PrecompileWithAddress =
+    create_annotated_precompile!(identity::FUN, "identity");
 pub(crate) const ANNOTATED_BN_ADD: PrecompileWithAddress =
     create_annotated_precompile!(bn128::add::ISTANBUL, "bn-add");
 pub(crate) const ANNOTATED_BN_MUL: PrecompileWithAddress =
     create_annotated_precompile!(bn128::mul::ISTANBUL, "bn-mul");
 pub(crate) const ANNOTATED_BN_PAIR: PrecompileWithAddress =
     create_annotated_precompile!(bn128::pair::ISTANBUL, "bn-pair");
+pub(crate) const ANNOTATED_BLAKE2F: PrecompileWithAddress =
+    create_annotated_precompile!(blake2::FUN, "blake2f");
+pub(crate) const ANNOTATED_MODEXP: PrecompileWithAddress =
+    create_annotated_precompile!(modexp::BERLIN, "modexp");
 
 /// Sets the precompiles to the EVM handler
 ///
@@ -95,9 +105,14 @@ where
             ContextPrecompiles::new(PrecompileSpecId::from_spec_id(spec_id));
         loaded_precompiles.extend(vec![
             ANNOTATED_ECRECOVER,
+            ANNOTATED_SHA256,
+            ANNOTATED_RIPEMD160,
+            ANNOTATED_IDENTITY,
             ANNOTATED_BN_ADD,
             ANNOTATED_BN_MUL,
             ANNOTATED_BN_PAIR,
+            ANNOTATED_BLAKE2F,
+            ANNOTATED_MODEXP,
             ANNOTATED_KZG_PROOF,
         ]);
 
