@@ -305,7 +305,8 @@ async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
     Ok(())
 }
 
-// As the block execution in the zkVM is a long-running, blocking task, we need to run it in a separate thread.
+// As the block execution in the zkVM is a long-running, blocking task, we need to run it in a
+// separate thread.
 async fn execute_client(
     number: u64,
     client: EnvProver,
