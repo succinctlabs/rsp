@@ -15,9 +15,9 @@ use rsp_client_executor::{
 };
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
-use sp1_sdk::{EnvProver, SP1ProvingKey, SP1Stdin, SP1VerifyingKey};
-use tokio::time::sleep;
-use tracing::warn;
+use sp1_sdk::{EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin};
+use tokio::{sync::oneshot, task, time::sleep};
+use tracing::{info_span, warn};
 
 use crate::{Config, ExecutionHooks, HostExecutor};
 
@@ -96,9 +96,7 @@ where
 {
     provider: P,
     host_executor: HostExecutor<F>,
-    client: EnvProver,
-    pk: SP1ProvingKey,
-    vk: SP1VerifyingKey,
+    elf: Vec<u8>,
     hooks: H,
     config: Config,
     phantom: PhantomData<N>,
@@ -119,17 +117,10 @@ where
         hooks: H,
         config: Config,
     ) -> Self {
-        let client = EnvProver::new();
-
-        // Setup the proving key and verification key.
-        let (pk, vk) = client.setup(&elf);
-
         Self {
             provider,
             host_executor: HostExecutor::new(block_execution_strategy_factory),
-            client,
-            pk,
-            vk,
+            elf,
             hooks,
             config,
             phantom: Default::default(),
@@ -203,15 +194,7 @@ where
             }
         };
 
-        execute_client(
-            client_input,
-            &self.client,
-            &self.pk,
-            &self.vk,
-            &self.hooks,
-            self.config.prove,
-        )
-        .await?;
+        process_client(client_input, &self.elf, &self.hooks, self.config.prove).await?;
 
         Ok(())
     }
@@ -233,9 +216,7 @@ where
 pub struct CachedExecutor<NP: NodePrimitives, H: ExecutionHooks> {
     cache_dir: PathBuf,
     chain_id: u64,
-    client: EnvProver,
-    pk: SP1ProvingKey,
-    vk: SP1VerifyingKey,
+    elf: Vec<u8>,
     hooks: H,
     prove: bool,
     phantom: PhantomData<NP>,
@@ -247,12 +228,7 @@ where
     H: ExecutionHooks,
 {
     pub fn new(elf: Vec<u8>, hooks: H, cache_dir: PathBuf, chain_id: u64, prove: bool) -> Self {
-        let client = EnvProver::new();
-
-        // Setup the proving key and verification key.
-        let (pk, vk) = client.setup(&elf);
-
-        Self { cache_dir, chain_id, client, pk, vk, hooks, prove, phantom: Default::default() }
+        Self { cache_dir, chain_id, elf, hooks, prove, phantom: Default::default() }
     }
 }
 
@@ -266,8 +242,7 @@ where
             try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
                 .ok_or(eyre::eyre!("No cached input found"))?;
 
-        execute_client(client_input, &self.client, &self.pk, &self.vk, &self.hooks, self.prove)
-            .await
+        process_client(client_input, &self.elf, &self.hooks, self.prove).await
     }
 }
 
@@ -277,14 +252,17 @@ impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
     }
 }
 
-async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
+async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
     client_input: ClientExecutorInput<P>,
-    client: &EnvProver,
-    pk: &SP1ProvingKey,
-    vk: &SP1VerifyingKey,
+    elf: &[u8],
     hooks: &H,
     prove: bool,
 ) -> eyre::Result<()> {
+    let client = EnvProver::new();
+
+    // Setup the proving key and verification key.
+    let (pk, vk) = client.setup(elf);
+
     // Generate the proof.
     // Execute the block inside the zkVM.
     let mut stdin = SP1Stdin::new();
@@ -293,7 +271,9 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
     stdin.write_vec(buffer);
 
     // Only execute the program.
-    let (mut public_values, execution_report) = client.execute(&pk.elf, &stdin).run().unwrap();
+    let (client, pk, stdin, execute_result) =
+        execute_client(client_input.current_block.number, client, pk, stdin).await?;
+    let (mut public_values, execution_report) = execute_result?;
 
     // Read the block hash.
     let block_hash = public_values.read::<B256>();
@@ -307,7 +287,7 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
         let proving_start = Instant::now();
         hooks.on_proving_start(client_input.current_block.number).await?;
 
-        let proof = client.prove(pk, &stdin).compressed().run().expect("Proving should work.");
+        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
         let proving_duration = proving_start.elapsed();
         let proof_bytes = bincode::serialize(&proof.proof).unwrap();
 
@@ -315,7 +295,7 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
             .on_proving_end(
                 client_input.current_block.number,
                 &proof_bytes,
-                vk,
+                &vk,
                 &execution_report,
                 proving_duration,
             )
@@ -323,6 +303,30 @@ async fn execute_client<P: NodePrimitives, H: ExecutionHooks>(
     }
 
     Ok(())
+}
+
+// As the block execution in the zkVM is a long-running, blocking task, we need to run it in a separate thread.
+async fn execute_client(
+    number: u64,
+    client: EnvProver,
+    pk: SP1ProvingKey,
+    stdin: SP1Stdin,
+) -> eyre::Result<(
+    EnvProver,
+    SP1ProvingKey,
+    SP1Stdin,
+    eyre::Result<(SP1PublicValues, ExecutionReport)>,
+)> {
+    let (tx, rx) = oneshot::channel();
+
+    task::spawn_blocking(move || {
+        info_span!("execute_client", number).in_scope(|| {
+            let result = client.execute(&pk.elf, &stdin).run();
+            let _ = tx.send((client, pk, stdin, result.map_err(|err| eyre::eyre!("{err}"))));
+        })
+    });
+
+    rx.await.map_err(|err| eyre::eyre!("{err}"))
 }
 
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
