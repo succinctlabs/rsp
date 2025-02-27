@@ -5,8 +5,10 @@ use clap::Parser;
 use cli::Args;
 use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
-use pager_duty::send_alert;
-use rsp_host_executor::{create_eth_block_execution_strategy_factory, BlockExecutor, FullExecutor};
+use rsp_host_executor::{
+    alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
+    FullExecutor,
+};
 use sp1_sdk::include_elf;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -14,8 +16,6 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 mod cli;
 
 mod eth_proofs;
-
-mod pager_duty;
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -42,7 +42,7 @@ async fn main() -> eyre::Result<()> {
         args.eth_proofs_endpoint,
         args.eth_proofs_api_token,
     );
-    let reqwest_client = reqwest::Client::new();
+    let alerting_client = args.pager_duty_integration_key.map(AlertingClient::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
@@ -73,8 +73,8 @@ async fn main() -> eyre::Result<()> {
             let error_message = format!("Error handling block {}: {err}", header.number);
             error!(error_message);
 
-            if let Some(ref routing_key) = args.pager_duty_integration_key {
-                send_alert(&reqwest_client, error_message, routing_key.clone()).await;
+            if let Some(alerting_client) = &alerting_client {
+                alerting_client.send_alert(error_message).await;
             }
         }
     }

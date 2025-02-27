@@ -13,13 +13,13 @@ tracing-subscriber = "0.3.18"
 dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
 eyre = "0.6.12"
-reqwest = { version =  "0.12.9", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 base64 = "0.22.1"
 time = "0.3.37"
 futures = "0.3"
 
 # workspace
-rsp-host-executor.workspace = true
+rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
 rsp-primitives.workspace = true
 

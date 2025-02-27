@@ -16,7 +16,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "postgres"] }
 tracing-subscriber = "0.3.18"
 
 # workspace
-rsp-host-executor.workspace = true
+rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
 
 # sp1
