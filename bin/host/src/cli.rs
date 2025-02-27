@@ -46,13 +46,25 @@ impl HostArgs {
         // here and decide on whether to panic later.
         //
         // On the other hand chain ID is always needed.
-        let chain_id = match (&self.provider.rpc_url, self.provider.chain_id) {
-            (_, Some(chain_id)) => chain_id,
+        let (rpc_url, chain_id) = match (self.provider.rpc_url.clone(), self.provider.chain_id) {
+            (Some(rpc_url), Some(chain_id)) => (Some(rpc_url), chain_id),
+            (None, Some(chain_id)) => {
+                match std::env::var(format!("RPC_{}", chain_id)) {
+                    Ok(rpc_env_var) => {
+                        // We don't always need it but if the value exists it has to be valid.
+                        (Some(Url::parse(rpc_env_var.as_str())?), chain_id)
+                    }
+                    Err(_) => {
+                        // Not having RPC is okay because we know chain ID.
+                        (None, chain_id)
+                    }
+                }
+            }
             (Some(rpc_url), None) => {
                 // We can find out about chain ID from RPC.
                 let provider = RootProvider::<AnyNetwork>::new_http(rpc_url.clone());
 
-                provider.get_chain_id().await?
+                (Some(rpc_url), provider.get_chain_id().await?)
             }
             (None, None) => {
                 eyre::bail!("either --rpc-url or --chain-id must be used")
@@ -73,6 +85,7 @@ impl HostArgs {
         let config = Config {
             chain,
             genesis,
+            rpc_url,
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
             prove: self.prove,

@@ -9,6 +9,7 @@ use revm_primitives::Address;
 use rsp_client_executor::custom::{CustomEthEvmConfig, CustomOpEvmConfig};
 use rsp_primitives::genesis::Genesis;
 use std::{path::PathBuf, sync::Arc};
+use url::Url;
 
 mod error;
 
@@ -49,6 +50,7 @@ pub fn create_op_block_execution_strategy_factory(
 pub struct Config {
     pub chain: Chain,
     pub genesis: Genesis,
+    pub rpc_url: Option<Url>,
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
     pub prove: bool,
