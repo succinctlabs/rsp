@@ -1,4 +1,4 @@
-#![warn(unused_crate_dependencies)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
 use alloy_network::Ethereum;
 use alloy_provider::RootProvider;

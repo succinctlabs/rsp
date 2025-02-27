@@ -61,7 +61,8 @@ impl ExecutionHooks for ExecutionSummary {
 
         let row = |label: &str, value: String| {
             let mut r = TableRow::new();
-            r.insert(label.to_string(), value);
+            r.insert("Label".to_string(), label.to_string());
+            r.insert("Value".to_string(), value);
             r
         };
 
