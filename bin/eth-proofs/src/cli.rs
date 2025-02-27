@@ -45,6 +45,7 @@ impl Args {
         let config = Config {
             chain: Chain::mainnet(),
             genesis: Genesis::Mainnet,
+            rpc_url: Some(self.http_rpc_url.clone()),
             cache_dir: None,
             custom_beneficiary: None,
             prove: !self.execute_only,
