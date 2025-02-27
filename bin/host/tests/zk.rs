@@ -3,6 +3,7 @@ use std::{env, fs::File, io::Write};
 use alloy_chains::Chain;
 use alloy_network::Ethereum;
 use alloy_provider::RootProvider;
+use madato::{mk_table, types::TableRow};
 use reth_primitives::NodePrimitives;
 use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::{
@@ -51,18 +52,32 @@ pub struct ExecutionSummary;
 impl ExecutionHooks for ExecutionSummary {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
-        _block_number: u64,
+        block_number: u64,
         _client_input: &ClientExecutorInput<P>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         let path = env::var("GITHUB_OUTPUT")?;
         let mut file = File::options().create(true).append(true).open(path)?;
 
-        writeln!(
-            file,
-            "CYCLE_COUNT={}",
-            execution_report.total_instruction_count().separate_with_commas()
-        )?;
+        let row = |label: &str, value: String| {
+            let mut r = TableRow::new();
+            r.insert(label.to_string(), value);
+            r
+        };
+
+        let table = mk_table(
+            &[
+                row("Block Number", block_number.to_string()),
+                row(
+                    "Cycle Count",
+                    execution_report.total_instruction_count().separate_with_commas(),
+                ),
+                row("Syscall Count", execution_report.total_syscall_count().separate_with_commas()),
+            ],
+            &None,
+        );
+
+        writeln!(file, "EXECUTION_REPORT=<<EOF\n{}\nEOF", table)?;
 
         Ok(())
     }
