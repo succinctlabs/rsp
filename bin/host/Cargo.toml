@@ -40,6 +40,10 @@ revm-bytecode.workspace = true
 sp1-sdk.workspace = true
 sp1-core-executor.workspace = true
 
+[dev-dependencies]
+thousands = "0.2.0"
+madato = "0.7.0"
+
 [build-dependencies]
 sp1-build.workspace = true
 
