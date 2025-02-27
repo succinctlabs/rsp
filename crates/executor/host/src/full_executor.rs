@@ -2,6 +2,7 @@ use std::{
     fmt::{Debug, Formatter},
     marker::PhantomData,
     path::{Path, PathBuf},
+    sync::Arc,
     time::{Duration, Instant},
 };
 
@@ -16,7 +17,7 @@ use rsp_client_executor::{
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin};
-use tokio::{sync::oneshot, task, time::sleep};
+use tokio::{task, time::sleep};
 use tracing::{info_span, warn};
 
 use crate::{Config, ExecutionHooks, HostExecutor};
@@ -96,7 +97,7 @@ where
 {
     provider: P,
     host_executor: HostExecutor<F>,
-    elf: Vec<u8>,
+    elf: Arc<Vec<u8>>,
     hooks: H,
     config: Config,
     phantom: PhantomData<N>,
@@ -120,7 +121,7 @@ where
         Self {
             provider,
             host_executor: HostExecutor::new(block_execution_strategy_factory),
-            elf,
+            elf: Arc::new(elf),
             hooks,
             config,
             phantom: Default::default(),
@@ -194,7 +195,7 @@ where
             }
         };
 
-        process_client(client_input, &self.elf, &self.hooks, self.config.prove).await?;
+        process_client(client_input, self.elf.clone(), &self.hooks, self.config.prove).await?;
 
         Ok(())
     }
@@ -216,7 +217,7 @@ where
 pub struct CachedExecutor<NP: NodePrimitives, H: ExecutionHooks> {
     cache_dir: PathBuf,
     chain_id: u64,
-    elf: Vec<u8>,
+    elf: Arc<Vec<u8>>,
     hooks: H,
     prove: bool,
     phantom: PhantomData<NP>,
@@ -228,7 +229,7 @@ where
     H: ExecutionHooks,
 {
     pub fn new(elf: Vec<u8>, hooks: H, cache_dir: PathBuf, chain_id: u64, prove: bool) -> Self {
-        Self { cache_dir, chain_id, elf, hooks, prove, phantom: Default::default() }
+        Self { cache_dir, chain_id, elf: Arc::new(elf), hooks, prove, phantom: Default::default() }
     }
 }
 
@@ -242,7 +243,7 @@ where
             try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
                 .ok_or(eyre::eyre!("No cached input found"))?;
 
-        process_client(client_input, &self.elf, &self.hooks, self.prove).await
+        process_client(client_input, self.elf.clone(), &self.hooks, self.prove).await
     }
 }
 
@@ -254,14 +255,19 @@ impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
 
 async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
     client_input: ClientExecutorInput<P>,
-    elf: &[u8],
+    elf: Arc<Vec<u8>>,
     hooks: &H,
     prove: bool,
 ) -> eyre::Result<()> {
     let client = EnvProver::new();
 
     // Setup the proving key and verification key.
-    let (pk, vk) = client.setup(elf);
+    let (client, pk, vk) = task::spawn_blocking(move || {
+        let (pk, vk) = client.setup(&elf);
+        (client, pk, vk)
+    })
+    .await
+    .map_err(|err| eyre::eyre!("{err}"))?;
 
     // Generate the proof.
     // Execute the block inside the zkVM.
@@ -287,7 +293,12 @@ async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
         let proving_start = Instant::now();
         hooks.on_proving_start(client_input.current_block.number).await?;
 
-        let proof = client.prove(&pk, &stdin).compressed().run().expect("Proving should work.");
+        let proof = task::spawn_blocking(move || {
+            client.prove(&pk, &stdin).compressed().run().map_err(|err| eyre::eyre!("{err}"))
+        })
+        .await
+        .map_err(|err| eyre::eyre!("{err}"))??;
+
         let proving_duration = proving_start.elapsed();
         let proof_bytes = bincode::serialize(&proof.proof).unwrap();
 
@@ -318,16 +329,14 @@ async fn execute_client(
     SP1Stdin,
     eyre::Result<(SP1PublicValues, ExecutionReport)>,
 )> {
-    let (tx, rx) = oneshot::channel();
-
     task::spawn_blocking(move || {
         info_span!("execute_client", number).in_scope(|| {
             let result = client.execute(&pk.elf, &stdin).run();
-            let _ = tx.send((client, pk, stdin, result.map_err(|err| eyre::eyre!("{err}"))));
+            (client, pk, stdin, result.map_err(|err| eyre::eyre!("{err}")))
         })
-    });
-
-    rx.await.map_err(|err| eyre::eyre!("{err}"))
+    })
+    .await
+    .map_err(|err| eyre::eyre!("{err}"))
 }
 
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
