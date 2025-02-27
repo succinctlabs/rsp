@@ -77,7 +77,9 @@ impl ExecutionHooks for ExecutionSummary {
             &None,
         );
 
-        writeln!(file, "EXECUTION_REPORT=<<EOF\n{}\nEOF", table)?;
+        writeln!(file, "EXECUTION_REPORT<<EOF")?;
+        writeln!(file, "{}", table)?;
+        writeln!(file, "EOF")?;
 
         Ok(())
     }
