@@ -11,6 +11,9 @@ use rsp_primitives::genesis::Genesis;
 use std::{path::PathBuf, sync::Arc};
 use url::Url;
 
+#[cfg(feature = "alerting")]
+pub mod alerting;
+
 mod error;
 
 mod full_executor;

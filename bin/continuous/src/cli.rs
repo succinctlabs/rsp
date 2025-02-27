@@ -23,4 +23,8 @@ pub struct Args {
     /// Retry count on failed execution.
     #[clap(long, env, default_value_t = 3)]
     pub execution_retries: usize,
+
+    /// Pager Duty integration key.
+    #[clap(long, env)]
+    pub pager_duty_integration_key: Option<String>,
 }

@@ -10,7 +10,8 @@ use futures_util::StreamExt;
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::EthPrimitives;
 use rsp_host_executor::{
-    create_eth_block_execution_strategy_factory, BlockExecutor, Config, FullExecutor,
+    alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
+    FullExecutor,
 };
 use sp1_sdk::include_elf;
 use sqlx::migrate::Migrator;
@@ -49,6 +50,8 @@ async fn main() -> eyre::Result<()> {
     let retry_layer = RetryBackoffLayer::new(3, 1000, 100);
     let client = RpcClient::builder().layer(retry_layer).http(args.http_rpc_url);
     let http_provider = ProviderBuilder::new().network::<Ethereum>().on_client(client);
+    let alerting_client =
+        args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
 
     // Create or update the database schema.
     MIGRATOR.run(&db_pool).await?;
@@ -72,22 +75,38 @@ async fn main() -> eyre::Result<()> {
 
         let executor = executor.clone();
         let db_pool = db_pool.clone();
+        let alerting_client = alerting_client.clone();
         let permit = concurrent_executions_semaphore.clone().acquire_owned().await?;
 
         task::spawn(async move {
             match process_block(block_number, executor, args.execution_retries).await {
                 Ok(_) => info!("Successfully processed block {}", block_number),
                 Err(err) => {
-                    error!("Error executing block {}: {}", block_number, err);
+                    let error_message = format!("Error executing block {}: {}", block_number, err);
+                    error!("{error_message}");
+
+                    if let Some(alerting_client) = &alerting_client {
+                        alerting_client
+                            .send_alert(format!("OP Succinct Explorer (RSP) - {error_message}"))
+                            .await;
+                    }
 
                     if let Err(err) =
                         db::update_block_status_as_failed(&db_pool, block_number, SystemTime::now())
                             .await
                     {
-                        error!(
-                            "Database error whileupdating block status {}: {}",
+                        let error_message = format!(
+                            "Database error while updating block {} status: {}",
                             block_number, err
                         );
+
+                        error!("{error_message}",);
+
+                        if let Some(alerting_client) = &alerting_client {
+                            alerting_client
+                                .send_alert(format!("OP Succinct Explorer (RSP) - {error_message}"))
+                                .await;
+                        }
                     }
                 }
             }
