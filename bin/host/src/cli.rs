@@ -100,7 +100,7 @@ impl HostArgs {
 pub struct ProviderArgs {
     /// The rpc url used to fetch data about the block. If not provided, will use the
     /// RPC_{chain_id} env var.
-    #[clap(long)]
+    #[clap(long, env)]
     pub rpc_url: Option<Url>,
     /// The chain ID. If not provided, requires the rpc_url argument to be provided.
     #[clap(long)]
