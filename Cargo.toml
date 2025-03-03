@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin/host",
+    "bin/continuous",
     "bin/eth-proofs",
     "crates/executor/client",
     "crates/executor/host",
@@ -30,6 +31,7 @@ tokio = { version = "1.21", default-features = false, features = [
     "rt",
     "rt-multi-thread",
 ] }
+reqwest = "0.12.9" 
 serde_json = "1.0.94"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 futures = "0.3"
@@ -88,6 +90,7 @@ revm-primitives = { version = "15.2.0", features = [
 revm-inspectors = "0.15.0"
 revm-interpreter = { version = "15.2.0", default-features = false }
 revm-precompile = { version = "16.0.0", default-features = false }
+revm-database = { version = "1.0.0-alpha.1", default-features = false }
 
 # alloy
 alloy-chains = { version = "0.1.59", default-features = false }
@@ -112,8 +115,10 @@ alloy-rpc-client = { version = "0.11.1", default-features = false }
 alloy-eips = { version = "0.11.1", default-features = false }
 alloy-rlp = "0.3.10"
 alloy-trie = "0.7"
-op-alloy-network = "0.10.0"
-op-alloy-rpc-types = "0.10.0"
+op-alloy-network = "0.10.5"
+op-alloy-rpc-types = "0.10.5"
+alloy-evm = { version = "0.1", default-features = false }
+alloy-op-evm = { version = "0.1", default-features = false }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
@@ -129,3 +134,27 @@ bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-4.0.0",
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-4.1.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-4.1.0" }
+
+[patch."https://github.com/paradigmxyz/reth"]
+reth-primitives = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-primitives-traits = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-codecs = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-consensus = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-evm = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-node-ethereum = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-evm-ethereum = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-optimism-evm = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-optimism-primitives = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-storage-errors = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-trie = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-trie-common = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-chainspec = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-optimism-chainspec = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-execution-errors = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-execution-types = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-db = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-errors = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-ethereum-consensus = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-ethereum-primitives = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-optimism-consensus = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
+reth-optimism-forks = { git = "https://github.com/succinctlabs/reth", branch = "aurelien/send-block-execution-strategy" }
