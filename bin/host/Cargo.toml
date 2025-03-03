@@ -9,7 +9,9 @@ url.workspace = true
 tracing-subscriber = "0.3.18"
 dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
+eyre = "0.6.12"
 serde.workspace = true
+strum = "0.26"
 csv = "1.1"
 
 # workspace
@@ -32,14 +34,15 @@ op-alloy-network.workspace = true
 reth-primitives.workspace = true
 reth-primitives-traits.workspace = true
 
-# sp1
-sp1-sdk = "4.1.0"
-sp1-core-executor = "4.1.0"
+# revm
+revm-bytecode.workspace = true
 
-eyre = "0.6.12"
+# sp1
+sp1-sdk.workspace = true
+sp1-core-executor.workspace = true
 
 [build-dependencies]
-sp1-helper = "4.1.0"
+sp1-helper.workspace = true
 
 [features]
 default = []

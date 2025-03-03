@@ -47,6 +47,11 @@ rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 
+# sp1
+sp1-core-executor = "4.1.0"
+sp1-sdk = "4.1.0"
+sp1-helper = "4.1.0"
+
 # reth
 # the rev 6b602f433ed7a67c8c2e255569f262c044601c53 contains the following commit that allow to `Send` block execution strategy factory:
 # https://github.com/paradigmxyz/reth/commit/1e48668bf23dabd4aa697e7dced5935374043232
@@ -92,7 +97,6 @@ revm-optimism = { version = "1.0.0-alpha.1", default-features = false }
 revm-state = { version = "1.0.0-alpha.1", default-features = false }
 revm-inspectors = "0.15"
 
-
 # alloy
 alloy-chains = { version = "0.1.59", default-features = false }
 alloy-evm = { version = "0.1", default-features = false }
@@ -122,6 +126,7 @@ alloy-trie = "0.7"
 alloy-op-evm = { version = "0.1", default-features = false }
 op-alloy-network = "0.10.0"
 op-alloy-rpc-types = "0.10.0"
+
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"

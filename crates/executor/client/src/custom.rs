@@ -152,3 +152,34 @@ impl EvmFactory<EvmEnv> for CustomEvmFactory<EthEvmFactory> {
         EthEvm::new(self.create_evm(db, input).into_inner().with_inspector(inspector), true)
     }
 }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OpCodeTrackingInspector {
+    current: String,
+}
+
+impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspector {
+    fn step(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
+        let _ = context;
+
+        if interp.control.instruction_result() != InstructionResult::Continue {
+            return;
+        }
+
+        self.current = OpCode::name_by_op(interp.bytecode.opcode()).to_lowercase();
+
+        println!("cycle-tracker-report-start: opcode-{}", self.current);
+    }
+
+    /// Called after `step` when the instruction has been executed.
+    ///
+    /// Setting `interp.instruction_result` to anything other than [InstructionResult::Continue] alters the execution
+    /// of the interpreter.
+    #[inline]
+    fn step_end(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
+        let _ = interp;
+        let _ = context;
+
+        println!("cycle-tracker-report-end: opcode-{}", self.current);
+    }
+}

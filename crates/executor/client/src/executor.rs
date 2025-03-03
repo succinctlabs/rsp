@@ -10,13 +10,12 @@ use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
-
 use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
 
 use crate::{
     custom::CustomEvmFactory, error::ClientError, into_primitives::FromInput,
-    io::ClientExecutorInput, ValidateBlockPostExecution,
+    io::ClientExecutorInput, tracking::CustomBlockExecutor, ValidateBlockPostExecution,
 };
 
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;

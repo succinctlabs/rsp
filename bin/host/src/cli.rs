@@ -38,6 +38,18 @@ pub struct HostArgs {
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     pub report_path: PathBuf,
+
+    #[clap(long)]
+    /// Whether to include the syscalls in the report CSV.
+    pub include_syscalls: bool,
+
+    #[clap(long)]
+    /// Whether to include the precompiles in the report CSV.
+    pub include_precompiles: bool,
+
+    #[clap(long)]
+    /// Whether to include the opcodes in the report CSV.
+    pub include_opcodes: bool,
 }
 
 impl HostArgs {

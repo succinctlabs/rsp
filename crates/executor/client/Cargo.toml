@@ -42,6 +42,7 @@ reth-chainspec.workspace = true
 # revm
 revm.workspace = true
 revm-primitives.workspace = true
+revm-optimism = { workspace = true, optional = true }
 
 # alloy
 alloy-eips = { workspace = true, features = ["sha2"] }
