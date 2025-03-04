@@ -9,7 +9,9 @@ use either::Either;
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::NodePrimitives;
 use revm_primitives::B256;
-use rsp_client_executor::{io::ClientExecutorInput, IntoInput, IntoPrimitives};
+use rsp_client_executor::{
+    io::ClientExecutorInput, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
+};
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{EnvProver, SP1ProvingKey, SP1Stdin, SP1VerifyingKey};
@@ -66,7 +68,11 @@ impl<P, N, NP, F, H> BlockExecutor for EitherExecutor<P, N, NP, F, H>
 where
     P: Provider<N> + Clone,
     N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
+    NP: NodePrimitives
+        + DeserializeOwned
+        + IntoPrimitives<N>
+        + IntoInput
+        + ValidateBlockPostExecution,
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
@@ -133,7 +139,11 @@ impl<P, N, NP, F, H> BlockExecutor for FullExecutor<P, N, NP, F, H>
 where
     P: Provider<N> + Clone,
     N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
+    NP: NodePrimitives
+        + DeserializeOwned
+        + IntoPrimitives<N>
+        + IntoInput
+        + ValidateBlockPostExecution,
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {

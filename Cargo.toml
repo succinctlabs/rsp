@@ -73,9 +73,7 @@ reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c
 reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false, features = [
-    "optimism",
-] }
+reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 
 # revm

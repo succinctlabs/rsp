@@ -2661,6 +2661,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "reth-ethereum-consensus"
+version = "1.2.0"
+source = "git+https://github.com/paradigmxyz/reth?rev=6b602f433ed7a67c8c2e255569f262c044601c53#6b602f433ed7a67c8c2e255569f262c044601c53"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "reth-chainspec",
+ "reth-consensus",
+ "reth-consensus-common",
+ "reth-execution-types",
+ "reth-primitives",
+ "reth-primitives-traits",
+ "tracing",
+]
+
+[[package]]
 name = "reth-ethereum-forks"
 version = "1.2.0"
 source = "git+https://github.com/paradigmxyz/reth?rev=6b602f433ed7a67c8c2e255569f262c044601c53#6b602f433ed7a67c8c2e255569f262c044601c53"
@@ -3200,6 +3217,7 @@ dependencies = [
  "reth-chainspec",
  "reth-consensus",
  "reth-errors",
+ "reth-ethereum-consensus",
  "reth-ethereum-primitives",
  "reth-evm",
  "reth-evm-ethereum",

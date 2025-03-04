@@ -1,6 +1,10 @@
 use alloy_consensus::{Block, Header};
 use alloy_network::{Ethereum, Network};
-use reth_primitives::{EthPrimitives, NodePrimitives};
+use reth_chainspec::ChainSpec;
+use reth_errors::ConsensusError;
+use reth_execution_types::BlockExecutionOutput;
+use reth_primitives::{EthPrimitives, NodePrimitives, RecoveredBlock};
+use rsp_primitives::genesis::Genesis;
 
 pub trait IntoPrimitives<N: Network>: NodePrimitives {
     fn into_primitive_block(block: N::BlockResponse) -> Self::Block;
@@ -14,6 +18,14 @@ pub trait FromInput: NodePrimitives {
 
 pub trait IntoInput: NodePrimitives {
     fn into_input_block(block: Self::Block) -> Block<Self::SignedTx>;
+}
+
+pub trait ValidateBlockPostExecution: NodePrimitives {
+    fn validate_block_post_execution(
+        block: &RecoveredBlock<Self::Block>,
+        genesis: &Genesis,
+        execution_output: &BlockExecutionOutput<Self::Receipt>,
+    ) -> Result<(), ConsensusError>;
 }
 
 impl IntoPrimitives<Ethereum> for EthPrimitives {
@@ -36,6 +48,22 @@ impl FromInput for EthPrimitives {
 impl IntoInput for EthPrimitives {
     fn into_input_block(block: Self::Block) -> Block<Self::SignedTx> {
         block
+    }
+}
+
+impl ValidateBlockPostExecution for EthPrimitives {
+    fn validate_block_post_execution(
+        block: &RecoveredBlock<Self::Block>,
+        genesis: &Genesis,
+        execution_output: &BlockExecutionOutput<Self::Receipt>,
+    ) -> Result<(), ConsensusError> {
+        let chain_spec = ChainSpec::try_from(genesis).unwrap();
+        reth_ethereum_consensus::validate_block_post_execution(
+            block,
+            &chain_spec,
+            &execution_output.result.receipts,
+            &execution_output.result.requests,
+        )
     }
 }
 
@@ -66,5 +94,21 @@ impl FromInput for reth_optimism_primitives::OpPrimitives {
 impl IntoInput for reth_optimism_primitives::OpPrimitives {
     fn into_input_block(block: Self::Block) -> Block<Self::SignedTx> {
         block
+    }
+}
+
+#[cfg(feature = "optimism")]
+impl ValidateBlockPostExecution for reth_optimism_primitives::OpPrimitives {
+    fn validate_block_post_execution(
+        block: &RecoveredBlock<Self::Block>,
+        genesis: &Genesis,
+        execution_output: &BlockExecutionOutput<Self::Receipt>,
+    ) -> Result<(), ConsensusError> {
+        let chain_spec = reth_optimism_chainspec::OpChainSpec::try_from(genesis).unwrap();
+        reth_optimism_consensus::validate_block_post_execution(
+            block.header(),
+            &chain_spec,
+            &execution_output.result.receipts,
+        )
     }
 }

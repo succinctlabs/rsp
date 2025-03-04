@@ -6,7 +6,6 @@ use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockTransactionsKind;
 use reth_chainspec::ChainSpec;
-use reth_ethereum_consensus::validate_block_post_execution;
 use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
@@ -17,6 +16,7 @@ use revm::database::CacheDB;
 use revm_primitives::{Address, B256};
 use rsp_client_executor::{
     custom::CustomEvmFactory, io::ClientExecutorInput, IntoInput, IntoPrimitives,
+    ValidateBlockPostExecution,
 };
 use rsp_mpt::EthereumState;
 use rsp_primitives::{account_proof::eip1186_proof_to_account_proof, genesis::Genesis};
@@ -67,7 +67,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         custom_beneficiary: Option<Address>,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
-        F::Primitives: IntoPrimitives<N> + IntoInput,
+        F::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
         P: Provider<N> + Clone,
         N: Network,
     {
@@ -109,12 +109,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        validate_block_post_execution(
-            &block,
-            &ChainSpec::try_from(&genesis).unwrap(),
-            &execution_output.result.receipts,
-            &execution_output.result.requests,
-        )?;
+        F::Primitives::validate_block_post_execution(&block, &genesis, &execution_output)?;
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");

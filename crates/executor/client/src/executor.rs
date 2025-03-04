@@ -16,7 +16,7 @@ use revm_primitives::Address;
 
 use crate::{
     custom::CustomEvmFactory, error::ClientError, into_primitives::FromInput,
-    io::ClientExecutorInput,
+    io::ClientExecutorInput, ValidateBlockPostExecution,
 };
 
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
@@ -33,7 +33,7 @@ pub struct ClientExecutor<F: BlockExecutionStrategyFactory> {
 impl<F> ClientExecutor<F>
 where
     F: BlockExecutionStrategyFactory,
-    F::Primitives: FromInput,
+    F::Primitives: FromInput + ValidateBlockPostExecution,
 {
     pub fn execute(
         &self,
@@ -55,6 +55,11 @@ where
         })?;
 
         let execution_output = profile!("block execution", { block_executor.execute(&block) })?;
+
+        // Validate the block post execution.
+        profile!("validate block post-execution", {
+            F::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
+        })?;
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
