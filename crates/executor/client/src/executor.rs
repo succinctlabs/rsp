@@ -20,6 +20,7 @@ use crate::{
     into_primitives::FromInput,
     io::{ClientExecutorInput, TrieDB},
     tracking::OpCodesTrackingBlockExecutor,
+    ValidateBlockPostExecution,
 };
 
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
@@ -60,7 +61,8 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
-        let execution_output = profile!("block execution", { block_executor.execute(&block) })?;
+        let execution_output =
+            profile_report!("block execution", { block_executor.execute(&block) })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {

@@ -64,8 +64,8 @@ impl PersistExecutionReport {
         ];
 
         if self.opcode_tracking {
-            // When tracking opcodes, the simple fact to attach an inspector to the EVM incure a huge
-            // performance penalty, so it's not relevant to track anything else than opcodes.
+            // When tracking opcodes, the simple fact to attach an inspector to the EVM incure a
+            // huge performance penalty, so it's not relevant to track anything else than opcodes.
 
             // Add opcodes headers
             let mut opcode_headers = OPCODE_INFO

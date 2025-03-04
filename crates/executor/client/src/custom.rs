@@ -8,15 +8,19 @@
 use alloy_evm::{EthEvm, EthEvmFactory};
 use reth_evm::{Database, EvmEnv, EvmFactory};
 use revm::{
+    bytecode::opcode::OpCode,
     context::{
         result::{EVMError, HaltReason},
         BlockEnv, Cfg, CfgEnv, ContextTr, TxEnv,
     },
     handler::{EthPrecompiles, PrecompileProvider},
     inspector::NoOpInspector,
-    interpreter::InterpreterResult,
+    interpreter::{
+        interpreter_types::{Jumps, LoopControl},
+        InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
+    },
     precompile::{u64_to_address, PrecompileErrors},
-    Context, MainBuilder, MainContext,
+    Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{Address, Bytes};
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
@@ -174,8 +178,8 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
 
     /// Called after `step` when the instruction has been executed.
     ///
-    /// Setting `interp.instruction_result` to anything other than [InstructionResult::Continue] alters the execution
-    /// of the interpreter.
+    /// Setting `interp.instruction_result` to anything other than [InstructionResult::Continue]
+    /// alters the execution of the interpreter.
     #[inline]
     fn step_end(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
         let _ = interp;
