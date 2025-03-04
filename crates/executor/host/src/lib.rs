@@ -1,12 +1,12 @@
 use alloy_chains::Chain;
+use alloy_evm::EthEvmFactory;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;
-use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
+use reth_evm_ethereum::EthEvmConfig;
 use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_evm::{BasicOpReceiptBuilder, OpExecutionStrategyFactory};
-use reth_optimism_primitives::OpPrimitives;
+use reth_optimism_evm::OpEvmConfig;
 use revm_primitives::Address;
-use rsp_client_executor::custom::{CustomEthEvmConfig, CustomOpEvmConfig};
+use rsp_client_executor::custom::CustomEvmFactory;
 use rsp_primitives::genesis::Genesis;
 use std::{path::PathBuf, sync::Arc};
 use url::Url;
@@ -25,27 +25,20 @@ pub use host_executor::{EthHostExecutor, HostExecutor, OpHostExecutor};
 pub fn create_eth_block_execution_strategy_factory(
     genesis: &Genesis,
     custom_beneficiary: Option<Address>,
-) -> EthExecutionStrategyFactory<CustomEthEvmConfig> {
+) -> EthEvmConfig<CustomEvmFactory<EthEvmFactory>> {
     let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
-    EthExecutionStrategyFactory::new(
-        chain_spec.clone(),
-        CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
+    EthEvmConfig::new_with_evm_factory(
+        chain_spec,
+        CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
     )
 }
 
-pub fn create_op_block_execution_strategy_factory(
-    genesis: &Genesis,
-) -> OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig> {
+pub fn create_op_block_execution_strategy_factory(genesis: &Genesis) -> OpEvmConfig {
     let chain_spec: Arc<OpChainSpec> = Arc::new(genesis.try_into().unwrap());
 
-    OpExecutionStrategyFactory::new(
-        chain_spec.clone(),
-        CustomOpEvmConfig::optimism(chain_spec),
-        BasicOpReceiptBuilder::default(),
-    )
+    OpEvmConfig::optimism(chain_spec)
 }
-
 #[derive(Debug)]
 pub struct Config {
     pub chain: Chain,

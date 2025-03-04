@@ -20,6 +20,7 @@ itertools = "0.13.0"
 # workspace
 rsp-mpt.workspace = true
 rsp-primitives.workspace = true
+revm-optimism = { workspace = true, optional = true }
 
 # reth
 reth-consensus.workspace = true
@@ -42,21 +43,27 @@ revm-primitives.workspace = true
 
 # alloy
 alloy-eips = { workspace = true, features = ["sha2"] }
+alloy-evm.workspace = true
 alloy-genesis.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-rpc-types.workspace = true
+
+# op
+alloy-op-evm = { workspace = true, optional = true }
 op-alloy-network = { workspace = true, optional = true }
 op-alloy-rpc-types = { workspace = true, optional = true }
 
 
 [features]
 optimism = [
+    "rsp-primitives/optimism",
+    "dep:alloy-op-evm",
     "dep:op-alloy-network",
     "dep:op-alloy-rpc-types",
     "dep:reth-optimism-evm",
     "dep:reth-optimism-chainspec",
     "dep:reth-optimism-primitives",
-    "reth-optimism-evm/optimism"
+    "dep:revm-optimism",
 ]

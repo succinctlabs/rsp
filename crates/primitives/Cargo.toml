@@ -15,10 +15,13 @@ eyre = "0.6.12"
 # reth
 reth-primitives.workspace = true
 reth-chainspec.workspace = true
-reth-optimism-chainspec.workspace = true
-reth-optimism-forks.workspace = true
+reth-optimism-chainspec = { workspace = true, optional = true }
+reth-optimism-forks = { workspace = true, optional = true }
 reth-trie.workspace = true
 
 # alloy
 alloy-genesis.workspace = true
 alloy-rpc-types.workspace = true
+
+[features]
+optimism = ["dep:reth-optimism-chainspec", "dep:reth-optimism-forks"]

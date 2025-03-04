@@ -23,12 +23,13 @@ either = "1.13.0"
 rsp-rpc-db.workspace = true
 rsp-client-executor = { workspace = true, features = ["optimism"] }
 rsp-mpt = { workspace = true, features = ["preimage_context"] }
-rsp-primitives.workspace = true
+rsp-primitives = { workspace = true, features = ["optimism"] }
 
 # sp1
 sp1-sdk = "4.1.0"
 
 # reth
+reth-ethereum-consensus.workspace = true
 reth-evm.workspace = true
 reth-evm-ethereum.workspace = true
 reth-optimism-evm = { workspace = true }
@@ -48,6 +49,7 @@ revm-primitives.workspace = true
 # alloy
 alloy-chains.workspace = true
 alloy-consensus.workspace = true
+alloy-evm.workspace = true
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true
 alloy-provider.workspace = true

@@ -6,8 +6,11 @@ use itertools::Itertools;
 use reth_errors::ProviderError;
 use reth_primitives::{EthPrimitives, NodePrimitives};
 use reth_trie::TrieAccount;
-use revm::DatabaseRef;
-use revm_primitives::{keccak256, AccountInfo, Address, Bytecode, B256, U256};
+use revm::{
+    state::{AccountInfo, Bytecode},
+    DatabaseRef,
+};
+use revm_primitives::{keccak256, Address, B256, U256};
 use rsp_mpt::EthereumState;
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
@@ -106,7 +109,7 @@ impl<'a> TrieDB<'a> {
     }
 }
 
-impl<'a> DatabaseRef for TrieDB<'a> {
+impl DatabaseRef for TrieDB<'_> {
     /// The database error type.
     type Error = ProviderError;
 
