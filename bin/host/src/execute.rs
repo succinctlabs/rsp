@@ -9,13 +9,12 @@ use serde::{Deserialize, Serialize};
 use sp1_core_executor::syscalls::SyscallCode;
 use sp1_sdk::ExecutionReport;
 use std::{
-    convert::identity,
     fs::{File, OpenOptions},
     path::PathBuf,
 };
 use strum::IntoEnumIterator;
 
-const PRECOMPILES: [&str; 9] = [
+const PRECOMPILES: [&str; 10] = [
     "ecrecover",
     "sha256",
     "ripemd160",
@@ -24,6 +23,7 @@ const PRECOMPILES: [&str; 9] = [
     "bn-add",
     "bn-mul",
     "bn-pair",
+    "blake2f",
     "kzg-point-evaluation",
 ];
 

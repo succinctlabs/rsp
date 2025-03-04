@@ -48,6 +48,7 @@ impl<CTX: ContextTr> Default for CustomPrecompiles<CTX> {
                 (u64_to_address(6), "bn-add".to_string()),
                 (u64_to_address(7), "bn-mul".to_string()),
                 (u64_to_address(8), "bn-pair".to_string()),
+                (u64_to_address(9), "blake2f".to_string()),
                 (u64_to_address(10), "kzg-point-evaluation".to_string()),
             ]),
         }
