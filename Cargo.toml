@@ -48,6 +48,8 @@ rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 
 # reth
+# the rev 6b602f433ed7a67c8c2e255569f262c044601c53 contains the following commit that allow to `Send` block execution strategy factory:
+# https://github.com/paradigmxyz/reth/commit/1e48668bf23dabd4aa697e7dced5935374043232
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false, features = [
     "alloy-compat",
     "std",
