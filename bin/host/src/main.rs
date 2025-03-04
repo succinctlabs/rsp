@@ -56,7 +56,8 @@ async fn main() -> eyre::Result<()> {
             block_execution_strategy_factory,
             persist_execution_report,
             config,
-        )?;
+        )
+        .await?;
 
         executor.execute(block_number).await?;
     } else {
@@ -71,7 +72,8 @@ async fn main() -> eyre::Result<()> {
             block_execution_strategy_factory,
             persist_execution_report,
             config,
-        )?;
+        )
+        .await?;
 
         executor.execute(block_number).await?;
     }

@@ -4,6 +4,6 @@ CREATE TABLE rsp_blocks (
     gas_used BIGINT NOT NULL,
     tx_count BIGINT NOT NULL,
     num_cycles BIGINT NOT NULL,
-    start_time BIGINT,
-    end_time BIGINT
+    start_time TIMESTAMP,
+    end_time TIMESTAMP
 );

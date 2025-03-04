@@ -16,7 +16,9 @@ use rsp_client_executor::{
 };
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
-use sp1_sdk::{EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin};
+use sp1_sdk::{
+    EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+};
 use tokio::{task, time::sleep};
 use tracing::{info_span, warn};
 
@@ -25,7 +27,7 @@ use crate::{Config, ExecutionHooks, HostExecutor};
 pub type EitherExecutor<P, N, NP, F, H> =
     Either<FullExecutor<P, N, NP, F, H>, CachedExecutor<NP, H>>;
 
-pub fn build_executor<P, N, NP, F, H>(
+pub async fn build_executor<P, N, NP, F, H>(
     elf: Vec<u8>,
     provider: Option<P>,
     block_execution_strategy_factory: F,
@@ -40,23 +42,16 @@ where
     H: ExecutionHooks,
 {
     if let Some(provider) = provider {
-        return Ok(Either::Left(FullExecutor::new(
-            provider,
-            elf,
-            block_execution_strategy_factory,
-            hooks,
-            config,
-        )));
+        return Ok(Either::Left(
+            FullExecutor::try_new(provider, elf, block_execution_strategy_factory, hooks, config)
+                .await?,
+        ));
     }
 
     if let Some(cache_dir) = config.cache_dir {
-        return Ok(Either::Right(CachedExecutor::new(
-            elf,
-            hooks,
-            cache_dir,
-            config.chain.id(),
-            config.prove,
-        )));
+        return Ok(Either::Right(
+            CachedExecutor::try_new(elf, hooks, cache_dir, config.chain.id(), config.prove).await?,
+        ));
     }
 
     todo!()
@@ -65,6 +60,73 @@ where
 pub trait BlockExecutor {
     #[allow(async_fn_in_trait)]
     async fn execute(&self, block_number: u64) -> eyre::Result<()>;
+
+    fn client(&self) -> Arc<EnvProver>;
+
+    fn pk(&self) -> Arc<SP1ProvingKey>;
+
+    fn vk(&self) -> Arc<SP1VerifyingKey>;
+
+    #[allow(async_fn_in_trait)]
+    async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
+        &self,
+        client_input: ClientExecutorInput<P>,
+        hooks: &H,
+        prove: bool,
+    ) -> eyre::Result<()> {
+        // Generate the proof.
+        // Execute the block inside the zkVM.
+        let mut stdin = SP1Stdin::new();
+        let buffer = bincode::serialize(&client_input).unwrap();
+
+        stdin.write_vec(buffer);
+
+        // Only execute the program.
+        let (stdin, execute_result) =
+            execute_client(client_input.current_block.number, self.client(), self.pk(), stdin)
+                .await?;
+        let (mut public_values, execution_report) = execute_result?;
+
+        // Read the block hash.
+        let block_hash = public_values.read::<B256>();
+        println!("success: block_hash={block_hash}");
+
+        hooks.on_execution_end::<P>(&client_input.current_block, &execution_report).await?;
+
+        if prove {
+            println!("Starting proof generation.");
+
+            let proving_start = Instant::now();
+            hooks.on_proving_start(client_input.current_block.number).await?;
+            let client = self.client();
+            let pk = self.pk();
+
+            let proof = task::spawn_blocking(move || {
+                client
+                    .prove(pk.as_ref(), &stdin)
+                    .compressed()
+                    .run()
+                    .map_err(|err| eyre::eyre!("{err}"))
+            })
+            .await
+            .map_err(|err| eyre::eyre!("{err}"))??;
+
+            let proving_duration = proving_start.elapsed();
+            let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+
+            hooks
+                .on_proving_end(
+                    client_input.current_block.number,
+                    &proof_bytes,
+                    self.vk().as_ref(),
+                    &execution_report,
+                    proving_duration,
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
 }
 
 impl<P, N, NP, F, H> BlockExecutor for EitherExecutor<P, N, NP, F, H>
@@ -85,6 +147,27 @@ where
             Either::Right(ref executor) => executor.execute(block_number).await,
         }
     }
+
+    fn client(&self) -> Arc<EnvProver> {
+        match self {
+            Either::Left(ref executor) => executor.client.clone(),
+            Either::Right(ref executor) => executor.client.clone(),
+        }
+    }
+
+    fn pk(&self) -> Arc<SP1ProvingKey> {
+        match self {
+            Either::Left(ref executor) => executor.pk.clone(),
+            Either::Right(ref executor) => executor.pk.clone(),
+        }
+    }
+
+    fn vk(&self) -> Arc<SP1VerifyingKey> {
+        match self {
+            Either::Left(ref executor) => executor.vk.clone(),
+            Either::Right(ref executor) => executor.vk.clone(),
+        }
+    }
 }
 
 pub struct FullExecutor<P, N, NP, F, H>
@@ -97,7 +180,9 @@ where
 {
     provider: P,
     host_executor: HostExecutor<F>,
-    elf: Arc<Vec<u8>>,
+    client: Arc<EnvProver>,
+    pk: Arc<SP1ProvingKey>,
+    vk: Arc<SP1VerifyingKey>,
     hooks: H,
     config: Config,
     phantom: PhantomData<N>,
@@ -111,21 +196,33 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
-    pub fn new(
+    pub async fn try_new(
         provider: P,
         elf: Vec<u8>,
         block_execution_strategy_factory: F,
         hooks: H,
         config: Config,
-    ) -> Self {
-        Self {
+    ) -> eyre::Result<Self> {
+        let client = Arc::new(EnvProver::new());
+        let cloned_client = client.clone();
+
+        // Setup the proving key and verification key.
+        let (pk, vk) = task::spawn_blocking(move || {
+            let (pk, vk) = cloned_client.setup(&elf);
+            (pk, vk)
+        })
+        .await?;
+
+        Ok(Self {
             provider,
             host_executor: HostExecutor::new(block_execution_strategy_factory),
-            elf: Arc::new(elf),
+            client,
+            pk: Arc::new(pk),
+            vk: Arc::new(vk),
             hooks,
             config,
             phantom: Default::default(),
-        }
+        })
     }
 
     pub async fn wait_for_block(&self, block_number: u64) -> eyre::Result<()> {
@@ -195,9 +292,21 @@ where
             }
         };
 
-        process_client(client_input, self.elf.clone(), &self.hooks, self.config.prove).await?;
+        self.process_client(client_input, &self.hooks, self.config.prove).await?;
 
         Ok(())
+    }
+
+    fn client(&self) -> Arc<EnvProver> {
+        todo!()
+    }
+
+    fn pk(&self) -> Arc<SP1ProvingKey> {
+        todo!()
+    }
+
+    fn vk(&self) -> Arc<SP1VerifyingKey> {
+        todo!()
     }
 }
 
@@ -217,7 +326,9 @@ where
 pub struct CachedExecutor<NP: NodePrimitives, H: ExecutionHooks> {
     cache_dir: PathBuf,
     chain_id: u64,
-    elf: Arc<Vec<u8>>,
+    client: Arc<EnvProver>,
+    pk: Arc<SP1ProvingKey>,
+    vk: Arc<SP1VerifyingKey>,
     hooks: H,
     prove: bool,
     phantom: PhantomData<NP>,
@@ -228,8 +339,33 @@ where
     NP: NodePrimitives + DeserializeOwned,
     H: ExecutionHooks,
 {
-    pub fn new(elf: Vec<u8>, hooks: H, cache_dir: PathBuf, chain_id: u64, prove: bool) -> Self {
-        Self { cache_dir, chain_id, elf: Arc::new(elf), hooks, prove, phantom: Default::default() }
+    pub async fn try_new(
+        elf: Vec<u8>,
+        hooks: H,
+        cache_dir: PathBuf,
+        chain_id: u64,
+        prove: bool,
+    ) -> eyre::Result<Self> {
+        let client = Arc::new(EnvProver::new());
+        let cloned_client = client.clone();
+
+        // Setup the proving key and verification key.
+        let (pk, vk) = task::spawn_blocking(move || {
+            let (pk, vk) = cloned_client.setup(&elf);
+            (pk, vk)
+        })
+        .await?;
+
+        Ok(Self {
+            cache_dir,
+            chain_id,
+            client,
+            pk: Arc::new(pk),
+            vk: Arc::new(vk),
+            hooks,
+            prove,
+            phantom: Default::default(),
+        })
     }
 }
 
@@ -243,7 +379,19 @@ where
             try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
                 .ok_or(eyre::eyre!("No cached input found"))?;
 
-        process_client(client_input, self.elf.clone(), &self.hooks, self.prove).await
+        self.process_client(client_input, &self.hooks, self.prove).await
+    }
+
+    fn client(&self) -> Arc<EnvProver> {
+        todo!()
+    }
+
+    fn pk(&self) -> Arc<SP1ProvingKey> {
+        todo!()
+    }
+
+    fn vk(&self) -> Arc<SP1VerifyingKey> {
+        todo!()
     }
 }
 
@@ -253,86 +401,18 @@ impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
     }
 }
 
-async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
-    client_input: ClientExecutorInput<P>,
-    elf: Arc<Vec<u8>>,
-    hooks: &H,
-    prove: bool,
-) -> eyre::Result<()> {
-    let client = EnvProver::new();
-
-    // Setup the proving key and verification key.
-    let (client, pk, vk) = task::spawn_blocking(move || {
-        let (pk, vk) = client.setup(&elf);
-        (client, pk, vk)
-    })
-    .await
-    .map_err(|err| eyre::eyre!("{err}"))?;
-
-    // Generate the proof.
-    // Execute the block inside the zkVM.
-    let mut stdin = SP1Stdin::new();
-    let buffer = bincode::serialize(&client_input).unwrap();
-
-    stdin.write_vec(buffer);
-
-    // Only execute the program.
-    let (client, pk, stdin, execute_result) =
-        execute_client(client_input.current_block.number, client, pk, stdin).await?;
-    let (mut public_values, execution_report) = execute_result?;
-
-    // Read the block hash.
-    let block_hash = public_values.read::<B256>();
-    println!("success: block_hash={block_hash}");
-
-    hooks.on_execution_end::<P>(&client_input.current_block, &execution_report).await?;
-
-    if prove {
-        println!("Starting proof generation.");
-
-        let proving_start = Instant::now();
-        hooks.on_proving_start(client_input.current_block.number).await?;
-
-        let proof = task::spawn_blocking(move || {
-            client.prove(&pk, &stdin).compressed().run().map_err(|err| eyre::eyre!("{err}"))
-        })
-        .await
-        .map_err(|err| eyre::eyre!("{err}"))??;
-
-        let proving_duration = proving_start.elapsed();
-        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
-
-        hooks
-            .on_proving_end(
-                client_input.current_block.number,
-                &proof_bytes,
-                &vk,
-                &execution_report,
-                proving_duration,
-            )
-            .await?;
-    }
-
-    Ok(())
-}
-
 // As the block execution in the zkVM is a long-running, blocking task, we need to run it in a
 // separate thread.
 async fn execute_client(
     number: u64,
-    client: EnvProver,
-    pk: SP1ProvingKey,
+    client: Arc<EnvProver>,
+    pk: Arc<SP1ProvingKey>,
     stdin: SP1Stdin,
-) -> eyre::Result<(
-    EnvProver,
-    SP1ProvingKey,
-    SP1Stdin,
-    eyre::Result<(SP1PublicValues, ExecutionReport)>,
-)> {
+) -> eyre::Result<(SP1Stdin, eyre::Result<(SP1PublicValues, ExecutionReport)>)> {
     task::spawn_blocking(move || {
         info_span!("execute_client", number).in_scope(|| {
             let result = client.execute(&pk.elf, &stdin).run();
-            (client, pk, stdin, result.map_err(|err| eyre::eyre!("{err}")))
+            (stdin, result.map_err(|err| eyre::eyre!("{err}")))
         })
     })
     .await

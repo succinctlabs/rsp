@@ -14,7 +14,7 @@ pub struct Args {
 
     /// The database connection string.
     #[clap(long, env)]
-    pub db_url: String,
+    pub database_url: String,
 
     /// The maximum number of concurrent executions.
     #[clap(long, env)]
@@ -24,7 +24,7 @@ pub struct Args {
     #[clap(long, env, default_value_t = 3)]
     pub execution_retries: usize,
 
-    /// Pager Duty integration key.
+    /// PagerDuty integration key.
     #[clap(long, env)]
     pub pager_duty_integration_key: Option<String>,
 }

@@ -1,10 +1,12 @@
 use alloy_consensus::{Block, BlockHeader};
 use reth_primitives::NodePrimitives;
 use rsp_host_executor::ExecutionHooks;
-use serde::{Deserialize, Serialize};
 use sp1_sdk::ExecutionReport;
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
-use std::time::{SystemTime, UNIX_EPOCH};
+use sqlx::{
+    postgres::PgPoolOptions,
+    types::chrono::{Local, NaiveDateTime},
+    Pool, Postgres,
+};
 
 pub struct PersistToPostgres {
     pub db_pool: Pool<Postgres>,
@@ -18,7 +20,7 @@ impl PersistToPostgres {
 
 impl ExecutionHooks for PersistToPostgres {
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
-        insert_block(&self.db_pool, block_number, SystemTime::now()).await?;
+        insert_block(&self.db_pool, block_number).await?;
         Ok(())
     }
 
@@ -34,7 +36,6 @@ impl ExecutionHooks for PersistToPostgres {
             executed_block.header.gas_used(),
             executed_block.body.transactions.len(),
             execution_report.total_instruction_count(),
-            SystemTime::now(),
         )
         .await?;
 
@@ -42,37 +43,34 @@ impl ExecutionHooks for PersistToPostgres {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct ProvableBlock {
     pub block_number: i64,
     pub status: String,
     pub gas_used: i64,
     pub tx_count: i64,
     pub num_cycles: i64,
-    pub start_time: Option<i64>,
-    pub end_time: Option<i64>,
+    pub start_time: Option<NaiveDateTime>,
+    pub end_time: Option<NaiveDateTime>,
 }
 
 pub async fn build_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
     PgPoolOptions::new().max_connections(64).connect(database_url).await
 }
 
-pub async fn insert_block(
-    pool: &Pool<Postgres>,
-    block_number: u64,
-    start_time: SystemTime,
-) -> Result<(), sqlx::Error> {
+pub async fn insert_block(pool: &Pool<Postgres>, block_number: u64) -> Result<(), sqlx::Error> {
+    let now = Local::now().naive_local();
     let block = ProvableBlock {
         block_number: block_number as i64,
         status: "queued".to_string(),
         gas_used: 0,
         tx_count: 0,
         num_cycles: 0,
-        start_time: Some(system_time_to_timestamp(start_time)),
+        start_time: Some(now),
         end_time: None,
     };
 
-    sqlx::query(
+    sqlx::query!(
         r#"
         INSERT INTO rsp_blocks
         (block_number, status, gas_used, tx_count, num_cycles, start_time, end_time)
@@ -86,14 +84,14 @@ pub async fn insert_block(
             start_time = EXCLUDED.start_time,
             end_time = EXCLUDED.end_time
         "#,
+        block.block_number,
+        &block.status,
+        block.gas_used,
+        block.tx_count,
+        block.num_cycles,
+        block.start_time,
+        block.end_time
     )
-    .bind(block.block_number)
-    .bind(&block.status)
-    .bind(block.gas_used)
-    .bind(block.tx_count)
-    .bind(block.num_cycles)
-    .bind(block.start_time)
-    .bind(block.end_time)
     .execute(pool)
     .await?;
 
@@ -106,24 +104,22 @@ pub async fn update_block_status(
     gas_used: u64,
     tx_count: usize,
     num_cycles: u64,
-    end_time: SystemTime,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
+    sqlx::query!(
         r#"
         UPDATE rsp_blocks
         SET status = 'executed',
             gas_used = $2,
             tx_count = $3,
             num_cycles = $4,
-            end_time = $5
+            end_time = NOW()
         WHERE block_number = $1
         "#,
+        block_number as i64,
+        gas_used as i64,
+        tx_count as i64,
+        num_cycles as i64
     )
-    .bind(block_number as i64)
-    .bind(gas_used as i64)
-    .bind(tx_count as i64)
-    .bind(num_cycles as i64)
-    .bind(system_time_to_timestamp(end_time))
     .execute(pool)
     .await?;
 
@@ -133,24 +129,18 @@ pub async fn update_block_status(
 pub async fn update_block_status_as_failed(
     pool: &Pool<Postgres>,
     block_number: u64,
-    end_time: SystemTime,
 ) -> Result<(), sqlx::Error> {
-    sqlx::query(
+    sqlx::query!(
         r#"
         UPDATE rsp_blocks
         SET status = 'failed',
-            end_time = $2
+            end_time = NOW()
         WHERE block_number = $1
         "#,
+        block_number as i64
     )
-    .bind(block_number as i64)
-    .bind(system_time_to_timestamp(end_time))
     .execute(pool)
     .await?;
 
     Ok(())
-}
-
-fn system_time_to_timestamp(time: SystemTime) -> i64 {
-    time.duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() as i64
 }

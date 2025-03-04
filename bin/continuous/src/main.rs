@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, WsConnect};
 use alloy_rpc_client::RpcClient;
@@ -44,7 +44,7 @@ async fn main() -> eyre::Result<()> {
     let block_execution_strategy_factory =
         create_eth_block_execution_strategy_factory(&config.genesis, None);
 
-    let db_pool = db::build_db_pool(&args.db_url).await?;
+    let db_pool = db::build_db_pool(&args.database_url).await?;
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
     let retry_layer = RetryBackoffLayer::new(3, 1000, 100);
@@ -56,13 +56,16 @@ async fn main() -> eyre::Result<()> {
     // Create or update the database schema.
     MIGRATOR.run(&db_pool).await?;
 
-    let executor = Arc::new(FullExecutor::new(
-        http_provider.clone(),
-        elf,
-        block_execution_strategy_factory,
-        PersistToPostgres::new(db_pool.clone()),
-        config,
-    ));
+    let executor = Arc::new(
+        FullExecutor::try_new(
+            http_provider.clone(),
+            elf,
+            block_execution_strategy_factory,
+            PersistToPostgres::new(db_pool.clone()),
+            config,
+        )
+        .await?,
+    );
 
     // Subscribe to block headers.
     let subscription = ws_provider.subscribe_blocks().await?;
@@ -92,8 +95,7 @@ async fn main() -> eyre::Result<()> {
                     }
 
                     if let Err(err) =
-                        db::update_block_status_as_failed(&db_pool, block_number, SystemTime::now())
-                            .await
+                        db::update_block_status_as_failed(&db_pool, block_number).await
                     {
                         let error_message = format!(
                             "Database error while updating block {} status: {}",

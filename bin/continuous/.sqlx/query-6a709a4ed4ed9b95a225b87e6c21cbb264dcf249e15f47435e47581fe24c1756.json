@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE rsp_blocks\n        SET status = 'failed',\n            end_time = NOW()\n        WHERE block_number = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6a709a4ed4ed9b95a225b87e6c21cbb264dcf249e15f47435e47581fe24c1756"
+}

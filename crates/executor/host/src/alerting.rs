@@ -1,3 +1,5 @@
+//! We don't use `pagerduty-rs` because requests to PG weren't working and it's unmaintained.
+
 use serde::Serialize;
 use tracing::{error, info};
 
