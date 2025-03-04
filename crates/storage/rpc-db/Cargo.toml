@@ -20,7 +20,9 @@ reth-storage-errors.workspace = true
 reth-trie.workspace = true
 
 # revm
+revm-database-interface.workspace = true
 revm-primitives.workspace = true
+revm-state.workspace = true
 
 # alloy
 alloy-primitives.workspace = true

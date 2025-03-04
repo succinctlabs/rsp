@@ -8,7 +8,7 @@ use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
-    FromInput, IntoInput, IntoPrimitives,
+    FromInput, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
 use rsp_primitives::genesis::Genesis;
@@ -95,7 +95,12 @@ async fn run_e2e<F, N>(
     custom_beneficiary: Option<Address>,
 ) where
     F: BlockExecutionStrategyFactory,
-    F::Primitives: FromInput + IntoPrimitives<N> + IntoInput + Serialize + DeserializeOwned,
+    F::Primitives: FromInput
+        + IntoPrimitives<N>
+        + IntoInput
+        + ValidateBlockPostExecution
+        + Serialize
+        + DeserializeOwned,
     N: Network,
 {
     // Intialize the environment variables.

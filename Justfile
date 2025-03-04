@@ -42,3 +42,14 @@ run-eth-proofs cluster_id="1" block_interval="100":
 
 # Example:
 # just run-eth-proofs 5 600
+
+
+clean:
+    cargo clean
+    cd bin/client && cargo clean
+    cd bin/client-op && cargo clean
+
+update:
+    cargo update
+    cd bin/client && cargo update
+    cd bin/client-op && cargo update

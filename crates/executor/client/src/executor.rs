@@ -1,31 +1,28 @@
 use std::sync::Arc;
 
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
+use alloy_evm::EthEvmFactory;
 use alloy_primitives::Bloom;
 use reth_chainspec::ChainSpec;
-use reth_evm::execute::{BlockExecutionStrategy, BlockExecutionStrategyFactory};
-use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
+use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
+
+use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
-use revm::db::{states::bundle_state::BundleRetention, WrapDatabaseRef};
+
+use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
 
 use crate::{
-    custom::CustomEthEvmConfig, error::ClientError, into_primitives::FromInput,
-    io::ClientExecutorInput,
+    custom::CustomEvmFactory, error::ClientError, into_primitives::FromInput,
+    io::ClientExecutorInput, ValidateBlockPostExecution,
 };
 
-pub type EthClientExecutor = ClientExecutor<EthExecutionStrategyFactory<CustomEthEvmConfig>>;
+pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
 
 #[cfg(feature = "optimism")]
-pub type OpClientExecutor = ClientExecutor<
-    reth_optimism_evm::OpExecutionStrategyFactory<
-        reth_optimism_primitives::OpPrimitives,
-        reth_optimism_chainspec::OpChainSpec,
-        crate::custom::CustomOpEvmConfig,
-    >,
->;
+pub type OpClientExecutor = ClientExecutor<reth_optimism_evm::OpEvmConfig>;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone)]
@@ -36,7 +33,7 @@ pub struct ClientExecutor<F: BlockExecutionStrategyFactory> {
 impl<F> ClientExecutor<F>
 where
     F: BlockExecutionStrategyFactory,
-    F::Primitives: FromInput,
+    F::Primitives: FromInput + ValidateBlockPostExecution,
 {
     pub fn execute(
         &self,
@@ -48,7 +45,8 @@ where
             WrapDatabaseRef(trie_db)
         });
 
-        let mut strategy = self.block_execution_strategy_factory.create_strategy(db);
+        let block_executor =
+            BasicBlockExecutor::new(self.block_execution_strategy_factory.clone(), db);
 
         let block = profile!("recover senders", {
             F::Primitives::from_input_block(input.current_block.clone())
@@ -56,34 +54,27 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
-        strategy.apply_pre_execution_changes(&block)?;
-
-        let executor_output = profile!("execute", { strategy.execute_transactions(&block) })?;
-
-        let requests = strategy.apply_post_execution_changes(&block, &executor_output.receipts)?;
+        let execution_output = profile!("block execution", { block_executor.execute(&block) })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
-            strategy.validate_block_post_execution(&block, &executor_output.receipts, &requests)
+            F::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
         })?;
-
-        let mut state = strategy.into_state();
-        state.merge_transitions(BundleRetention::Reverts);
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
         profile!("accrue logs bloom", {
-            executor_output.receipts.iter().for_each(|r| {
+            execution_output.result.receipts.iter().for_each(|r| {
                 logs_bloom.accrue_bloom(&r.bloom());
             })
         });
 
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
-            state.take_bundle(),
-            vec![executor_output.receipts],
+            execution_output.state,
+            vec![execution_output.result.receipts],
             input.current_block.header().number(),
-            vec![requests],
+            vec![execution_output.result.requests],
         );
 
         // Verify the state root.
@@ -129,9 +120,9 @@ where
 impl EthClientExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
-            block_execution_strategy_factory: EthExecutionStrategyFactory::new(
-                chain_spec.clone(),
-                CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
+            block_execution_strategy_factory: EthEvmConfig::new_with_evm_factory(
+                chain_spec,
+                CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
         }
     }
@@ -141,11 +132,7 @@ impl EthClientExecutor {
 impl OpClientExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
         Self {
-            block_execution_strategy_factory: reth_optimism_evm::OpExecutionStrategyFactory::new(
-                chain_spec.clone(),
-                crate::custom::CustomOpEvmConfig::optimism(chain_spec),
-                reth_optimism_evm::BasicOpReceiptBuilder::default(),
-            ),
+            block_execution_strategy_factory: reth_optimism_evm::OpEvmConfig::optimism(chain_spec),
         }
     }
 }

@@ -5,223 +5,150 @@
 //! The [CustomEvmConfig] type implements the [ConfigureEvm] and [ConfigureEvmEnv] traits,
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
-use reth_chainspec::ChainSpec;
-use reth_evm::{ConfigureEvm, ConfigureEvmEnv, Database, EvmEnv, NextBlockEnvAttributes};
-use reth_evm_ethereum::{EthEvm, EthEvmConfig};
+use alloy_evm::{EthEvm, EthEvmFactory};
+use reth_evm::{Database, EvmEnv, EvmFactory};
 use revm::{
-    handler::register::{EvmHandler, HandleRegisters},
-    precompile::{
-        bn128, kzg_point_evaluation, secp256k1, Precompile, PrecompileResult, PrecompileSpecId,
-        PrecompileWithAddress,
+    context::{
+        result::{EVMError, HaltReason},
+        BlockEnv, Cfg, CfgEnv, ContextTr, TxEnv,
     },
-    ContextPrecompiles,
+    handler::{EthPrecompiles, PrecompileProvider},
+    inspector::NoOpInspector,
+    interpreter::InterpreterResult,
+    precompile::{u64_to_address, PrecompileErrors},
+    Context, MainBuilder, MainContext,
 };
-use revm_primitives::{Address, Bytes, EVMError, Env, HaltReason};
-use std::sync::Arc;
+use revm_primitives::{Address, Bytes};
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
-pub type CustomEthEvmConfig = CustomEvmConfig<EthEvmConfig>;
-
-#[cfg(feature = "optimism")]
-pub type CustomOpEvmConfig = CustomEvmConfig<reth_optimism_evm::OpEvmConfig>;
-
-/// Create an annotated precompile that tracks the cycle count of a precompile.
-/// This is useful for tracking how many cycles in total are consumed by calls to a given
-/// precompile.
-macro_rules! create_annotated_precompile {
-    ($precompile:expr, $name:expr) => {
-        PrecompileWithAddress(
-            $precompile.0,
-            Precompile::Standard(|input: &Bytes, gas_limit: u64| -> PrecompileResult {
-                let precompile = $precompile.precompile();
-                match precompile {
-                    Precompile::Standard(precompile) => {
-                        println!(concat!("cycle-tracker-report-start: precompile-", $name));
-                        let result = precompile(input, gas_limit);
-                        println!(concat!("cycle-tracker-report-end: precompile-", $name));
-                        result
-                    }
-                    _ => panic!("Annotated precompile must be a standard precompile."),
-                }
-            }),
-        )
-    };
+#[derive(Clone)]
+pub struct CustomPrecompiles<CTX> {
+    pub precompiles: EthPrecompiles<CTX>,
+    addresses_to_names: HashMap<Address, String>,
 }
 
-// An annotated version of the KZG point evaluation precompile. Because this is a stateful
-// precompile we cannot use the `create_annotated_precompile` macro
-pub(crate) const ANNOTATED_KZG_PROOF: PrecompileWithAddress = PrecompileWithAddress(
-    kzg_point_evaluation::POINT_EVALUATION.0,
-    Precompile::Env(|input: &Bytes, gas_limit: u64, env: &Env| -> PrecompileResult {
-        let precompile = kzg_point_evaluation::POINT_EVALUATION.precompile();
-        match precompile {
-            Precompile::Env(precompile) => {
-                println!(concat!(
-                    "cycle-tracker-report-start: precompile-",
-                    "kzg-point-evaluation"
-                ));
-                let result = precompile(input, gas_limit, env);
-                println!(concat!("cycle-tracker-report-end: precompile-", "kzg-point-evaluation"));
-                result
-            }
-            _ => panic!("Annotated precompile must be a env precompile."),
+impl<CTX> Debug for CustomPrecompiles<CTX> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CustomPrecompiles")
+            .field("addresses_to_names", &self.addresses_to_names)
+            .finish()
+    }
+}
+
+impl<CTX: ContextTr> Default for CustomPrecompiles<CTX> {
+    fn default() -> Self {
+        Self {
+            precompiles: EthPrecompiles::default(),
+            addresses_to_names: HashMap::from([
+                (u64_to_address(1), "ecrecover".to_string()),
+                (u64_to_address(2), "sha256".to_string()),
+                (u64_to_address(3), "ripemd160".to_string()),
+                (u64_to_address(4), "identity".to_string()),
+                (u64_to_address(5), "modexp".to_string()),
+                (u64_to_address(6), "bn-add".to_string()),
+                (u64_to_address(7), "bn-mul".to_string()),
+                (u64_to_address(8), "bn-pair".to_string()),
+                (u64_to_address(10), "kzg-point-evaluation".to_string()),
+            ]),
         }
-    }),
-);
-
-pub(crate) const ANNOTATED_ECRECOVER: PrecompileWithAddress =
-    create_annotated_precompile!(secp256k1::ECRECOVER, "ecrecover");
-pub(crate) const ANNOTATED_BN_ADD: PrecompileWithAddress =
-    create_annotated_precompile!(bn128::add::ISTANBUL, "bn-add");
-pub(crate) const ANNOTATED_BN_MUL: PrecompileWithAddress =
-    create_annotated_precompile!(bn128::mul::ISTANBUL, "bn-mul");
-pub(crate) const ANNOTATED_BN_PAIR: PrecompileWithAddress =
-    create_annotated_precompile!(bn128::pair::ISTANBUL, "bn-pair");
-
-/// Sets the precompiles to the EVM handler
-///
-/// This will be invoked when the EVM is created via [ConfigureEvm::evm] or
-/// [ConfigureEvm::evm_with_inspector]
-///
-/// This will use the default mainnet precompiles and add additional precompiles.
-fn set_precompiles<EXT, DB>(handler: &mut EvmHandler<'_, EXT, DB>)
-where
-    DB: Database,
-{
-    // first we need the evm spec id, which determines the precompiles
-    let spec_id = handler.cfg.spec_id;
-    // install the precompiles
-    handler.pre_execution.load_precompiles = Arc::new(move || {
-        let mut loaded_precompiles: ContextPrecompiles<DB> =
-            ContextPrecompiles::new(PrecompileSpecId::from_spec_id(spec_id));
-        loaded_precompiles.extend(vec![
-            ANNOTATED_ECRECOVER,
-            ANNOTATED_BN_ADD,
-            ANNOTATED_BN_MUL,
-            ANNOTATED_BN_PAIR,
-            ANNOTATED_KZG_PROOF,
-        ]);
-
-        loaded_precompiles
-    });
+    }
 }
 
-/// Custom EVM configuration
-#[derive(Debug, Clone)]
-pub struct CustomEvmConfig<C> {
-    evm_config: C,
+impl<CTX: ContextTr> PrecompileProvider for CustomPrecompiles<CTX> {
+    type Context = CTX;
+    type Output = InterpreterResult;
 
+    fn set_spec(&mut self, spec: <<Self::Context as ContextTr>::Cfg as Cfg>::Spec) {
+        self.precompiles.set_spec(spec);
+    }
+
+    fn run(
+        &mut self,
+        context: &mut Self::Context,
+        address: &Address,
+        bytes: &Bytes,
+        gas_limit: u64,
+    ) -> Result<Option<Self::Output>, PrecompileErrors> {
+        if self.precompiles.contains(address) {
+            let name = self.addresses_to_names.get(address).cloned().unwrap_or(address.to_string());
+
+            println!("cycle-tracker-report-start: precompile-{name}");
+            let result = self.precompiles.run(context, address, bytes, gas_limit);
+            println!("cycle-tracker-report-end: precompile-{name}");
+
+            result
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn warm_addresses(&self) -> Box<impl Iterator<Item = Address> + '_> {
+        self.precompiles.warm_addresses()
+    }
+
+    fn contains(&self, address: &Address) -> bool {
+        self.precompiles.contains(address)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct CustomEvmFactory<F> {
     // Some chains uses Clique consensus, which is not implemented in Reth.
     // The main difference for execution is the block beneficiary: Reth will
     // credit the block reward to the beneficiary address, whereas in Clique,
     // the reward is credited to the signer.
     custom_beneficiary: Option<Address>,
+
+    phantom: PhantomData<F>,
 }
 
-impl CustomEvmConfig<EthEvmConfig> {
-    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
-        Self { evm_config: EthEvmConfig::new(chain_spec), custom_beneficiary }
+impl<F> CustomEvmFactory<F> {
+    pub fn new(custom_beneficiary: Option<Address>) -> Self {
+        Self { custom_beneficiary, phantom: PhantomData }
     }
 }
 
-#[cfg(feature = "optimism")]
-impl CustomEvmConfig<reth_optimism_evm::OpEvmConfig> {
-    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self {
-            evm_config: reth_optimism_evm::OpEvmConfig::new(chain_spec),
-            custom_beneficiary: None,
-        }
-    }
-}
+impl EvmFactory<EvmEnv> for CustomEvmFactory<EthEvmFactory> {
+    type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> =
+        EthEvm<DB, I, CustomPrecompiles<Self::Context<DB>>>;
 
-impl ConfigureEvm for CustomEvmConfig<EthEvmConfig> {
-    type Evm<'a, DB: Database + 'a, I: 'a> = EthEvm<'a, I, DB>;
-    type EvmError<DBError: core::error::Error + Send + Sync + 'static> = EVMError<DBError>;
+    type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
+
+    type Tx = TxEnv;
+
+    type Error<DBError: std::error::Error + Send + Sync + 'static> = EVMError<DBError>;
+
     type HaltReason = HaltReason;
 
-    fn evm_with_env<DB: reth_evm::Database>(
+    fn create_evm<DB: Database>(
         &self,
         db: DB,
-        evm_env: EvmEnv<Self::Spec>,
-    ) -> Self::Evm<'_, DB, ()> {
-        let mut evm = self.evm_config.evm_with_env(db, evm_env);
-        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
-        evm
-    }
-
-    fn evm_with_env_and_inspector<DB, I>(
-        &self,
-        db: DB,
-        evm_env: EvmEnv<Self::Spec>,
-        inspector: I,
-    ) -> Self::Evm<'_, DB, I>
-    where
-        DB: reth_evm::Database,
-        I: revm::GetInspector<DB>,
-    {
-        let mut evm = self.evm_config.evm_with_env_and_inspector(db, evm_env, inspector);
-        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
-        evm
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl ConfigureEvm for CustomEvmConfig<reth_optimism_evm::OpEvmConfig> {
-    type Evm<'a, DB: Database + 'a, I: 'a> = reth_optimism_evm::OpEvm<'a, I, DB>;
-    type EvmError<DBError: core::error::Error + Send + Sync + 'static> = EVMError<DBError>;
-    type HaltReason = HaltReason;
-
-    fn evm_with_env<DB: reth_evm::Database>(
-        &self,
-        db: DB,
-        evm_env: EvmEnv<Self::Spec>,
-    ) -> Self::Evm<'_, DB, ()> {
-        let mut evm = self.evm_config.evm_with_env(db, evm_env);
-        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
-        evm
-    }
-
-    fn evm_with_env_and_inspector<DB, I>(
-        &self,
-        db: DB,
-        evm_env: EvmEnv<Self::Spec>,
-        inspector: I,
-    ) -> Self::Evm<'_, DB, I>
-    where
-        DB: reth_evm::Database,
-        I: revm::GetInspector<DB>,
-    {
-        let mut evm = self.evm_config.evm_with_env_and_inspector(db, evm_env, inspector);
-        evm.handler.append_handler_register(HandleRegisters::Plain(set_precompiles));
-        evm
-    }
-}
-
-impl<C: ConfigureEvmEnv> ConfigureEvmEnv for CustomEvmConfig<C> {
-    type Header = C::Header;
-    type Transaction = C::Transaction;
-    type Error = C::Error;
-    type TxEnv = C::TxEnv;
-    type Spec = C::Spec;
-
-    fn tx_env(&self, transaction: &Self::Transaction, signer: Address) -> Self::TxEnv {
-        self.evm_config.tx_env(transaction, signer)
-    }
-
-    fn evm_env(&self, header: &Self::Header) -> EvmEnv<Self::Spec> {
-        let mut evm_env = self.evm_config.evm_env(header);
-
-        if let Some(beneficiary) = self.custom_beneficiary {
-            evm_env.block_env.coinbase = beneficiary;
+        mut input: EvmEnv,
+    ) -> Self::Evm<DB, revm::inspector::NoOpInspector> {
+        if let Some(custom_beneficiary) = self.custom_beneficiary {
+            input.block_env.beneficiary = custom_beneficiary;
         }
 
-        evm_env
+        let evm = Context::mainnet()
+            .with_db(db)
+            .with_cfg(input.cfg_env)
+            .with_block(input.block_env)
+            .build_mainnet_with_inspector(NoOpInspector {})
+            .with_precompiles(CustomPrecompiles::default());
+
+        EthEvm::new(evm, false)
     }
 
-    fn next_evm_env(
+    fn create_evm_with_inspector<DB: Database, I: revm::Inspector<Self::Context<DB>>>(
         &self,
-        parent: &Self::Header,
-        attributes: NextBlockEnvAttributes,
-    ) -> Result<EvmEnv<Self::Spec>, Self::Error> {
-        self.evm_config.next_evm_env(parent, attributes)
+        db: DB,
+        mut input: EvmEnv,
+        inspector: I,
+    ) -> Self::Evm<DB, I> {
+        if let Some(custom_beneficiary) = self.custom_beneficiary {
+            input.block_env.beneficiary = custom_beneficiary;
+        }
+
+        EthEvm::new(self.create_evm(db, input).into_inner().with_inspector(inspector), true)
     }
 }

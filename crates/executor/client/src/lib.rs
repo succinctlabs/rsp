@@ -7,4 +7,4 @@ pub mod error;
 pub mod executor;
 
 mod into_primitives;
-pub use into_primitives::{FromInput, IntoInput, IntoPrimitives};
+pub use into_primitives::{FromInput, IntoInput, IntoPrimitives, ValidateBlockPostExecution};

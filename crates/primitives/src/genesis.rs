@@ -1,7 +1,5 @@
 use eyre::eyre;
 use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
-use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_forks::OpHardfork;
 use serde::{Deserialize, Serialize};
 
 pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
@@ -44,7 +42,6 @@ impl TryFrom<&Genesis> for ChainSpec {
             Genesis::Mainnet => {
                 let mainnet = ChainSpec {
                     chain: Chain::mainnet(),
-                    genesis_hash: Default::default(),
                     genesis: Default::default(),
                     genesis_header: Default::default(),
                     paris_block_and_final_difficulty: Default::default(),
@@ -60,7 +57,6 @@ impl TryFrom<&Genesis> for ChainSpec {
             Genesis::Sepolia => {
                 let sepolia = ChainSpec {
                     chain: Chain::sepolia(),
-                    genesis_hash: Default::default(),
                     genesis: Default::default(),
                     genesis_header: Default::default(),
                     paris_block_and_final_difficulty: Default::default(),
@@ -81,20 +77,20 @@ impl TryFrom<&Genesis> for ChainSpec {
     }
 }
 
-impl TryFrom<&Genesis> for OpChainSpec {
+#[cfg(feature = "optimism")]
+impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
     type Error = eyre::Error;
 
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
             Genesis::OpMainnet => {
-                let op_mainnet = OpChainSpec {
+                let op_mainnet = reth_optimism_chainspec::OpChainSpec {
                     inner: ChainSpec {
                         chain: Chain::optimism_mainnet(),
-                        genesis_hash: Default::default(),
                         genesis: Default::default(),
                         genesis_header: Default::default(),
                         paris_block_and_final_difficulty: Default::default(),
-                        hardforks: OpHardfork::op_mainnet(),
+                        hardforks: reth_optimism_forks::OpHardfork::op_mainnet(),
                         deposit_contract: Default::default(),
                         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                         prune_delete_limit: 10000,

@@ -1,24 +1,22 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
+use alloy_evm::EthEvmFactory;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockTransactionsKind;
 use reth_chainspec::ChainSpec;
-use reth_evm::execute::{BlockExecutionStrategy, BlockExecutionStrategyFactory};
-use reth_evm_ethereum::execute::EthExecutionStrategyFactory;
+use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
+use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_evm::{BasicOpReceiptBuilder, OpExecutionStrategyFactory};
-use reth_optimism_primitives::OpPrimitives;
+use reth_optimism_evm::OpEvmConfig;
 use reth_primitives_traits::{Block, BlockBody};
 use reth_trie::KeccakKeyHasher;
-use revm::db::{states::bundle_state::BundleRetention, CacheDB};
+use revm::database::CacheDB;
 use revm_primitives::{Address, B256};
 use rsp_client_executor::{
-    custom::{CustomEthEvmConfig, CustomOpEvmConfig},
-    io::ClientExecutorInput,
-    IntoInput, IntoPrimitives,
+    custom::CustomEvmFactory, io::ClientExecutorInput, IntoInput, IntoPrimitives,
+    ValidateBlockPostExecution,
 };
 use rsp_mpt::EthereumState;
 use rsp_primitives::{account_proof::eip1186_proof_to_account_proof, genesis::Genesis};
@@ -26,10 +24,9 @@ use rsp_rpc_db::RpcDb;
 
 use crate::HostError;
 
-pub type EthHostExecutor = HostExecutor<EthExecutionStrategyFactory<CustomEthEvmConfig>>;
+pub type EthHostExecutor = HostExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
 
-pub type OpHostExecutor =
-    HostExecutor<OpExecutionStrategyFactory<OpPrimitives, OpChainSpec, CustomOpEvmConfig>>;
+pub type OpHostExecutor = HostExecutor<OpEvmConfig>;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
@@ -40,9 +37,9 @@ pub struct HostExecutor<F: BlockExecutionStrategyFactory> {
 impl EthHostExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
-            block_execution_strategy_factory: EthExecutionStrategyFactory::new(
-                chain_spec.clone(),
-                CustomEthEvmConfig::eth(chain_spec, custom_beneficiary),
+            block_execution_strategy_factory: EthEvmConfig::new_with_evm_factory(
+                chain_spec,
+                CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
         }
     }
@@ -50,13 +47,7 @@ impl EthHostExecutor {
 
 impl OpHostExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self {
-            block_execution_strategy_factory: OpExecutionStrategyFactory::new(
-                chain_spec.clone(),
-                CustomOpEvmConfig::optimism(chain_spec),
-                BasicOpReceiptBuilder::default(),
-            ),
-        }
+        Self { block_execution_strategy_factory: OpEvmConfig::optimism(chain_spec) }
     }
 }
 
@@ -67,16 +58,16 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
     }
 
     /// Executes the block with the given block number.
-    pub async fn execute<'a, P, N>(
+    pub async fn execute<P, N>(
         &self,
         block_number: u64,
-        rpc_db: &'a RpcDb<P, N>,
+        rpc_db: &RpcDb<P, N>,
         provider: &P,
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
-        F::Primitives: IntoPrimitives<N> + IntoInput,
+        F::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
         P: Provider<N> + Clone,
         N: Network,
     {
@@ -98,6 +89,9 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         tracing::info!("setting up the database for the block executor");
         let cache_db = CacheDB::new(rpc_db);
 
+        let block_executor =
+            BasicBlockExecutor::new(self.block_execution_strategy_factory.clone(), cache_db);
+
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
             "executing the block and with rpc db: block_number={}, transaction_count={}",
@@ -105,45 +99,31 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             current_block.body().transactions().len()
         );
 
-        let executor_block_input = current_block
+        let block = current_block
             .clone()
             .try_into_recovered()
             .map_err(|_| HostError::FailedToRecoverSenders)
             .unwrap();
 
-        let mut strategy = self.block_execution_strategy_factory.create_strategy(cache_db);
-
-        strategy.apply_pre_execution_changes(&executor_block_input)?;
-
-        let executor_output = strategy.execute_transactions(&executor_block_input)?;
-
-        let requests = strategy
-            .apply_post_execution_changes(&executor_block_input, &executor_output.receipts)?;
+        let execution_output = block_executor.execute(&block)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        strategy.validate_block_post_execution(
-            &executor_block_input,
-            &executor_output.receipts,
-            &requests,
-        )?;
-
-        let mut state = strategy.into_state();
-        state.merge_transitions(BundleRetention::Reverts);
+        F::Primitives::validate_block_post_execution(&block, &genesis, &execution_output)?;
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");
         let mut logs_bloom = Bloom::default();
-        executor_output.receipts.iter().for_each(|r| {
+        execution_output.result.receipts.iter().for_each(|r| {
             logs_bloom.accrue_bloom(&r.bloom());
         });
 
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
-            state.take_bundle(),
-            vec![executor_output.receipts],
+            execution_output.state,
+            vec![execution_output.result.receipts],
             current_block.header().number(),
-            vec![requests],
+            vec![execution_output.result.requests],
         );
 
         let state_requests = rpc_db.get_state_requests();

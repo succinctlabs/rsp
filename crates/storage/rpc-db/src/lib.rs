@@ -11,7 +11,9 @@ use alloy_provider::{
 };
 use alloy_rpc_types::{BlockId, BlockTransactionsKind};
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
-use revm_primitives::{db::DatabaseRef, AccountInfo, Address, Bytecode, B256};
+use revm_database_interface::DatabaseRef;
+use revm_primitives::{Address, B256};
+use revm_state::{AccountInfo, Bytecode};
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]

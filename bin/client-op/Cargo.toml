@@ -24,3 +24,21 @@ bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-4.0.0",
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-4.1.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-4.1.0" }
+
+alloy-evm = { git = "https://github.com/alloy-rs/evm", rev = "04fa394" }
+alloy-op-evm = { git = "https://github.com/alloy-rs/evm", rev = "04fa394" }
+
+revm = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-database = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-interpreter = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-inspector = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-context = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-context-interface = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-database-interface = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-specification = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+revm-optimism = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
+
+revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "8900c2b" }
