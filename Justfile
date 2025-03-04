@@ -47,14 +47,14 @@ bench-precompiles from to chain_id="1":
     #!/usr/bin/env bash
     for ((block_number={{from}}; block_number<={{to}}; block_number++)); do
         echo "Running for block number $block_number"
-        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache
+        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache --report-path ./report-precompiles.csv
     done
 
 bench-opcodes from to chain_id="1":
     #!/usr/bin/env bash
     for ((block_number={{from}}; block_number<={{to}}; block_number++)); do
         echo "Running for block number $block_number"
-        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache --opcode-tracking
+        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache --report-path ./report-opcodes.csv --opcode-tracking
     done
 
 clean:

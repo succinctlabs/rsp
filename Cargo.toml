@@ -160,3 +160,6 @@ revm-specification = { git = "https://github.com/bluealloy/revm", rev = "a8a9893
 revm-optimism = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
 
 revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "8900c2b" }
+
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1" }
