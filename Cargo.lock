@@ -1467,7 +1467,7 @@ dependencies = [
  "rsp-client-executor",
  "rsp-host-executor",
  "serde",
- "sp1-helper",
+ "sp1-build",
  "sp1-sdk",
  "sqlx",
  "tokio",
