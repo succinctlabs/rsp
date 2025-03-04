@@ -43,6 +43,19 @@ run-eth-proofs cluster_id="1" block_interval="100":
 # Example:
 # just run-eth-proofs 5 600
 
+bench-precompiles from to chain_id="1":
+    #!/usr/bin/env bash
+    for ((block_number={{from}}; block_number<={{to}}; block_number++)); do
+        echo "Running for block number $block_number"
+        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache
+    done
+
+bench-opcodes from to chain_id="1":
+    #!/usr/bin/env bash
+    for ((block_number={{from}}; block_number<={{to}}; block_number++)); do
+        echo "Running for block number $block_number"
+        rsp --block-number "$block_number" --chain-id {{chain_id}} --cache-dir ./cache --opcode-tracking
+    done
 
 clean:
     cargo clean

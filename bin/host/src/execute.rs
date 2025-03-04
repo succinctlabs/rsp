@@ -47,20 +47,12 @@ struct ExecutionReportData {
 pub struct PersistExecutionReport {
     chain_id: u64,
     report_path: PathBuf,
-    include_syscalls: bool,
-    include_precompiles: bool,
-    include_opcodes: bool,
+    opcode_tracking: bool,
 }
 
 impl PersistExecutionReport {
-    pub fn new(
-        chain_id: u64,
-        report_path: PathBuf,
-        include_syscalls: bool,
-        include_precompiles: bool,
-        include_opcodes: bool,
-    ) -> Self {
-        Self { chain_id, report_path, include_syscalls, include_precompiles, include_opcodes }
+    pub fn new(chain_id: u64, report_path: PathBuf, opcode_tracking: bool) -> Self {
+        Self { chain_id, report_path, opcode_tracking }
     }
 
     fn write_header(&self, writer: &mut Writer<File>) -> csv::Result<()> {
@@ -69,32 +61,36 @@ impl PersistExecutionReport {
             "block_number".to_string(),
             "gas_used".to_string(),
             "tx_count".to_string(),
-            "total_cycles_count".to_string(),
-            "block_execution_cycles_count".to_string(),
-            "syscalls_count".to_string(),
         ];
 
-        if self.include_syscalls {
-            for s in SyscallCode::iter() {
-                headers.push(s.to_string().to_lowercase());
-            }
-        }
+        if self.opcode_tracking {
+            // When tracking opcodes, the simple fact to attach an inspector to the EVM incure a huge
+            // performance penalty, so it's not relevant to track anything else than opcodes.
 
-        if self.include_precompiles {
-            let mut precompile_headers = PRECOMPILES
-                .iter()
-                .flat_map(|x| [x.to_string(), "count".to_string(), "avg".to_string()])
-                .collect();
-            headers.append(&mut precompile_headers);
-        }
-
-        if self.include_opcodes {
+            // Add opcodes headers
             let mut opcode_headers = OPCODE_INFO
                 .into_iter()
                 .flatten()
                 .flat_map(|x| [x.name().to_lowercase(), "count".to_string(), "avg".to_string()])
                 .collect();
             headers.append(&mut opcode_headers);
+        } else {
+            // Add cycle count headers
+            headers.push("total_cycles_count".to_string());
+            headers.push("block_execution_cycles_count".to_string());
+            headers.push("syscalls_count".to_string());
+
+            // Add syscall headers
+            for s in SyscallCode::iter() {
+                headers.push(s.to_string().to_lowercase());
+            }
+
+            // Add precompile headers
+            let mut precompile_headers = PRECOMPILES
+                .iter()
+                .flat_map(|x| [x.to_string(), "count".to_string(), "avg".to_string()])
+                .collect();
+            headers.append(&mut precompile_headers);
         }
 
         writer.write_record(&headers)
@@ -111,30 +107,29 @@ impl PersistExecutionReport {
             block.number.to_string(),
             block.header.gas_used().to_string(),
             block.body.transaction_count().to_string(),
-            execution_report.total_instruction_count().to_string(),
-            execution_report.cycle_tracker.get("block execution").unwrap_or(&0).to_string(),
-            execution_report.total_syscall_count().to_string(),
         ];
 
-        if self.include_syscalls {
-            for s in SyscallCode::iter() {
-                record.push(execution_report.syscall_counts[s].to_string());
-            }
-        }
-
-        if self.include_precompiles {
-            for p in PRECOMPILES {
-                calc_metrics(format!("precompile-{p}"), &mut record, execution_report);
-            }
-        }
-
-        if self.include_opcodes {
+        if self.opcode_tracking {
             for o in OPCODE_INFO.into_iter().flatten() {
                 calc_metrics(
                     format!("opcode-{}", o.name().to_lowercase()),
                     &mut record,
                     execution_report,
                 );
+            }
+        } else {
+            record.push(execution_report.total_instruction_count().to_string());
+            record.push(
+                execution_report.cycle_tracker.get("block execution").unwrap_or(&0).to_string(),
+            );
+            record.push(execution_report.total_syscall_count().to_string());
+
+            for s in SyscallCode::iter() {
+                record.push(execution_report.syscall_counts[s].to_string());
+            }
+
+            for p in PRECOMPILES {
+                calc_metrics(format!("precompile-{p}"), &mut record, execution_report);
             }
         }
 

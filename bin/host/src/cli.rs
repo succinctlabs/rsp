@@ -40,16 +40,8 @@ pub struct HostArgs {
     pub report_path: PathBuf,
 
     #[clap(long)]
-    /// Whether to include the syscalls in the report CSV.
-    pub include_syscalls: bool,
-
-    #[clap(long)]
-    /// Whether to include the precompiles in the report CSV.
-    pub include_precompiles: bool,
-
-    #[clap(long)]
-    /// Whether to include the opcodes in the report CSV.
-    pub include_opcodes: bool,
+    /// Whether to track opcodes cycle count.
+    pub opcode_tracking: bool,
 }
 
 impl HostArgs {
@@ -101,6 +93,7 @@ impl HostArgs {
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
             prove: self.prove,
+            opcode_tracking: self.opcode_tracking,
         };
 
         Ok(config)

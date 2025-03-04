@@ -121,7 +121,7 @@ async fn run_e2e<F, N>(
 
     // Execute the host.
     let client_input = host_executor
-        .execute(block_number, &rpc_db, &provider, genesis.clone(), custom_beneficiary)
+        .execute(block_number, &rpc_db, &provider, genesis.clone(), custom_beneficiary, false)
         .await
         .expect("failed to execute host");
 

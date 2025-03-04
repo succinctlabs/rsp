@@ -13,14 +13,14 @@ use crate::custom::OpCodeTrackingInspector;
 /// A generic block executor that uses a [`BlockExecutionStrategy`] to
 /// execute blocks.
 #[allow(missing_debug_implementations, dead_code)]
-pub struct CustomBlockExecutor<F, DB> {
+pub struct OpCodesTrackingBlockExecutor<F, DB> {
     /// Block execution strategy.
     pub(crate) strategy_factory: F,
     /// Database.
     pub(crate) db: State<DB>,
 }
 
-impl<F, DB: Database> CustomBlockExecutor<F, DB> {
+impl<F, DB: Database> OpCodesTrackingBlockExecutor<F, DB> {
     /// Creates a new `CustomBlockExecutor` with the given strategy.
     pub fn new(strategy_factory: F, db: DB) -> Self {
         let db =
@@ -29,7 +29,7 @@ impl<F, DB: Database> CustomBlockExecutor<F, DB> {
     }
 }
 
-impl<F, DB> Executor<DB> for CustomBlockExecutor<F, DB>
+impl<F, DB> Executor<DB> for OpCodesTrackingBlockExecutor<F, DB>
 where
     F: BlockExecutionStrategyFactory,
     DB: Database,

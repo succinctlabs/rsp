@@ -38,13 +38,8 @@ async fn main() -> eyre::Result<()> {
     let block_number = args.block_number;
     let report_path = args.report_path.clone();
     let config = args.as_config().await?;
-    let persist_execution_report = PersistExecutionReport::new(
-        config.chain.id(),
-        report_path,
-        args.include_syscalls,
-        args.include_precompiles,
-        args.include_opcodes,
-    );
+    let persist_execution_report =
+        PersistExecutionReport::new(config.chain.id(), report_path, args.opcode_tracking);
     let rpc_client = config.rpc_url.clone().map(|rpc_url| {
         RpcClient::builder().layer(RetryBackoffLayer::new(3, 1000, 100)).http(rpc_url)
     });
