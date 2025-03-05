@@ -26,9 +26,9 @@ rsp-mpt = { workspace = true, features = ["preimage_context"] }
 rsp-primitives = { workspace = true, features = ["optimism"] }
 
 # sp1
-sp1-core-executor = "4.1.0"
-sp1-sdk = "4.1.0"
-sp1-helper = "4.1.0"
+sp1-core-executor.workspace = true
+sp1-sdk.workspace = true
+sp1-build.workspace = true
 
 # reth
 reth-ethereum-consensus.workspace = true
