@@ -11,6 +11,7 @@ use rsp_host_executor::{
     ExecutionHooks,
 };
 use rsp_primitives::genesis::Genesis;
+use serde::{Deserialize, Serialize};
 use sp1_sdk::{include_elf, ExecutionReport};
 use thousands::Separable;
 use url::Url;
@@ -20,9 +21,12 @@ async fn test_in_zkvm() {
     // Intialize the environment variables.
     dotenv::dotenv().ok();
 
+    let is_base_branch = env::var("BASE_BRANCH").is_ok();
+
     let config = Config {
         chain: Chain::mainnet(),
         genesis: Genesis::Mainnet,
+        rpc_url: None,
         cache_dir: None,
         custom_beneficiary: None,
         prove: false,
@@ -39,7 +43,7 @@ async fn test_in_zkvm() {
         elf,
         Some(provider),
         block_execution_strategy_factory,
-        ExecutionSummary,
+        Hook::new(is_base_branch),
         config,
     )
     .unwrap();
@@ -47,41 +51,97 @@ async fn test_in_zkvm() {
     executor.execute(20600000).await.unwrap();
 }
 
-pub struct ExecutionSummary;
+enum Hook {
+    WithCurrentDev,
+    OnBaseBranch,
+}
 
-impl ExecutionHooks for ExecutionSummary {
+impl Hook {
+    pub fn new(is_base_branch: bool) -> Self {
+        if is_base_branch {
+            Self::OnBaseBranch
+        } else {
+            Self::WithCurrentDev
+        }
+    }
+}
+
+impl ExecutionHooks for Hook {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
         block_number: u64,
         _client_input: &ClientExecutorInput<P>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
-        let path = env::var("GITHUB_OUTPUT")?;
-        let mut file = File::options().create(true).append(true).open(path)?;
+        match self {
+            Hook::WithCurrentDev => {
+                let stats = Stats {
+                    cycle_count: execution_report.total_instruction_count(),
+                    syscall_count: execution_report.total_syscall_count(),
+                };
 
-        let row = |label: &str, value: String| {
-            let mut r = TableRow::new();
-            r.insert("Label".to_string(), label.to_string());
-            r.insert("Value".to_string(), value);
-            r
-        };
+                serde_json::to_writer(File::create("cycle_stats.json")?, &stats)?;
+            }
+            Hook::OnBaseBranch => {
+                let path = env::var("GITHUB_OUTPUT")?;
+                let current_dev_stats =
+                    serde_json::from_reader::<_, Stats>(File::open("cycle_stats.json")?)?;
+                let mut output_file = File::options().create(true).append(true).open(path)?;
 
-        let table = mk_table(
-            &[
-                row("Block Number", block_number.to_string()),
-                row(
-                    "Cycle Count",
-                    execution_report.total_instruction_count().separate_with_commas(),
-                ),
-                row("Syscall Count", execution_report.total_syscall_count().separate_with_commas()),
-            ],
-            &None,
-        );
+                let row = |label: &str, value: String, diff: String| {
+                    let mut r = TableRow::new();
+                    r.insert("Label".to_string(), label.to_string());
+                    r.insert("Value".to_string(), value);
+                    r.insert("Diff (%)".to_string(), diff);
+                    r
+                };
 
-        writeln!(file, "EXECUTION_REPORT<<EOF")?;
-        writeln!(file, "{}", table)?;
-        writeln!(file, "EOF")?;
+                let diff_percentage =
+                    |initial: f64, current: f64| (initial - current) / initial * 100_f64;
+
+                let table = mk_table(
+                    &[
+                        row("Block Number", block_number.to_string(), String::from("---")),
+                        row(
+                            "Cycle Count",
+                            execution_report.total_instruction_count().separate_with_commas(),
+                            format!(
+                                "{:.2}",
+                                diff_percentage(
+                                    execution_report.total_instruction_count() as f64,
+                                    current_dev_stats.cycle_count as f64,
+                                )
+                            ),
+                        ),
+                        row(
+                            "Syscall Count",
+                            execution_report.total_syscall_count().separate_with_commas(),
+                            format!(
+                                "{:.2}",
+                                diff_percentage(
+                                    execution_report.total_syscall_count() as f64,
+                                    current_dev_stats.syscall_count as f64,
+                                )
+                            ),
+                        ),
+                    ],
+                    &None,
+                );
+
+                println!("{table}");
+
+                writeln!(output_file, "EXECUTION_REPORT<<EOF")?;
+                writeln!(output_file, "{}", table)?;
+                writeln!(output_file, "EOF")?;
+            }
+        }
 
         Ok(())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct Stats {
+    pub cycle_count: u64,
+    pub syscall_count: u64,
 }

@@ -5609,6 +5609,7 @@ dependencies = [
  "rsp-primitives",
  "serde",
  "sp1-build",
+ "serde_json",
  "sp1-core-executor",
  "sp1-sdk",
  "strum 0.26.3",
