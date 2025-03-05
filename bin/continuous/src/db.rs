@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use alloy_consensus::{Block, BlockHeader};
 use reth_primitives::NodePrimitives;
 use rsp_host_executor::ExecutionHooks;
@@ -46,12 +48,29 @@ impl ExecutionHooks for PersistToPostgres {
 #[derive(Debug)]
 pub struct ProvableBlock {
     pub block_number: i64,
-    pub status: String,
+    pub status: ProvableBlockStatus,
     pub gas_used: i64,
     pub tx_count: i64,
     pub num_cycles: i64,
     pub start_time: Option<NaiveDateTime>,
     pub end_time: Option<NaiveDateTime>,
+}
+
+#[derive(Debug)]
+pub enum ProvableBlockStatus {
+    Queued,
+    Executed,
+    Failed,
+}
+
+impl Display for ProvableBlockStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProvableBlockStatus::Queued => write!(f, "queued"),
+            ProvableBlockStatus::Executed => write!(f, "executed"),
+            ProvableBlockStatus::Failed => write!(f, "failed"),
+        }
+    }
 }
 
 pub async fn build_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::Error> {
@@ -62,7 +81,7 @@ pub async fn insert_block(pool: &Pool<Postgres>, block_number: u64) -> Result<()
     let now = Local::now().naive_local();
     let block = ProvableBlock {
         block_number: block_number as i64,
-        status: "queued".to_string(),
+        status: ProvableBlockStatus::Queued,
         gas_used: 0,
         tx_count: 0,
         num_cycles: 0,
@@ -85,7 +104,7 @@ pub async fn insert_block(pool: &Pool<Postgres>, block_number: u64) -> Result<()
             end_time = EXCLUDED.end_time
         "#,
         block.block_number,
-        &block.status,
+        block.status.to_string(),
         block.gas_used,
         block.tx_count,
         block.num_cycles,
@@ -108,7 +127,7 @@ pub async fn update_block_status(
     sqlx::query!(
         r#"
         UPDATE rsp_blocks
-        SET status = 'executed',
+        SET status = $5,
             gas_used = $2,
             tx_count = $3,
             num_cycles = $4,
@@ -118,7 +137,8 @@ pub async fn update_block_status(
         block_number as i64,
         gas_used as i64,
         tx_count as i64,
-        num_cycles as i64
+        num_cycles as i64,
+        ProvableBlockStatus::Executed.to_string()
     )
     .execute(pool)
     .await?;
@@ -133,11 +153,12 @@ pub async fn update_block_status_as_failed(
     sqlx::query!(
         r#"
         UPDATE rsp_blocks
-        SET status = 'failed',
+        SET status = $2,
             end_time = NOW()
         WHERE block_number = $1
         "#,
-        block_number as i64
+        block_number as i64,
+        ProvableBlockStatus::Failed.to_string()
     )
     .execute(pool)
     .await?;

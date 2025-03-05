@@ -8,6 +8,7 @@ use std::{
 
 use alloy_provider::{Network, Provider};
 use either::Either;
+use eyre::bail;
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::NodePrimitives;
 use revm_primitives::B256;
@@ -54,7 +55,7 @@ where
         ));
     }
 
-    todo!()
+    bail!("Either a RPC URL or a cache dir must be provided")
 }
 
 pub trait BlockExecutor {
@@ -298,15 +299,15 @@ where
     }
 
     fn client(&self) -> Arc<EnvProver> {
-        todo!()
+        self.client.clone()
     }
 
     fn pk(&self) -> Arc<SP1ProvingKey> {
-        todo!()
+        self.pk.clone()
     }
 
     fn vk(&self) -> Arc<SP1VerifyingKey> {
-        todo!()
+        self.vk.clone()
     }
 }
 
@@ -383,15 +384,15 @@ where
     }
 
     fn client(&self) -> Arc<EnvProver> {
-        todo!()
+        self.client.clone()
     }
 
     fn pk(&self) -> Arc<SP1ProvingKey> {
-        todo!()
+        self.pk.clone()
     }
 
     fn vk(&self) -> Arc<SP1VerifyingKey> {
-        todo!()
+        self.vk.clone()
     }
 }
 
