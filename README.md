@@ -8,7 +8,7 @@ A minimal implementation of generating zero-knowledge proofs of EVM block execut
 
 ## Getting Started
 
-To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/docs/getting-started/install) installed to build the client programs. Then follow the instructions below.
+To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/docs/sp1/getting-started/install) installed to build the client programs. Then follow the instructions below.
 
 ### Installing the CLI
 
@@ -119,7 +119,7 @@ If you want to actually generate proofs, you can run the CLI using the `--prove`
 cargo run --bin rsp --release -- --block-number 18884864 --chain-id <chain-id> --prove
 ```
 
-This will generate proofs locally on your machine. Given how large these programs are, it might take a while for the proof to generate.
+This will generate proofs locally on your machine. Given how large these programs are, it might take a while for the proof to be generated.
 
 #### Run with prover network
 
@@ -169,7 +169,7 @@ This will continuously:
 
 ### Building the client programs manually
 
-By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
+By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (make sure you have the [SP1 toolchain](https://docs.succinct.xyz/sp1/getting-started/install) installed):
 
 ```console
 cd ./bin/client-eth
@@ -189,4 +189,4 @@ A good small block to test on for Ethereum mainnet is: `20526624`.
 
 ### State root mismatch
 
-This issue can be caused using an RPC provider that returns incorrect results from the `eth_getProof` endpoint. We have empirically observed such issues with many RPC providers. We recommend using Alchemy.
+This issue can be caused by using an RPC provider that returns incorrect results from the `eth_getProof` endpoint. We have empirically observed such issues with many RPC providers. We recommend using Alchemy.
