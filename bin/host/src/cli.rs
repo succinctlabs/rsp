@@ -40,7 +40,7 @@ pub struct HostArgs {
     pub report_path: PathBuf,
 
     #[clap(long)]
-    /// Whether to track opcodes cycle count.
+    /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
 }
 

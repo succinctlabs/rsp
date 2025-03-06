@@ -64,8 +64,9 @@ impl PersistExecutionReport {
         ];
 
         if self.opcode_tracking {
-            // When tracking opcodes, the simple fact to attach an inspector to the EVM incure a
-            // huge performance penalty, so it's not relevant to track anything else than opcodes.
+            // To be able to track opcodes cycle count, we have to to attach an inspector to the
+            // EVM. This incure a huge performance penalty, so it's not relevant to
+            // track anything else than opcodes.
 
             // Add opcodes headers
             let mut opcode_headers = OPCODE_INFO
@@ -111,7 +112,7 @@ impl PersistExecutionReport {
 
         if self.opcode_tracking {
             for o in OPCODE_INFO.into_iter().flatten() {
-                calc_metrics(
+                add_metrics(
                     format!("opcode-{}", o.name().to_lowercase()),
                     &mut record,
                     execution_report,
@@ -129,7 +130,7 @@ impl PersistExecutionReport {
             }
 
             for p in PRECOMPILES {
-                calc_metrics(format!("precompile-{p}"), &mut record, execution_report);
+                add_metrics(format!("precompile-{p}"), &mut record, execution_report);
             }
         }
 
@@ -137,7 +138,8 @@ impl PersistExecutionReport {
     }
 }
 
-fn calc_metrics(name: String, record: &mut Vec<String>, execution_report: &ExecutionReport) {
+/// Adds metrics for the given precompile on the record.
+fn add_metrics(name: String, record: &mut Vec<String>, execution_report: &ExecutionReport) {
     let total = execution_report.cycle_tracker.get(&name).unwrap_or(&0);
 
     let count = execution_report.invocation_tracker.get(&name).unwrap_or(&0);

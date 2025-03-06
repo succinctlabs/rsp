@@ -50,7 +50,7 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     pub genesis: Genesis,
     /// The genesis block, as a json string.
     pub custom_beneficiary: Option<Address>,
-    /// Whether to track opcodes cycle count.
+    /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
 }
 

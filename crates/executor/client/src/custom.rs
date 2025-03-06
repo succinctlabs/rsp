@@ -43,6 +43,7 @@ impl<CTX: ContextTr> Default for CustomPrecompiles<CTX> {
     fn default() -> Self {
         Self {
             precompiles: EthPrecompiles::default(),
+            // Addresses from https://www.evm.codes/precompiled
             addresses_to_names: HashMap::from([
                 (u64_to_address(1), "ecrecover".to_string()),
                 (u64_to_address(2), "sha256".to_string()),
@@ -164,6 +165,7 @@ pub struct OpCodeTrackingInspector {
 }
 
 impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspector {
+    #[inline]
     fn step(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
         let _ = context;
 
@@ -176,10 +178,6 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
         println!("cycle-tracker-report-start: opcode-{}", self.current);
     }
 
-    /// Called after `step` when the instruction has been executed.
-    ///
-    /// Setting `interp.instruction_result` to anything other than [InstructionResult::Continue]
-    /// alters the execution of the interpreter.
     #[inline]
     fn step_end(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
         let _ = interp;
