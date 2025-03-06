@@ -62,6 +62,7 @@ impl Config {
             cache_dir: None,
             custom_beneficiary: None,
             prove: false,
+            opcode_tracking: false,
         }
     }
 }

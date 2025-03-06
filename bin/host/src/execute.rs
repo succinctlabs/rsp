@@ -167,7 +167,7 @@ impl ExecutionHooks for PersistExecutionReport {
             self.write_header(&mut writer)?;
         }
 
-        self.write_record::<P>(&mut writer, &client_input.current_block, execution_report)?;
+        self.write_record::<P>(&mut writer, executed_block, execution_report)?;
 
         writer.flush()?;
 

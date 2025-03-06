@@ -3,6 +3,7 @@ use std::time::Duration;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
+use tracing::info;
 
 pub struct EthProofsClient {
     cluster_id: u64,
@@ -31,9 +32,9 @@ impl EthProofsClient {
             .send()
             .await?;
 
-        println!("Queued submission status: {}", response.status());
+        info!("Queued submission status: {}", response.status());
         if !response.status().is_success() {
-            println!("Error response: {}", response.text().await?);
+            info!("Error response: {}", response.text().await?);
         }
 
         Ok(())
@@ -54,9 +55,9 @@ impl EthProofsClient {
             .send()
             .await?;
 
-        println!("Proving submission status: {}", response.status());
+        info!("Proving submission status: {}", response.status());
         if !response.status().is_success() {
-            println!("Error response: {}", response.text().await?);
+            info!("Error response: {}", response.text().await?);
         }
 
         Ok(())
@@ -83,7 +84,7 @@ impl EthProofsClient {
         // Save the proof data to a file
         let proof_file_path = "latest_proof.json";
         std::fs::write(proof_file_path, serde_json::to_string_pretty(json)?)?;
-        println!("Saved proof data to {}", proof_file_path);
+        info!("Saved proof data to {}", proof_file_path);
 
         let client = reqwest::Client::new();
         let response = client
@@ -94,9 +95,9 @@ impl EthProofsClient {
             .send()
             .await?;
 
-        println!("Proved submission status: {}", response.status());
+        info!("Proved submission status: {}", response.status());
         if !response.status().is_success() {
-            println!("Error response: {}", response.text().await?);
+            info!("Error response: {}", response.text().await?);
         }
 
         Ok(())

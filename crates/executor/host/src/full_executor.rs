@@ -21,7 +21,7 @@ use sp1_sdk::{
     EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
 };
 use tokio::{task, time::sleep};
-use tracing::{info_span, warn};
+use tracing::{info, info_span, warn};
 
 use crate::{Config, ExecutionHooks, HostExecutor};
 
@@ -90,12 +90,12 @@ pub trait BlockExecutor {
 
         // Read the block hash.
         let block_hash = public_values.read::<B256>();
-        println!("success: block_hash={block_hash}");
+        info!(?block_hash, "Execution sucessful");
 
         hooks.on_execution_end::<P>(&client_input.current_block, &execution_report).await?;
 
         if prove {
-            println!("Starting proof generation.");
+            info!("Starting proof generation");
 
             let proving_start = Instant::now();
             hooks.on_proving_start(client_input.current_block.number).await?;
@@ -402,8 +402,7 @@ impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
     }
 }
 
-// As the block execution in the zkVM is a long-running, blocking task, we need to run it in a
-// separate thread.
+// Block execution in SP1 is a long-running, blocking task, so run it in a separate thread.
 async fn execute_client(
     number: u64,
     client: Arc<EnvProver>,
