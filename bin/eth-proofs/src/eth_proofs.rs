@@ -30,12 +30,10 @@ impl EthProofsClient {
             .header("Authorization", format!("Bearer {}", self.api_token))
             .json(json)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         info!("Queued submission status: {}", response.status());
-        if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
-        }
 
         Ok(())
     }
@@ -53,12 +51,10 @@ impl EthProofsClient {
             .header("Authorization", format!("Bearer {}", self.api_token))
             .json(json)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         info!("Proving submission status: {}", response.status());
-        if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
-        }
 
         Ok(())
     }
@@ -93,12 +89,10 @@ impl EthProofsClient {
             .header("Authorization", format!("Bearer {}", self.api_token))
             .json(json)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         info!("Proved submission status: {}", response.status());
-        if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
-        }
 
         Ok(())
     }
