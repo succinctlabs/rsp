@@ -20,7 +20,6 @@ itertools = "0.13.0"
 # workspace
 rsp-mpt.workspace = true
 rsp-primitives.workspace = true
-revm-optimism = { workspace = true, optional = true }
 
 # reth
 reth-consensus.workspace = true
@@ -42,6 +41,7 @@ reth-chainspec.workspace = true
 # revm
 revm.workspace = true
 revm-primitives.workspace = true
+revm-optimism = { workspace = true, optional = true }
 
 # alloy
 alloy-eips = { workspace = true, features = ["sha2"] }

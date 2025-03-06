@@ -47,4 +47,5 @@ pub struct Config {
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
     pub prove: bool,
+    pub opcode_tracking: bool,
 }

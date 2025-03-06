@@ -38,6 +38,10 @@ pub struct HostArgs {
     /// The path to the CSV file containing the execution data.
     #[clap(long, default_value = "report.csv")]
     pub report_path: PathBuf,
+
+    #[clap(long)]
+    /// Whether to track the cycle count of opcodes.
+    pub opcode_tracking: bool,
 }
 
 impl HostArgs {
@@ -89,6 +93,7 @@ impl HostArgs {
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
             prove: self.prove,
+            opcode_tracking: self.opcode_tracking,
         };
 
         Ok(config)

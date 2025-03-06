@@ -8,15 +8,19 @@
 use alloy_evm::{EthEvm, EthEvmFactory};
 use reth_evm::{Database, EvmEnv, EvmFactory};
 use revm::{
+    bytecode::opcode::OpCode,
     context::{
         result::{EVMError, HaltReason},
         BlockEnv, Cfg, CfgEnv, ContextTr, TxEnv,
     },
     handler::{EthPrecompiles, PrecompileProvider},
     inspector::NoOpInspector,
-    interpreter::InterpreterResult,
+    interpreter::{
+        interpreter_types::{Jumps, LoopControl},
+        InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
+    },
     precompile::{u64_to_address, PrecompileErrors},
-    Context, MainBuilder, MainContext,
+    Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{Address, Bytes};
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
@@ -39,6 +43,7 @@ impl<CTX: ContextTr> Default for CustomPrecompiles<CTX> {
     fn default() -> Self {
         Self {
             precompiles: EthPrecompiles::default(),
+            // Addresses from https://www.evm.codes/precompiled
             addresses_to_names: HashMap::from([
                 (u64_to_address(1), "ecrecover".to_string()),
                 (u64_to_address(2), "sha256".to_string()),
@@ -48,6 +53,7 @@ impl<CTX: ContextTr> Default for CustomPrecompiles<CTX> {
                 (u64_to_address(6), "bn-add".to_string()),
                 (u64_to_address(7), "bn-mul".to_string()),
                 (u64_to_address(8), "bn-pair".to_string()),
+                (u64_to_address(9), "blake2f".to_string()),
                 (u64_to_address(10), "kzg-point-evaluation".to_string()),
             ]),
         }
@@ -150,5 +156,33 @@ impl EvmFactory<EvmEnv> for CustomEvmFactory<EthEvmFactory> {
         }
 
         EthEvm::new(self.create_evm(db, input).into_inner().with_inspector(inspector), true)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct OpCodeTrackingInspector {
+    current: String,
+}
+
+impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspector {
+    #[inline]
+    fn step(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
+        let _ = context;
+
+        if interp.control.instruction_result() != InstructionResult::Continue {
+            return;
+        }
+
+        self.current = OpCode::name_by_op(interp.bytecode.opcode()).to_lowercase();
+
+        println!("cycle-tracker-report-start: opcode-{}", self.current);
+    }
+
+    #[inline]
+    fn step_end(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
+        let _ = interp;
+        let _ = context;
+
+        println!("cycle-tracker-report-end: opcode-{}", self.current);
     }
 }

@@ -4,19 +4,23 @@ use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_evm::EthEvmFactory;
 use alloy_primitives::Bloom;
 use reth_chainspec::ChainSpec;
+use reth_errors::BlockExecutionError;
 use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
 
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
-
 use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
 
 use crate::{
-    custom::CustomEvmFactory, error::ClientError, into_primitives::FromInput,
-    io::ClientExecutorInput, ValidateBlockPostExecution,
+    custom::CustomEvmFactory,
+    error::ClientError,
+    into_primitives::FromInput,
+    io::{ClientExecutorInput, TrieDB},
+    tracking::OpCodesTrackingBlockExecutor,
+    ValidateBlockPostExecution,
 };
 
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
@@ -45,8 +49,11 @@ where
             WrapDatabaseRef(trie_db)
         });
 
-        let block_executor =
-            BasicBlockExecutor::new(self.block_execution_strategy_factory.clone(), db);
+        let block_executor = BlockExecutor::new(
+            self.block_execution_strategy_factory.clone(),
+            db,
+            input.opcode_tracking,
+        );
 
         let block = profile!("recover senders", {
             F::Primitives::from_input_block(input.current_block.clone())
@@ -54,7 +61,8 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
-        let execution_output = profile!("block execution", { block_executor.execute(&block) })?;
+        let execution_output =
+            profile_report!("block execution", { block_executor.execute(&block) })?;
 
         // Validate the block post execution.
         profile!("validate block post-execution", {
@@ -133,6 +141,91 @@ impl OpClientExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
         Self {
             block_execution_strategy_factory: reth_optimism_evm::OpEvmConfig::optimism(chain_spec),
+        }
+    }
+}
+
+enum BlockExecutor<'a, F> {
+    Basic(BasicBlockExecutor<F, WrapDatabaseRef<TrieDB<'a>>>),
+    OpcodeTracking(OpCodesTrackingBlockExecutor<F, WrapDatabaseRef<TrieDB<'a>>>),
+}
+
+impl<'a, F: BlockExecutionStrategyFactory> BlockExecutor<'a, F> {
+    fn new(strategy_factory: F, db: WrapDatabaseRef<TrieDB<'a>>, opcode_tracking: bool) -> Self {
+        if opcode_tracking {
+            Self::OpcodeTracking(OpCodesTrackingBlockExecutor::new(strategy_factory, db))
+        } else {
+            Self::Basic(BasicBlockExecutor::new(strategy_factory, db))
+        }
+    }
+}
+
+impl<'a, F> Executor<WrapDatabaseRef<TrieDB<'a>>> for BlockExecutor<'a, F>
+where
+    F: BlockExecutionStrategyFactory,
+{
+    type Primitives = F::Primitives;
+    type Error = BlockExecutionError;
+
+    fn execute_one(
+        &mut self,
+        block: &reth_primitives::RecoveredBlock<
+            <Self::Primitives as reth_primitives::NodePrimitives>::Block,
+        >,
+    ) -> Result<
+        reth_execution_types::BlockExecutionResult<
+            <Self::Primitives as reth_primitives::NodePrimitives>::Receipt,
+        >,
+        Self::Error,
+    > {
+        match self {
+            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.execute_one(block),
+            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
+                op_codes_tracking_block_executor.execute_one(block)
+            }
+        }
+    }
+
+    fn execute_one_with_state_hook<H>(
+        &mut self,
+        block: &reth_primitives::RecoveredBlock<
+            <Self::Primitives as reth_primitives::NodePrimitives>::Block,
+        >,
+        state_hook: H,
+    ) -> Result<
+        reth_execution_types::BlockExecutionResult<
+            <Self::Primitives as reth_primitives::NodePrimitives>::Receipt,
+        >,
+        Self::Error,
+    >
+    where
+        H: reth_evm::system_calls::OnStateHook + 'static,
+    {
+        match self {
+            BlockExecutor::Basic(basic_block_executor) => {
+                basic_block_executor.execute_one_with_state_hook(block, state_hook)
+            }
+            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
+                op_codes_tracking_block_executor.execute_one_with_state_hook(block, state_hook)
+            }
+        }
+    }
+
+    fn into_state(self) -> revm::database::State<WrapDatabaseRef<TrieDB<'a>>> {
+        match self {
+            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.into_state(),
+            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
+                op_codes_tracking_block_executor.into_state()
+            }
+        }
+    }
+
+    fn size_hint(&self) -> usize {
+        match self {
+            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.size_hint(),
+            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
+                op_codes_tracking_block_executor.size_hint()
+            }
         }
     }
 }

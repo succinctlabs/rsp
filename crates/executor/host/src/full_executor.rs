@@ -174,6 +174,7 @@ where
                         &self.provider,
                         self.config.genesis.clone(),
                         self.config.custom_beneficiary,
+                        self.config.opcode_tracking,
                     )
                     .await?;
 

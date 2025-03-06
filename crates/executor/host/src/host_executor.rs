@@ -65,6 +65,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         provider: &P,
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
+        opcode_tracking: bool,
     ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
     where
         F::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
@@ -248,6 +249,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
             bytecodes: rpc_db.get_bytecodes(),
             genesis,
             custom_beneficiary,
+            opcode_tracking,
         };
         tracing::info!("successfully generated client input");
 

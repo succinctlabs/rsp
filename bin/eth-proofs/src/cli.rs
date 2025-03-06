@@ -49,6 +49,7 @@ impl Args {
             cache_dir: None,
             custom_beneficiary: None,
             prove: !self.execute_only,
+            opcode_tracking: false,
         };
 
         Ok(config)
