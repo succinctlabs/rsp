@@ -130,21 +130,15 @@ impl ExecutionHooks for Hook {
                     let mut r = TableRow::new();
                     let diff = format!("{:.2}", diff_percentage(initial as f64, current as f64,));
 
-                    r.insert("Label".to_string(), label.to_string());
-                    r.insert("Value".to_string(), current.separate_with_commas());
+                    r.insert(format!("Block {}", executed_block.number), label.to_string());
+                    r.insert("Base Branch".to_string(), initial.separate_with_commas());
+                    r.insert("Current PR".to_string(), current.separate_with_commas());
                     r.insert("Diff (%)".to_string(), diff);
                     r
                 };
 
                 let table = mk_table(
                     &[
-                        {
-                            let mut r = TableRow::new();
-                            r.insert("Label".to_string(), "Block Number".to_string());
-                            r.insert("Value".to_string(), executed_block.number.to_string());
-                            r.insert("Diff (%)".to_string(), String::from("---"));
-                            r
-                        },
                         row(
                             "Total Cycle Count",
                             execution_report.total_instruction_count(),
