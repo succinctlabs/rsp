@@ -140,8 +140,6 @@ jobs:
 
   cycle-tracking:
     name: "Run client in  SP1 and verify if cycle count hasn't increased"
-    # Disable for now as the 'test_in_zkvm' test doesn't exists yet in the main branch.
-    if: false
     runs-on:
       ["runs-on", "runner=64cpu-linux-x64", "run-id=${{ github.run_id }}"]
     env:
