@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO rsp_blocks\n        (block_number, status, gas_used, tx_count, num_cycles, start_time, end_time)\n        VALUES ($1, $2, $3, $4, $5, $6, $7)\n        ON CONFLICT (block_number) \n        DO UPDATE SET\n            status = EXCLUDED.status,\n            gas_used = EXCLUDED.gas_used,\n            tx_count = EXCLUDED.tx_count,\n            num_cycles = EXCLUDED.num_cycles,\n            start_time = EXCLUDED.start_time,\n            end_time = EXCLUDED.end_time\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Timestamp",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "452cbd8d9325aad439740581b492c0a944c0cac7d818f439c0375dcf66c9c4c5"
+}

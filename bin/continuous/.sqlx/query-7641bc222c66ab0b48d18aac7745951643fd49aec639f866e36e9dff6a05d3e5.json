@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE rsp_blocks\n        SET status = $5,\n            gas_used = $2,\n            tx_count = $3,\n            num_cycles = $4,\n            end_time = NOW()\n        WHERE block_number = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7641bc222c66ab0b48d18aac7745951643fd49aec639f866e36e9dff6a05d3e5"
+}

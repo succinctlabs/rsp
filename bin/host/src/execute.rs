@@ -3,7 +3,6 @@ use csv::{Writer, WriterBuilder};
 use reth_primitives::NodePrimitives;
 use reth_primitives_traits::BlockBody;
 use revm_bytecode::opcode::OPCODE_INFO;
-use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
 use sp1_core_executor::syscalls::SyscallCode;
@@ -152,8 +151,7 @@ fn add_metrics(name: String, record: &mut Vec<String>, execution_report: &Execut
 impl ExecutionHooks for PersistExecutionReport {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
-        _block_number: u64,
-        client_input: &ClientExecutorInput<P>,
+        executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         println!("\nExecution report:\n{}", execution_report);
@@ -169,7 +167,7 @@ impl ExecutionHooks for PersistExecutionReport {
             self.write_header(&mut writer)?;
         }
 
-        self.write_record::<P>(&mut writer, &client_input.current_block, execution_report)?;
+        self.write_record::<P>(&mut writer, executed_block, execution_report)?;
 
         writer.flush()?;
 

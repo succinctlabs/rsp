@@ -35,7 +35,7 @@ pub struct Args {
     #[clap(long, default_value_t = 1)]
     pub eth_proofs_cluster_id: u64,
 
-    /// Pager Duty integration key.
+    /// PagerDuty integration key.
     #[clap(long, env)]
     pub pager_duty_integration_key: Option<String>,
 }

@@ -228,7 +228,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         );
 
         // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
-        let oldest_ancestor = *rpc_db.oldest_ancestor.borrow();
+        let oldest_ancestor = *rpc_db.oldest_ancestor.read().unwrap();
         let mut ancestor_headers = vec![];
         tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
         for height in (oldest_ancestor..=(block_number - 1)).rev() {
