@@ -15,6 +15,7 @@ strum = "0.26"
 csv = "1.1"
 
 # workspace
+rsp-client-executor.workspace = true
 rsp-host-executor.workspace = true
 rsp-primitives.workspace = true
 
