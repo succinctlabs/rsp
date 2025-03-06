@@ -6,6 +6,10 @@ use alloy_network::Ethereum;
 use alloy_provider::RootProvider;
 use madato::{mk_table, types::TableRow};
 use reth_primitives::NodePrimitives;
+use rsp_client_executor::executor::{
+    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, INIT_WITNESS_DB, RECOVER_SENDERS,
+    VALIDATE_EXECUTION,
+};
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
     ExecutionHooks,
@@ -77,7 +81,37 @@ impl ExecutionHooks for Hook {
         match self {
             Hook::WithCurrentDev => {
                 let stats = Stats {
-                    cycle_count: execution_report.total_instruction_count(),
+                    total_cycle_count: execution_report.total_instruction_count(),
+                    initialize_witness_db_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(INIT_WITNESS_DB)
+                        .copied()
+                        .unwrap_or(0),
+                    recover_senders_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(RECOVER_SENDERS)
+                        .copied()
+                        .unwrap_or(0),
+                    block_execution_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(BLOCK_EXECUTION)
+                        .copied()
+                        .unwrap_or(0),
+                    block_validation_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(VALIDATE_EXECUTION)
+                        .copied()
+                        .unwrap_or(0),
+                    accrue_logs_bloom_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(ACCRUE_LOG_BLOOM)
+                        .copied()
+                        .unwrap_or(0),
+                    state_root_computation_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(COMPUTE_STATE_ROOT)
+                        .copied()
+                        .unwrap_or(0),
                     syscall_count: execution_report.total_syscall_count(),
                 };
 
@@ -89,41 +123,91 @@ impl ExecutionHooks for Hook {
                     serde_json::from_reader::<_, Stats>(File::open("cycle_stats.json")?)?;
                 let mut output_file = File::options().create(true).append(true).open(path)?;
 
-                let row = |label: &str, value: String, diff: String| {
+                let diff_percentage =
+                    |initial: f64, current: f64| (initial - current) / initial * 100_f64;
+
+                let row = |label: &str, initial: u64, current: u64| {
                     let mut r = TableRow::new();
+                    let diff = format!("{:.2}", diff_percentage(initial as f64, current as f64,));
+
                     r.insert("Label".to_string(), label.to_string());
-                    r.insert("Value".to_string(), value);
+                    r.insert("Value".to_string(), current.separate_with_commas());
                     r.insert("Diff (%)".to_string(), diff);
                     r
                 };
 
-                let diff_percentage =
-                    |initial: f64, current: f64| (initial - current) / initial * 100_f64;
-
                 let table = mk_table(
                     &[
-                        row("Block Number", executed_block.number.to_string(), String::from("---")),
+                        {
+                            let mut r = TableRow::new();
+                            r.insert("Label".to_string(), "Block Number".to_string());
+                            r.insert("Value".to_string(), executed_block.number.to_string());
+                            r.insert("Diff (%)".to_string(), String::from("---"));
+                            r
+                        },
                         row(
-                            "Cycle Count",
-                            execution_report.total_instruction_count().separate_with_commas(),
-                            format!(
-                                "{:.2}",
-                                diff_percentage(
-                                    execution_report.total_instruction_count() as f64,
-                                    current_dev_stats.cycle_count as f64,
-                                )
-                            ),
+                            "Total Cycle Count",
+                            execution_report.total_instruction_count(),
+                            current_dev_stats.total_cycle_count,
+                        ),
+                        row(
+                            "Initialize Witness DB",
+                            execution_report
+                                .cycle_tracker
+                                .get(INIT_WITNESS_DB)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.initialize_witness_db_cycles_count,
+                        ),
+                        row(
+                            "Recover Senders",
+                            execution_report
+                                .cycle_tracker
+                                .get(RECOVER_SENDERS)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.recover_senders_cycles_count,
+                        ),
+                        row(
+                            "Block Execution",
+                            execution_report
+                                .cycle_tracker
+                                .get(BLOCK_EXECUTION)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.block_execution_cycles_count,
+                        ),
+                        row(
+                            "Block Validation",
+                            execution_report
+                                .cycle_tracker
+                                .get(VALIDATE_EXECUTION)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.block_validation_cycles_count,
+                        ),
+                        row(
+                            "Accrue Logs Bloom",
+                            execution_report
+                                .cycle_tracker
+                                .get(ACCRUE_LOG_BLOOM)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.accrue_logs_bloom_cycles_count,
+                        ),
+                        row(
+                            "State Root Computation",
+                            execution_report
+                                .cycle_tracker
+                                .get(COMPUTE_STATE_ROOT)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.state_root_computation_cycles_count,
                         ),
                         row(
                             "Syscall Count",
-                            execution_report.total_syscall_count().separate_with_commas(),
-                            format!(
-                                "{:.2}",
-                                diff_percentage(
-                                    execution_report.total_syscall_count() as f64,
-                                    current_dev_stats.syscall_count as f64,
-                                )
-                            ),
+                            execution_report.total_syscall_count(),
+                            current_dev_stats.syscall_count,
                         ),
                     ],
                     &None,
@@ -143,6 +227,12 @@ impl ExecutionHooks for Hook {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Stats {
-    pub cycle_count: u64,
+    pub total_cycle_count: u64,
+    pub initialize_witness_db_cycles_count: u64,
+    pub recover_senders_cycles_count: u64,
+    pub block_execution_cycles_count: u64,
+    pub block_validation_cycles_count: u64,
+    pub accrue_logs_bloom_cycles_count: u64,
+    pub state_root_computation_cycles_count: u64,
     pub syscall_count: u64,
 }

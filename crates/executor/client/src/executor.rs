@@ -23,6 +23,13 @@ use crate::{
     ValidateBlockPostExecution,
 };
 
+pub const INIT_WITNESS_DB: &str = "initialize witness db";
+pub const RECOVER_SENDERS: &str = "recover senders";
+pub const BLOCK_EXECUTION: &str = "block execution";
+pub const VALIDATE_EXECUTION: &str = "validate block post-execution";
+pub const ACCRUE_LOG_BLOOM: &str = "accrue logs bloom";
+pub const COMPUTE_STATE_ROOT: &str = "compute state root";
+
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
 
 #[cfg(feature = "optimism")]
@@ -44,7 +51,7 @@ where
         mut input: ClientExecutorInput<F::Primitives>,
     ) -> Result<Header, ClientError> {
         // Initialize the witnessed database with verified storage proofs.
-        let db = profile!("initialize witness db", {
+        let db = profile_report!(INIT_WITNESS_DB, {
             let trie_db = input.witness_db().unwrap();
             WrapDatabaseRef(trie_db)
         });
@@ -55,23 +62,23 @@ where
             input.opcode_tracking,
         );
 
-        let block = profile!("recover senders", {
+        let block = profile_report!(RECOVER_SENDERS, {
             F::Primitives::from_input_block(input.current_block.clone())
                 .try_into_recovered()
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
         let execution_output =
-            profile_report!("block execution", { block_executor.execute(&block) })?;
+            profile_report!(BLOCK_EXECUTION, { block_executor.execute(&block) })?;
 
         // Validate the block post execution.
-        profile!("validate block post-execution", {
+        profile_report!(VALIDATE_EXECUTION, {
             F::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
         })?;
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
-        profile!("accrue logs bloom", {
+        profile_report!(ACCRUE_LOG_BLOOM, {
             execution_output.result.receipts.iter().for_each(|r| {
                 logs_bloom.accrue_bloom(&r.bloom());
             })
@@ -86,7 +93,7 @@ where
         );
 
         // Verify the state root.
-        let state_root = profile!("compute state root", {
+        let state_root = profile_report!(COMPUTE_STATE_ROOT, {
             input.parent_state.update(&executor_outcome.hash_state_slow::<KeccakKeyHasher>());
             input.parent_state.state_root()
         });
