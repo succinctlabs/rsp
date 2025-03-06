@@ -177,8 +177,8 @@ jobs:
 
       - name: "Checkout base branch"
         run: |
-          git fetch origin ${{ github.event.pull_request.base.ref }}
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- . ':(exclude)cycle_stats.json'
+          git fetch origin aurelien/gro2-62-cycle-tracking-on-rsp
+          git checkout origin/aurelien/gro2-62-cycle-tracking-on-rsp -- . ':(exclude)cycle_stats.json'
 
       - name: "Run tests on base branch"
         id: tests-report
