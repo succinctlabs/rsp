@@ -2255,6 +2255,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "flate2"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11faaf5a5236997af9848be0bef4db95824b1d534ebc64d0f0c6cf3e67bd38dc"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2263,16 +2273,6 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "spin",
-]
-
-[[package]]
-name = "flate2"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11faaf5a5236997af9848be0bef4db95824b1d534ebc64d0f0c6cf3e67bd38dc"
-dependencies = [
- "crc32fast",
- "miniz_oxide",
 ]
 
 [[package]]
@@ -5608,8 +5608,8 @@ dependencies = [
  "rsp-host-executor",
  "rsp-primitives",
  "serde",
- "sp1-build",
  "serde_json",
+ "sp1-build",
  "sp1-core-executor",
  "sp1-sdk",
  "strum 0.26.3",
