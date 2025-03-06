@@ -5605,6 +5605,7 @@ dependencies = [
  "reth-primitives",
  "reth-primitives-traits",
  "revm-bytecode",
+ "rsp-client-executor",
  "rsp-host-executor",
  "rsp-primitives",
  "serde",
