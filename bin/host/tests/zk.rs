@@ -1,11 +1,11 @@
 use std::{env, fs::File, io::Write};
 
 use alloy_chains::Chain;
+use alloy_consensus::Block;
 use alloy_network::Ethereum;
 use alloy_provider::RootProvider;
 use madato::{mk_table, types::TableRow};
 use reth_primitives::NodePrimitives;
-use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
     ExecutionHooks,
@@ -30,6 +30,7 @@ async fn test_in_zkvm() {
         cache_dir: None,
         custom_beneficiary: None,
         prove: false,
+        opcode_tracking: false,
     };
 
     let rpc_url = Url::parse(env::var("RPC_1").unwrap().as_str()).expect("invalid rpc url");
@@ -39,13 +40,14 @@ async fn test_in_zkvm() {
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
 
-    let mut executor = build_executor(
+    let executor = build_executor(
         elf,
         Some(provider),
         block_execution_strategy_factory,
         Hook::new(is_base_branch),
         config,
     )
+    .await
     .unwrap();
 
     executor.execute(20600000).await.unwrap();
@@ -69,8 +71,7 @@ impl Hook {
 impl ExecutionHooks for Hook {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
-        block_number: u64,
-        _client_input: &ClientExecutorInput<P>,
+        executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         match self {
@@ -101,7 +102,7 @@ impl ExecutionHooks for Hook {
 
                 let table = mk_table(
                     &[
-                        row("Block Number", block_number.to_string(), String::from("---")),
+                        row("Block Number", executed_block.number.to_string(), String::from("---")),
                         row(
                             "Cycle Count",
                             execution_report.total_instruction_count().separate_with_commas(),
