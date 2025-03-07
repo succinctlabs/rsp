@@ -3,7 +3,7 @@ use std::time::Duration;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
-use tracing::info;
+use tracing::{error, info};
 
 pub struct EthProofsClient {
     cluster_id: u64,
@@ -33,8 +33,9 @@ impl EthProofsClient {
             .await?;
 
         info!("Queued submission status: {}", response.status());
+
         if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
+            error!("Error response: {} ({})", response.status(), response.text().await?);
         }
 
         Ok(())
@@ -57,7 +58,7 @@ impl EthProofsClient {
 
         info!("Proving submission status: {}", response.status());
         if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
+            error!("Error response: {} ({})", response.status(), response.text().await?);
         }
 
         Ok(())
@@ -93,12 +94,10 @@ impl EthProofsClient {
             .header("Authorization", format!("Bearer {}", self.api_token))
             .json(json)
             .send()
-            .await?;
+            .await?
+            .error_for_status()?;
 
         info!("Proved submission status: {}", response.status());
-        if !response.status().is_success() {
-            info!("Error response: {}", response.text().await?);
-        }
 
         Ok(())
     }
