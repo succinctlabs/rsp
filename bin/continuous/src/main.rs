@@ -14,7 +14,6 @@ use rsp_host_executor::{
     FullExecutor,
 };
 use sp1_sdk::include_elf;
-use sqlx::migrate::Migrator;
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -22,8 +21,6 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 mod db;
 
 mod cli;
-
-static MIGRATOR: Migrator = sqlx::migrate!();
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -52,9 +49,6 @@ async fn main() -> eyre::Result<()> {
     let http_provider = ProviderBuilder::new().network::<Ethereum>().on_client(client);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
-
-    // Create or update the database schema.
-    MIGRATOR.run(&db_pool).await?;
 
     let executor = Arc::new(
         FullExecutor::try_new(
