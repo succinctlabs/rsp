@@ -1,0 +1,17 @@
+services:
+  rsp:
+    build:
+      context: ../..
+      target: rsp-continuous
+    environment:
+      DATABASE_URL: postgresql://postgres:$POSTGRES_PASSWORD@db:5432/postgres
+    env_file: .env
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    restart: unless-stopped

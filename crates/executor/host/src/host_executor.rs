@@ -95,7 +95,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
-            "executing the block and with rpc db: block_number={}, transaction_count={}",
+            "executing the block with rpc db: block_number={}, transaction_count={}",
             block_number,
             current_block.body().transactions().len()
         );

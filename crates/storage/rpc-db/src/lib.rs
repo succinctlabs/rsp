@@ -14,6 +14,7 @@ use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_database_interface::DatabaseRef;
 use revm_primitives::{Address, B256};
 use revm_state::{AccountInfo, Bytecode};
+use tracing::debug;
 
 /// A database that fetches data from a [Provider] over a [Transport].
 #[derive(Debug, Clone)]
@@ -66,7 +67,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
 
     /// Fetch the [AccountInfo] for an [Address].
     pub async fn fetch_account_info(&self, address: Address) -> Result<AccountInfo, RpcDbError> {
-        tracing::info!("fetching account info for address: {}", address);
+        debug!("fetching account info for address: {}", address);
 
         // Fetch the proof for the account.
         let proof = self
@@ -108,7 +109,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         address: Address,
         index: U256,
     ) -> Result<U256, RpcDbError> {
-        tracing::info!("fetching storage value at address: {}, index: {}", address, index);
+        debug!("fetching storage value at address: {}, index: {}", address, index);
 
         // Fetch the storage value.
         let value = self
@@ -128,7 +129,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
 
     /// Fetch the block hash for a block number.
     pub async fn fetch_block_hash(&self, number: u64) -> Result<B256, RpcDbError> {
-        tracing::info!("fetching block hash for block number: {}", number);
+        debug!("fetching block hash for block number: {}", number);
 
         // Fetch the block.
         let block = self

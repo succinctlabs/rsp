@@ -32,7 +32,15 @@ async fn main() -> eyre::Result<()> {
     }
 
     // Initialize the logger.
-    tracing_subscriber::registry().with(fmt::layer()).with(EnvFilter::from_default_env()).init();
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(
+            EnvFilter::from_default_env()
+                .add_directive("sp1_core_machine=warn".parse().unwrap())
+                .add_directive("sp1_core_executor=warn".parse().unwrap())
+                .add_directive("sp1_prover=warn".parse().unwrap()),
+        )
+        .init();
 
     let args = Args::parse();
     let config = Config::mainnet();
