@@ -6,7 +6,7 @@ use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::ExecutionReport;
 use sqlx::{
     postgres::PgPoolOptions,
-    types::chrono::{Local, NaiveDateTime},
+    types::chrono::{NaiveDateTime, Utc},
     Pool, Postgres,
 };
 
@@ -78,7 +78,7 @@ pub async fn build_db_pool(database_url: &str) -> Result<Pool<Postgres>, sqlx::E
 }
 
 pub async fn insert_block(pool: &Pool<Postgres>, block_number: u64) -> Result<(), sqlx::Error> {
-    let now = Local::now().naive_local();
+    let now = Utc::now().naive_utc();
     let block = ProvableBlock {
         block_number: block_number as i64,
         status: ProvableBlockStatus::Queued,
@@ -124,6 +124,8 @@ pub async fn update_block_status(
     tx_count: usize,
     num_cycles: u64,
 ) -> Result<(), sqlx::Error> {
+    let now = Utc::now().naive_utc();
+
     sqlx::query!(
         r#"
         UPDATE rsp_blocks
@@ -131,14 +133,15 @@ pub async fn update_block_status(
             gas_used = $2,
             tx_count = $3,
             num_cycles = $4,
-            end_time = NOW()
+            end_time = $6
         WHERE block_number = $1
         "#,
         block_number as i64,
         gas_used as i64,
         tx_count as i64,
         num_cycles as i64,
-        ProvableBlockStatus::Executed.to_string()
+        ProvableBlockStatus::Executed.to_string(),
+        now
     )
     .execute(pool)
     .await?;
@@ -150,15 +153,17 @@ pub async fn update_block_status_as_failed(
     pool: &Pool<Postgres>,
     block_number: u64,
 ) -> Result<(), sqlx::Error> {
+    let now = Utc::now().naive_utc();
     sqlx::query!(
         r#"
         UPDATE rsp_blocks
         SET status = $2,
-            end_time = NOW()
+            end_time = $3
         WHERE block_number = $1
         "#,
         block_number as i64,
-        ProvableBlockStatus::Failed.to_string()
+        ProvableBlockStatus::Failed.to_string(),
+        now
     )
     .execute(pool)
     .await?;

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE rsp_blocks\n        SET status = $2,\n            end_time = $3\n        WHERE block_number = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Varchar",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3deafe3b045826f0ced7674f6ea10a353a5c3dfb95d6d8e18bab76fa5f814410"
+}
