@@ -1,4 +1,5 @@
 /// Profile the given code block cycle count.
+#[allow(unused_macros)]
 macro_rules! profile {
     ($name:expr, $block:block) => {{
         #[cfg(target_os = "zkvm")]

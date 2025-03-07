@@ -3,6 +3,10 @@ use csv::{Writer, WriterBuilder};
 use reth_primitives::NodePrimitives;
 use reth_primitives_traits::BlockBody;
 use revm_bytecode::opcode::OPCODE_INFO;
+use rsp_client_executor::executor::{
+    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, INIT_WITNESS_DB, RECOVER_SENDERS,
+    VALIDATE_EXECUTION,
+};
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
 use sp1_core_executor::syscalls::SyscallCode;
@@ -77,7 +81,12 @@ impl PersistExecutionReport {
         } else {
             // Add cycle count headers
             headers.push("total_cycles_count".to_string());
+            headers.push("initialize_witness_db_cycles_count".to_string());
+            headers.push("recover_senders_cycles_count".to_string());
             headers.push("block_execution_cycles_count".to_string());
+            headers.push("block_validation_cycles_count".to_string());
+            headers.push("accrue_logs_bloom_cycles_count".to_string());
+            headers.push("state_root_computation_cycles_count".to_string());
             headers.push("syscalls_count".to_string());
 
             // Add syscall headers
@@ -120,7 +129,22 @@ impl PersistExecutionReport {
         } else {
             record.push(execution_report.total_instruction_count().to_string());
             record.push(
-                execution_report.cycle_tracker.get("block execution").unwrap_or(&0).to_string(),
+                execution_report.cycle_tracker.get(INIT_WITNESS_DB).unwrap_or(&0).to_string(),
+            );
+            record.push(
+                execution_report.cycle_tracker.get(RECOVER_SENDERS).unwrap_or(&0).to_string(),
+            );
+            record.push(
+                execution_report.cycle_tracker.get(BLOCK_EXECUTION).unwrap_or(&0).to_string(),
+            );
+            record.push(
+                execution_report.cycle_tracker.get(VALIDATE_EXECUTION).unwrap_or(&0).to_string(),
+            );
+            record.push(
+                execution_report.cycle_tracker.get(ACCRUE_LOG_BLOOM).unwrap_or(&0).to_string(),
+            );
+            record.push(
+                execution_report.cycle_tracker.get(COMPUTE_STATE_ROOT).unwrap_or(&0).to_string(),
             );
             record.push(execution_report.total_syscall_count().to_string());
 
