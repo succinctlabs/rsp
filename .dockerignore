@@ -1,4 +1,4 @@
-# exclude everything
+# exclude everything by default
 *
 
 # include source files

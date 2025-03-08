@@ -1,0 +1,72 @@
+name: "Cycle tracking"
+
+on:
+  pull_request:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  cycle-tracking:
+    name: "Run client in SP1 and verify if cycle count hasn't increased"
+    runs-on:
+      ["runs-on", "runner=64cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    steps:
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+        with:
+          fetch-depth: 0  
+
+      - name: "Install sp1up"
+        run: |
+          curl -L https://sp1.succinct.xyz | bash
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
+
+      - name: "Install SP1 toolchain"
+        run: |
+          sp1up
+
+      - name: "Set up test fixture"
+        run: |
+          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-02-13 --depth 1 ../rsp-tests
+          cd ../rsp-tests/
+          docker compose up -d
+
+      - name: "Use local test fixture"
+        run: |
+          echo "RPC_1=http://localhost:9545/main/evm/1" >> $GITHUB_ENV
+          echo "RPC_10=http://localhost:9545/main/evm/10" >> $GITHUB_ENV
+          echo "RPC_59144=http://localhost:9545/main/evm/59144" >> $GITHUB_ENV
+          echo "RPC_11155111=http://localhost:9545/main/evm/11155111" >> $GITHUB_ENV
+
+      - name: "Run tests"
+        run: |
+          export RUST_LOG=info
+          cargo test test_in_zkvm -- --exact --nocapture
+
+      - name: "Checkout base branch"
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }}
+          git checkout origin/${{ github.event.pull_request.base.ref }} -- . ':(exclude)cycle_stats.json'
+
+      - name: "Run tests on base branch"
+        id: tests-report
+        run: |
+          export RUST_LOG=info
+          BASE_BRANCH=1 cargo test test_in_zkvm -- --exact --nocapture
+
+      - name: "Add execution report"
+        uses: actions/github-script@v7
+        env:
+          EXECUTION_REPORT: ${{ steps.tests-report.outputs.EXECUTION_REPORT }}
+        with:
+          script: |
+            const { EXECUTION_REPORT } = process.env
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${EXECUTION_REPORT}`
+            })
