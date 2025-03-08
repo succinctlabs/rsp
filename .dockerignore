@@ -1,0 +1,8 @@
+# exclude everything by default
+*
+
+# include source files
+!/bin
+!/crates
+!Cargo.lock
+!Cargo.toml

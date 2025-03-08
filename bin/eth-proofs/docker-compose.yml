@@ -1,0 +1,7 @@
+services:
+  rsp:
+    build:
+      context: ../..
+      target: rsp-eth-proofs
+    env_file: .env
+    restart: unless-stopped
