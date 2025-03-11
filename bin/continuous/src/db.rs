@@ -38,6 +38,7 @@ impl ExecutionHooks for PersistToPostgres {
             executed_block.header.gas_used(),
             executed_block.body.transactions.len(),
             execution_report.total_instruction_count(),
+            execution_report.gas.unwrap_or_default(),
         )
         .await?;
 
@@ -123,6 +124,7 @@ pub async fn update_block_status(
     gas_used: u64,
     tx_count: usize,
     num_cycles: u64,
+    sp1_gas: u64,
 ) -> Result<(), sqlx::Error> {
     let now = Utc::now().naive_utc();
 
@@ -133,7 +135,8 @@ pub async fn update_block_status(
             gas_used = $2,
             tx_count = $3,
             num_cycles = $4,
-            end_time = $6
+            end_time = $6,
+            sp1_gas = $7
         WHERE block_number = $1
         "#,
         block_number as i64,
@@ -141,7 +144,8 @@ pub async fn update_block_status(
         tx_count as i64,
         num_cycles as i64,
         ProvableBlockStatus::Executed.to_string(),
-        now
+        now,
+        sp1_gas as i64
     )
     .execute(pool)
     .await?;
