@@ -1,7 +1,7 @@
 //! Can't use `pagerduty-rs` because the library is unmaintained.
 
 use serde::Serialize;
-use tracing::{error, info};
+use tracing::error;
 
 const PAGER_DUTY_ENDPOINT: &str = "https://events.pagerduty.com/v2";
 
@@ -30,7 +30,6 @@ impl AlertingClient {
         match self.client.post(format!("{}/enqueue", PAGER_DUTY_ENDPOINT)).json(&alert).send().await
         {
             Ok(response) => {
-                info!("{response:#?}");
                 if let Err(err) = response.error_for_status() {
                     error!("PG returned an error: {err}");
                 }
