@@ -14,6 +14,8 @@ dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
 eyre = "0.6.12"
 reqwest = { workspace = true, features = ["json"] }
+reqwest-middleware = { version = "0.3.3", features = ["json"] }
+reqwest-retry = "0.6.1"
 base64 = "0.22.1"
 time = "0.3.37"
 futures = "0.3"
