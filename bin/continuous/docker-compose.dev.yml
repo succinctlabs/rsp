@@ -8,10 +8,31 @@ services:
     env_file: .env
     depends_on:
       - db
+    profiles: [rsp]
     restart: unless-stopped
 
   db:
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    volumes:
+      - db:/data/postgres
+    ports:
+      - 54320:5432
     restart: unless-stopped
+
+  # Useful to connect to a local DB for dev
+  # https://github.com/vercel/storage/issues/123#issuecomment-2326100123
+  db-proxy:
+    image: ghcr.io/neondatabase/wsproxy:latest
+    environment:
+      APPEND_PORT: "db:5432"
+      ALLOW_ADDR_REGEX: ".*"
+      LOG_TRAFFIC: "true"
+    ports:
+      - "54330:80"
+    depends_on:
+      - db
+
+volumes:
+  db:

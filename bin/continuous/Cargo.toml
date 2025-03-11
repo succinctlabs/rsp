@@ -20,7 +20,7 @@ rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
 
 # sp1
-sp1-sdk = "4.1.0"
+sp1-sdk.workspace = true
 
 # alloy
 alloy-consensus.workspace = true
@@ -34,4 +34,4 @@ reth-evm.workspace = true
 reth-primitives.workspace = true
 
 [build-dependencies]
-sp1-build = "4.1.0"
+sp1-build.workspace = true
