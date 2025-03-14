@@ -124,6 +124,8 @@ pub trait BlockExecutor {
                     proving_duration,
                 )
                 .await?;
+
+            info!("Proof successfully generated!");
         }
 
         Ok(())
@@ -206,6 +208,7 @@ where
     ) -> eyre::Result<Self> {
         cfg_if::cfg_if! {
             if #[cfg(feature = "cuda")] {
+                use sp1_sdk::ProverClient;
                 let mut builder = ProverClient::builder().cuda();
                 if let Some(endpoint) = &config.moongate_endpoint {
                     builder = builder.with_moongate_endpoint(endpoint)
