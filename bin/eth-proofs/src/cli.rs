@@ -38,6 +38,11 @@ pub struct Args {
     /// PagerDuty integration key.
     #[clap(long, env)]
     pub pager_duty_integration_key: Option<String>,
+
+    /// Moongate server endpoint.
+    #[cfg(feature = "cuda")]
+    #[clap(long, env)]
+    pub moongate_endpoint: String,
 }
 
 impl Args {
@@ -48,6 +53,8 @@ impl Args {
             rpc_url: Some(self.http_rpc_url.clone()),
             cache_dir: None,
             custom_beneficiary: None,
+            #[cfg(feature = "cuda")]
+            moongate_endpoint: Some(self.moongate_endpoint.clone()),
             prove: !self.execute_only,
             opcode_tracking: false,
         };

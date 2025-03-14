@@ -38,3 +38,6 @@ alloy-transport-ws.workspace = true
 
 [build-dependencies]
 sp1-build.workspace = true
+
+[features]
+cuda = ["rsp-host-executor/cuda"]

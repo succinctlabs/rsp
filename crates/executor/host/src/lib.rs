@@ -51,6 +51,8 @@ pub struct Config {
     pub rpc_url: Option<Url>,
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
+    #[cfg(feature = "cuda")]
+    pub moongate_endpoint: Option<String>,
     pub prove: bool,
     pub opcode_tracking: bool,
 }
@@ -63,6 +65,8 @@ impl Config {
             rpc_url: None,
             cache_dir: None,
             custom_beneficiary: None,
+            #[cfg(feature = "cuda")]
+            moongate_endpoint: None,
             prove: false,
             opcode_tracking: false,
         }

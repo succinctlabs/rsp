@@ -4,4 +4,8 @@ services:
       context: ../..
       target: rsp-eth-proofs
     env_file: .env
+    depends_on:
+      - moongate
     restart: unless-stopped
+  moongate:
+    image: public.ecr.aws/succinct-labs/moongate:v4.1.0

@@ -33,6 +33,8 @@ async fn test_in_zkvm() {
         rpc_url: None,
         cache_dir: None,
         custom_beneficiary: None,
+        #[cfg(feature = "cuda")]
+        moongate_endpoint: None,
         prove: false,
         opcode_tracking: false,
     };
