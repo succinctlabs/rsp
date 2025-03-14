@@ -87,7 +87,7 @@ impl PersistExecutionReport {
         } else {
             // Add cycle count headers
             headers.push("total_cycles_count".to_string());
-            headers.push("deserialize_inputs".to_string());
+            headers.push("deserialize_inputs_cycles_count".to_string());
             headers.push("initialize_witness_db_cycles_count".to_string());
             headers.push("recover_senders_cycles_count".to_string());
             headers.push("block_execution_cycles_count".to_string());
