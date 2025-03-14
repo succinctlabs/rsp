@@ -221,7 +221,7 @@ impl ExecutionHooks for Hook {
                         row(
                             "Prover Gas",
                             execution_report.gas.unwrap_or_default(),
-                            current_dev_stats.syscall_count,
+                            current_dev_stats.prover_gas,
                         ),
                     ],
                     &None,
