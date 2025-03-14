@@ -17,8 +17,10 @@ use rsp_client_executor::{
 };
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
+use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    EnvProver, ExecutionReport, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+    EnvProver, ExecutionReport, Prover, SP1ProofMode, SP1ProvingKey, SP1PublicValues, SP1Stdin,
+    SP1VerifyingKey,
 };
 use tokio::{task, time::sleep};
 use tracing::{info, info_span, warn};
@@ -62,7 +64,7 @@ pub trait BlockExecutor {
     #[allow(async_fn_in_trait)]
     async fn execute(&self, block_number: u64) -> eyre::Result<()>;
 
-    fn client(&self) -> Arc<EnvProver>;
+    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>>;
 
     fn pk(&self) -> Arc<SP1ProvingKey>;
 
@@ -104,9 +106,7 @@ pub trait BlockExecutor {
 
             let proof = task::spawn_blocking(move || {
                 client
-                    .prove(pk.as_ref(), &stdin)
-                    .compressed()
-                    .run()
+                    .prove(pk.as_ref(), &stdin, SP1ProofMode::Compressed)
                     .map_err(|err| eyre::eyre!("{err}"))
             })
             .await
@@ -149,7 +149,7 @@ where
         }
     }
 
-    fn client(&self) -> Arc<EnvProver> {
+    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
         match self {
             Either::Left(ref executor) => executor.client.clone(),
             Either::Right(ref executor) => executor.client.clone(),
@@ -181,7 +181,7 @@ where
 {
     provider: P,
     host_executor: HostExecutor<F>,
-    client: Arc<EnvProver>,
+    client: Arc<dyn Prover<CpuProverComponents>>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
     hooks: H,
@@ -204,7 +204,19 @@ where
         hooks: H,
         config: Config,
     ) -> eyre::Result<Self> {
-        let client = Arc::new(EnvProver::new());
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "cuda")] {
+                let mut builder = ProverClient::builder().cuda();
+                if let Some(endpoint) = &config.moongate_endpoint {
+                    builder = builder.with_moongate_endpoint(endpoint)
+                }
+
+                let client = Arc::new(builder.build());
+            } else {
+                let client = Arc::new(EnvProver::new());
+            }
+        }
+
         let cloned_client = client.clone();
 
         // Setup the proving key and verification key.
@@ -298,7 +310,7 @@ where
         Ok(())
     }
 
-    fn client(&self) -> Arc<EnvProver> {
+    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
         self.client.clone()
     }
 
@@ -383,7 +395,7 @@ where
         self.process_client(client_input, &self.hooks, self.prove).await
     }
 
-    fn client(&self) -> Arc<EnvProver> {
+    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
         self.client.clone()
     }
 
@@ -405,13 +417,13 @@ impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
 // Block execution in SP1 is a long-running, blocking task, so run it in a separate thread.
 async fn execute_client(
     number: u64,
-    client: Arc<EnvProver>,
+    client: Arc<dyn Prover<CpuProverComponents>>,
     pk: Arc<SP1ProvingKey>,
     stdin: SP1Stdin,
 ) -> eyre::Result<(SP1Stdin, eyre::Result<(SP1PublicValues, ExecutionReport)>)> {
     task::spawn_blocking(move || {
         info_span!("execute_client", number).in_scope(|| {
-            let result = client.execute(&pk.elf, &stdin).run();
+            let result = client.execute(&pk.elf, &stdin);
             (stdin, result.map_err(|err| eyre::eyre!("{err}")))
         })
     })
