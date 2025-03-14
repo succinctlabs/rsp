@@ -49,4 +49,4 @@ madato = "0.7.0"
 sp1-build.workspace = true
 
 [features]
-cuda = ["rsp-host-executor/cuda", "sp1-sdk/cuda"]
+cuda = ["sp1-sdk/cuda"]

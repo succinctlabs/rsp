@@ -1,5 +1,11 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
+use std::sync::Arc;
+
+use alloy_network::Ethereum;
+use alloy_provider::RootProvider;
+use alloy_rpc_client::RpcClient;
+use alloy_transport::layers::RetryBackoffLayer;
 use clap::Parser;
 use execute::PersistExecutionReport;
 use rsp_host_executor::{
@@ -7,7 +13,7 @@ use rsp_host_executor::{
     create_op_block_execution_strategy_factory, BlockExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::include_elf;
+use sp1_sdk::{include_elf, EnvProver};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -49,6 +55,8 @@ async fn main() -> eyre::Result<()> {
         args.opcode_tracking,
     );
 
+    let prover_client = Arc::new(EnvProver::new());
+
     if config.chain.is_optimism() {
         let elf = include_elf!("rsp-client-op").to_vec();
         let block_execution_strategy_factory =
@@ -59,6 +67,7 @@ async fn main() -> eyre::Result<()> {
             elf,
             provider,
             block_execution_strategy_factory,
+            prover_client,
             persist_execution_report,
             config,
         )
@@ -75,6 +84,7 @@ async fn main() -> eyre::Result<()> {
             elf,
             provider,
             block_execution_strategy_factory,
+            prover_client,
             persist_execution_report,
             config,
         )

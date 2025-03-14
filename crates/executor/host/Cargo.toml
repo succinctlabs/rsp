@@ -69,4 +69,3 @@ dotenv = "0.15.0"
 
 [features]
 alerting = ["dep:reqwest"]
-cuda = ["sp1-sdk/cuda"]

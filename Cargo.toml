@@ -168,7 +168,7 @@ revm-optimism = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
 
 revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "8900c2b" }
 
-# To use an existing Moongate server
+# TODO: Needed to use an existing Moongate server, remove when SP1 4.1.4 is out
 sp1-build = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}
 sp1-core-executor = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}
 sp1-prover = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}

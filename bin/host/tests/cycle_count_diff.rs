@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write};
+use std::{env, fs::File, io::Write, sync::Arc};
 
 use alloy_chains::Chain;
 use alloy_consensus::Block;
@@ -16,7 +16,7 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{include_elf, ExecutionReport};
+use sp1_sdk::{include_elf, EnvProver, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
@@ -45,11 +45,13 @@ async fn test_in_zkvm() {
         create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
+    let client = Arc::new(EnvProver::new());
 
     let executor = build_executor(
         elf,
         Some(provider),
         block_execution_strategy_factory,
+        client,
         Hook::new(is_base_branch),
         config,
     )

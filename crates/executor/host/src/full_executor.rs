@@ -19,7 +19,7 @@ use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
-    EnvProver, ExecutionReport, Prover, SP1ProofMode, SP1ProvingKey, SP1PublicValues, SP1Stdin,
+    ExecutionReport, Prover, SP1ProofMode, SP1ProvingKey, SP1PublicValues, SP1Stdin,
     SP1VerifyingKey,
 };
 use tokio::{task, time::sleep};
@@ -27,17 +27,19 @@ use tracing::{info, info_span, warn};
 
 use crate::{Config, ExecutionHooks, HostExecutor};
 
-pub type EitherExecutor<P, N, NP, F, H> =
-    Either<FullExecutor<P, N, NP, F, H>, CachedExecutor<NP, H>>;
+pub type EitherExecutor<PV, P, N, NP, F, H> =
+    Either<FullExecutor<PV, P, N, NP, F, H>, CachedExecutor<PV, NP, H>>;
 
-pub async fn build_executor<P, N, NP, F, H>(
+pub async fn build_executor<PV, P, N, NP, F, H>(
     elf: Vec<u8>,
     provider: Option<P>,
     block_execution_strategy_factory: F,
+    client: Arc<PV>,
     hooks: H,
     config: Config,
-) -> eyre::Result<EitherExecutor<P, N, NP, F, H>>
+) -> eyre::Result<EitherExecutor<PV, P, N, NP, F, H>>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
@@ -46,14 +48,22 @@ where
 {
     if let Some(provider) = provider {
         return Ok(Either::Left(
-            FullExecutor::try_new(provider, elf, block_execution_strategy_factory, hooks, config)
-                .await?,
+            FullExecutor::try_new(
+                provider,
+                elf,
+                block_execution_strategy_factory,
+                client,
+                hooks,
+                config,
+            )
+            .await?,
         ));
     }
 
     if let Some(cache_dir) = config.cache_dir {
         return Ok(Either::Right(
-            CachedExecutor::try_new(elf, hooks, cache_dir, config.chain.id(), config.prove).await?,
+            CachedExecutor::try_new(elf, client, hooks, cache_dir, config.chain.id(), config.prove)
+                .await?,
         ));
     }
 
@@ -61,10 +71,12 @@ where
 }
 
 pub trait BlockExecutor {
+    type Prover: Prover<CpuProverComponents> + 'static;
+
     #[allow(async_fn_in_trait)]
     async fn execute(&self, block_number: u64) -> eyre::Result<()>;
 
-    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>>;
+    fn client(&self) -> Arc<Self::Prover>;
 
     fn pk(&self) -> Arc<SP1ProvingKey>;
 
@@ -132,8 +144,9 @@ pub trait BlockExecutor {
     }
 }
 
-impl<P, N, NP, F, H> BlockExecutor for EitherExecutor<P, N, NP, F, H>
+impl<PV, P, N, NP, F, H> BlockExecutor for EitherExecutor<PV, P, N, NP, F, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives
@@ -144,6 +157,8 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
+    type Prover = PV;
+
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
             Either::Left(ref executor) => executor.execute(block_number).await,
@@ -151,7 +166,7 @@ where
         }
     }
 
-    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
+    fn client(&self) -> Arc<PV> {
         match self {
             Either::Left(ref executor) => executor.client.clone(),
             Either::Right(ref executor) => executor.client.clone(),
@@ -173,8 +188,9 @@ where
     }
 }
 
-pub struct FullExecutor<P, N, NP, F, H>
+pub struct FullExecutor<PV, P, N, NP, F, H>
 where
+    PV: Prover<CpuProverComponents>,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
@@ -183,7 +199,7 @@ where
 {
     provider: P,
     host_executor: HostExecutor<F>,
-    client: Arc<dyn Prover<CpuProverComponents>>,
+    client: Arc<PV>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
     hooks: H,
@@ -191,8 +207,9 @@ where
     phantom: PhantomData<N>,
 }
 
-impl<P, N, NP, F, H> FullExecutor<P, N, NP, F, H>
+impl<PV, P, N, NP, F, H> FullExecutor<PV, P, N, NP, F, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
@@ -203,9 +220,11 @@ where
         provider: P,
         elf: Vec<u8>,
         block_execution_strategy_factory: F,
+        client: Arc<PV>,
         hooks: H,
         config: Config,
     ) -> eyre::Result<Self> {
+        /*
         cfg_if::cfg_if! {
             if #[cfg(feature = "cuda")] {
                 use sp1_sdk::ProverClient;
@@ -219,6 +238,7 @@ where
                 let client = Arc::new(EnvProver::new());
             }
         }
+        */
 
         let cloned_client = client.clone();
 
@@ -249,8 +269,9 @@ where
     }
 }
 
-impl<P, N, NP, F, H> BlockExecutor for FullExecutor<P, N, NP, F, H>
+impl<PV, P, N, NP, F, H> BlockExecutor for FullExecutor<PV, P, N, NP, F, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives
@@ -261,6 +282,7 @@ where
     F: BlockExecutionStrategyFactory<Primitives = NP>,
     H: ExecutionHooks,
 {
+    type Prover = PV;
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
 
@@ -313,7 +335,7 @@ where
         Ok(())
     }
 
-    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
+    fn client(&self) -> Arc<PV> {
         self.client.clone()
     }
 
@@ -326,8 +348,9 @@ where
     }
 }
 
-impl<P, N, NP, F, H> Debug for FullExecutor<P, N, NP, F, H>
+impl<PV, P, N, NP, F, H> Debug for FullExecutor<PV, P, N, NP, F, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     P: Provider<N> + Clone,
     N: Network,
     NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
@@ -339,10 +362,15 @@ where
     }
 }
 
-pub struct CachedExecutor<NP: NodePrimitives, H: ExecutionHooks> {
+pub struct CachedExecutor<PV, NP, H>
+where
+    PV: Prover<CpuProverComponents> + 'static,
+    NP: NodePrimitives,
+    H: ExecutionHooks,
+{
     cache_dir: PathBuf,
     chain_id: u64,
-    client: Arc<EnvProver>,
+    client: Arc<PV>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
     hooks: H,
@@ -350,19 +378,21 @@ pub struct CachedExecutor<NP: NodePrimitives, H: ExecutionHooks> {
     phantom: PhantomData<NP>,
 }
 
-impl<NP, H> CachedExecutor<NP, H>
+impl<PV, NP, H> CachedExecutor<PV, NP, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     NP: NodePrimitives + DeserializeOwned,
     H: ExecutionHooks,
 {
     pub async fn try_new(
         elf: Vec<u8>,
+        client: Arc<PV>,
         hooks: H,
         cache_dir: PathBuf,
         chain_id: u64,
         prove: bool,
     ) -> eyre::Result<Self> {
-        let client = Arc::new(EnvProver::new());
+        // let client = Arc::new(EnvProver::new());
         let cloned_client = client.clone();
 
         // Setup the proving key and verification key.
@@ -385,11 +415,13 @@ where
     }
 }
 
-impl<NP, H> BlockExecutor for CachedExecutor<NP, H>
+impl<PV, NP, H> BlockExecutor for CachedExecutor<PV, NP, H>
 where
+    PV: Prover<CpuProverComponents> + 'static,
     NP: NodePrimitives + DeserializeOwned,
     H: ExecutionHooks,
 {
+    type Prover = PV;
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         let client_input =
             try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
@@ -398,7 +430,7 @@ where
         self.process_client(client_input, &self.hooks, self.prove).await
     }
 
-    fn client(&self) -> Arc<dyn Prover<CpuProverComponents>> {
+    fn client(&self) -> Arc<PV> {
         self.client.clone()
     }
 
@@ -411,7 +443,12 @@ where
     }
 }
 
-impl<NP: NodePrimitives, H: ExecutionHooks> Debug for CachedExecutor<NP, H> {
+impl<PV, NP, H> Debug for CachedExecutor<PV, NP, H>
+where
+    PV: Prover<CpuProverComponents> + 'static,
+    NP: NodePrimitives + DeserializeOwned,
+    H: ExecutionHooks,
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CachedExecutor").field("cache_dir", &self.cache_dir).finish()
     }
