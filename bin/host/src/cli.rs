@@ -40,6 +40,9 @@ pub struct HostArgs {
     pub report_path: PathBuf,
 
     #[clap(long)]
+    /// Whether to track the cycle count of precompiles.
+    pub precompile_tracking: bool,
+    #[clap(long)]
     /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
 }
