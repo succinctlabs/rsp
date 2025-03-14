@@ -13,7 +13,7 @@ use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
     FullExecutor,
 };
-use sp1_sdk::include_elf;
+use sp1_sdk::{include_elf, EnvProver};
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -57,12 +57,14 @@ async fn main() -> eyre::Result<()> {
     let http_provider = ProviderBuilder::new().network::<Ethereum>().on_client(client);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
+    let prover_client = Arc::new(EnvProver::new());
 
     let executor = Arc::new(
         FullExecutor::try_new(
             http_provider.clone(),
             elf,
             block_execution_strategy_factory,
+            prover_client,
             PersistToPostgres::new(db_pool.clone()),
             config,
         )
@@ -125,7 +127,7 @@ async fn main() -> eyre::Result<()> {
 #[instrument(skip(executor, max_retries))]
 async fn process_block<P, F>(
     number: u64,
-    executor: Arc<FullExecutor<P, Ethereum, EthPrimitives, F, PersistToPostgres>>,
+    executor: Arc<FullExecutor<EnvProver, P, Ethereum, EthPrimitives, F, PersistToPostgres>>,
     max_retries: usize,
 ) -> eyre::Result<()>
 where

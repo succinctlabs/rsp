@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, WsConnect};
 use alloy_rpc_client::RpcClient;
 use alloy_transport::layers::RetryBackoffLayer;
@@ -9,7 +11,7 @@ use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
     FullExecutor,
 };
-use sp1_sdk::include_elf;
+use sp1_sdk::{include_elf, ProverClient};
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -63,10 +65,18 @@ async fn main() -> eyre::Result<()> {
     let mut stream =
         subscription.into_stream().filter(|h| ready(h.number % args.block_interval == 0));
 
+    let mut builder = ProverClient::builder().cuda();
+    if let Some(endpoint) = &args.moongate_endpoint {
+        builder = builder.with_moongate_endpoint(endpoint)
+    }
+
+    let client = Arc::new(builder.build());
+
     let executor = FullExecutor::try_new(
         http_provider.clone(),
         elf,
         block_execution_strategy_factory,
+        client,
         eth_proofs_client,
         config,
     )
