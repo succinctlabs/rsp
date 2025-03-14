@@ -4,8 +4,8 @@ use reth_primitives::NodePrimitives;
 use reth_primitives_traits::BlockBody;
 use revm_bytecode::opcode::OPCODE_INFO;
 use rsp_client_executor::executor::{
-    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, INIT_WITNESS_DB, RECOVER_SENDERS,
-    VALIDATE_EXECUTION,
+    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, DESERIALZE_INPUTS, INIT_WITNESS_DB,
+    RECOVER_SENDERS, VALIDATE_EXECUTION,
 };
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
@@ -50,12 +50,18 @@ struct ExecutionReportData {
 pub struct PersistExecutionReport {
     chain_id: u64,
     report_path: PathBuf,
+    precompile_tracking: bool,
     opcode_tracking: bool,
 }
 
 impl PersistExecutionReport {
-    pub fn new(chain_id: u64, report_path: PathBuf, opcode_tracking: bool) -> Self {
-        Self { chain_id, report_path, opcode_tracking }
+    pub fn new(
+        chain_id: u64,
+        report_path: PathBuf,
+        precompile_tracking: bool,
+        opcode_tracking: bool,
+    ) -> Self {
+        Self { chain_id, report_path, precompile_tracking, opcode_tracking }
     }
 
     fn write_header(&self, writer: &mut Writer<File>) -> csv::Result<()> {
@@ -81,6 +87,7 @@ impl PersistExecutionReport {
         } else {
             // Add cycle count headers
             headers.push("total_cycles_count".to_string());
+            headers.push("deserialize_inputs".to_string());
             headers.push("initialize_witness_db_cycles_count".to_string());
             headers.push("recover_senders_cycles_count".to_string());
             headers.push("block_execution_cycles_count".to_string());
@@ -88,18 +95,21 @@ impl PersistExecutionReport {
             headers.push("accrue_logs_bloom_cycles_count".to_string());
             headers.push("state_root_computation_cycles_count".to_string());
             headers.push("syscalls_count".to_string());
+            headers.push("prover_gas".to_string());
 
             // Add syscall headers
             for s in SyscallCode::iter() {
                 headers.push(s.to_string().to_lowercase());
             }
 
-            // Add precompile headers
-            let mut precompile_headers = PRECOMPILES
-                .iter()
-                .flat_map(|x| [x.to_string(), "count".to_string(), "avg".to_string()])
-                .collect();
-            headers.append(&mut precompile_headers);
+            if self.precompile_tracking {
+                // Add precompile headers
+                let mut precompile_headers = PRECOMPILES
+                    .iter()
+                    .flat_map(|x| [x.to_string(), "count".to_string(), "avg".to_string()])
+                    .collect();
+                headers.append(&mut precompile_headers);
+            }
         }
 
         writer.write_record(&headers)
@@ -129,6 +139,9 @@ impl PersistExecutionReport {
         } else {
             record.push(execution_report.total_instruction_count().to_string());
             record.push(
+                execution_report.cycle_tracker.get(DESERIALZE_INPUTS).unwrap_or(&0).to_string(),
+            );
+            record.push(
                 execution_report.cycle_tracker.get(INIT_WITNESS_DB).unwrap_or(&0).to_string(),
             );
             record.push(
@@ -147,13 +160,16 @@ impl PersistExecutionReport {
                 execution_report.cycle_tracker.get(COMPUTE_STATE_ROOT).unwrap_or(&0).to_string(),
             );
             record.push(execution_report.total_syscall_count().to_string());
+            record.push(execution_report.gas.unwrap_or_default().to_string());
 
             for s in SyscallCode::iter() {
                 record.push(execution_report.syscall_counts[s].to_string());
             }
 
-            for p in PRECOMPILES {
-                add_metrics(format!("precompile-{p}"), &mut record, execution_report);
+            if self.precompile_tracking {
+                for p in PRECOMPILES {
+                    add_metrics(format!("precompile-{p}"), &mut record, execution_report);
+                }
             }
         }
 
