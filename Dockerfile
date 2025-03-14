@@ -24,9 +24,8 @@ COPY --from=planner /app/recipe.json recipe.json
 # Install dependencies
 RUN apt-get update && apt-get -y upgrade && apt-get install -y jq
 
-# Install Rust Nightly
-RUN rustup toolchain install nightly
-RUN rustup default nightly
+# Install Rust Stable
+RUN rustup toolchain install stable
 
 # Builds dependencies
 RUN cargo chef cook --profile release --recipe-path recipe.json
@@ -88,8 +87,6 @@ RUN apt-get update && apt-get install -y \
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH=/root/.cargo/bin:$PATH
-RUN rustup install nightly
-RUN rustup default nightly
 
 # Install SP1
 RUN curl -L https://sp1.succinct.xyz | bash && \
