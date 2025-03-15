@@ -9,7 +9,7 @@ use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
 use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
-    FullExecutor,
+    EthExecutorComponents, FullExecutor,
 };
 use sp1_sdk::{include_elf, ProverClient};
 use tracing::{error, info};
@@ -72,7 +72,7 @@ async fn main() -> eyre::Result<()> {
 
     let client = Arc::new(builder.build());
 
-    let executor = FullExecutor::try_new(
+    let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(
         http_provider.clone(),
         elf,
         block_execution_strategy_factory,

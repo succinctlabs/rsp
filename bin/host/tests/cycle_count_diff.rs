@@ -12,7 +12,7 @@ use rsp_client_executor::executor::{
 };
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
-    ExecutionHooks,
+    EthExecutorComponents, ExecutionHooks,
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
@@ -47,7 +47,7 @@ async fn test_in_zkvm() {
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
     let client = Arc::new(EnvProver::new());
 
-    let executor = build_executor(
+    let executor = build_executor::<EthExecutorComponents<_>, _>(
         elf,
         Some(provider),
         block_execution_strategy_factory,

@@ -1,20 +1,16 @@
 use std::{
     fmt::{Debug, Formatter},
-    marker::PhantomData,
     path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
 };
 
-use alloy_provider::{Network, Provider};
+use alloy_provider::Provider;
 use either::Either;
 use eyre::bail;
-use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_primitives::NodePrimitives;
 use revm_primitives::B256;
-use rsp_client_executor::{
-    io::ClientExecutorInput, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
-};
+use rsp_client_executor::io::ClientExecutorInput;
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
@@ -25,26 +21,21 @@ use sp1_sdk::{
 use tokio::{task, time::sleep};
 use tracing::{info, info_span, warn};
 
-use crate::{Config, ExecutionHooks, HostExecutor};
+use crate::{Config, ExecutionHooks, ExecutorComponents, HostExecutor};
 
-pub type EitherExecutor<PV, P, N, NP, F, H> =
-    Either<FullExecutor<PV, P, N, NP, F, H>, CachedExecutor<PV, NP, H>>;
+pub type EitherExecutor<C, P> = Either<FullExecutor<C, P>, CachedExecutor<C>>;
 
-pub async fn build_executor<PV, P, N, NP, F, H>(
+pub async fn build_executor<C, P>(
     elf: Vec<u8>,
     provider: Option<P>,
-    block_execution_strategy_factory: F,
-    client: Arc<PV>,
-    hooks: H,
+    block_execution_strategy_factory: C::StrategyFactory,
+    client: Arc<C::Prover>,
+    hooks: C::Hooks,
     config: Config,
-) -> eyre::Result<EitherExecutor<PV, P, N, NP, F, H>>
+) -> eyre::Result<EitherExecutor<C, P>>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
     if let Some(provider) = provider {
         return Ok(Either::Left(
@@ -144,20 +135,12 @@ pub trait BlockExecutor {
     }
 }
 
-impl<PV, P, N, NP, F, H> BlockExecutor for EitherExecutor<PV, P, N, NP, F, H>
+impl<C, P> BlockExecutor for EitherExecutor<C, P>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives
-        + DeserializeOwned
-        + IntoPrimitives<N>
-        + IntoInput
-        + ValidateBlockPostExecution,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
-    type Prover = PV;
+    type Prover = C::Prover;
 
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
@@ -166,7 +149,7 @@ where
         }
     }
 
-    fn client(&self) -> Arc<PV> {
+    fn client(&self) -> Arc<C::Prover> {
         match self {
             Either::Left(ref executor) => executor.client.clone(),
             Either::Right(ref executor) => executor.client.clone(),
@@ -188,58 +171,33 @@ where
     }
 }
 
-pub struct FullExecutor<PV, P, N, NP, F, H>
+pub struct FullExecutor<C, P>
 where
-    PV: Prover<CpuProverComponents>,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
     provider: P,
-    host_executor: HostExecutor<F>,
-    client: Arc<PV>,
+    host_executor: HostExecutor<C::StrategyFactory>,
+    client: Arc<C::Prover>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
-    hooks: H,
+    hooks: C::Hooks,
     config: Config,
-    phantom: PhantomData<N>,
 }
 
-impl<PV, P, N, NP, F, H> FullExecutor<PV, P, N, NP, F, H>
+impl<C, P> FullExecutor<C, P>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
     pub async fn try_new(
         provider: P,
         elf: Vec<u8>,
-        block_execution_strategy_factory: F,
-        client: Arc<PV>,
-        hooks: H,
+        block_execution_strategy_factory: C::StrategyFactory,
+        client: Arc<C::Prover>,
+        hooks: C::Hooks,
         config: Config,
     ) -> eyre::Result<Self> {
-        /*
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "cuda")] {
-                use sp1_sdk::ProverClient;
-                let mut builder = ProverClient::builder().cuda();
-                if let Some(endpoint) = &config.moongate_endpoint {
-                    builder = builder.with_moongate_endpoint(endpoint)
-                }
-
-                let client = Arc::new(builder.build());
-            } else {
-                let client = Arc::new(EnvProver::new());
-            }
-        }
-        */
-
         let cloned_client = client.clone();
 
         // Setup the proving key and verification key.
@@ -257,7 +215,6 @@ where
             vk: Arc::new(vk),
             hooks,
             config,
-            phantom: Default::default(),
         })
     }
 
@@ -269,25 +226,22 @@ where
     }
 }
 
-impl<PV, P, N, NP, F, H> BlockExecutor for FullExecutor<PV, P, N, NP, F, H>
+impl<C, P> BlockExecutor for FullExecutor<C, P>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives
-        + DeserializeOwned
-        + IntoPrimitives<N>
-        + IntoInput
-        + ValidateBlockPostExecution,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
-    type Prover = PV;
+    type Prover = C::Prover;
+
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
 
         let client_input_from_cache = self.config.cache_dir.as_ref().and_then(|cache_dir| {
-            match try_load_input_from_cache::<NP>(cache_dir, self.config.chain.id(), block_number) {
+            match try_load_input_from_cache::<C::Primitives>(
+                cache_dir,
+                self.config.chain.id(),
+                block_number,
+            ) {
                 Ok(client_input) => client_input,
                 Err(e) => {
                     warn!("Failed to load input from cache: {}", e);
@@ -335,7 +289,7 @@ where
         Ok(())
     }
 
-    fn client(&self) -> Arc<PV> {
+    fn client(&self) -> Arc<C::Prover> {
         self.client.clone()
     }
 
@@ -348,51 +302,41 @@ where
     }
 }
 
-impl<PV, P, N, NP, F, H> Debug for FullExecutor<PV, P, N, NP, F, H>
+impl<C, P> Debug for FullExecutor<C, P>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    P: Provider<N> + Clone,
-    N: Network,
-    NP: NodePrimitives + DeserializeOwned + IntoPrimitives<N> + IntoInput,
-    F: BlockExecutionStrategyFactory<Primitives = NP>,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FullExecutor").field("config", &self.config).finish()
     }
 }
 
-pub struct CachedExecutor<PV, NP, H>
+pub struct CachedExecutor<C>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    NP: NodePrimitives,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
 {
     cache_dir: PathBuf,
     chain_id: u64,
-    client: Arc<PV>,
+    client: Arc<C::Prover>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
-    hooks: H,
+    hooks: C::Hooks,
     prove: bool,
-    phantom: PhantomData<NP>,
 }
 
-impl<PV, NP, H> CachedExecutor<PV, NP, H>
+impl<C> CachedExecutor<C>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    NP: NodePrimitives + DeserializeOwned,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
 {
     pub async fn try_new(
         elf: Vec<u8>,
-        client: Arc<PV>,
-        hooks: H,
+        client: Arc<C::Prover>,
+        hooks: C::Hooks,
         cache_dir: PathBuf,
         chain_id: u64,
         prove: bool,
     ) -> eyre::Result<Self> {
-        // let client = Arc::new(EnvProver::new());
         let cloned_client = client.clone();
 
         // Setup the proving key and verification key.
@@ -402,35 +346,27 @@ where
         })
         .await?;
 
-        Ok(Self {
-            cache_dir,
-            chain_id,
-            client,
-            pk: Arc::new(pk),
-            vk: Arc::new(vk),
-            hooks,
-            prove,
-            phantom: Default::default(),
-        })
+        Ok(Self { cache_dir, chain_id, client, pk: Arc::new(pk), vk: Arc::new(vk), hooks, prove })
     }
 }
 
-impl<PV, NP, H> BlockExecutor for CachedExecutor<PV, NP, H>
+impl<C> BlockExecutor for CachedExecutor<C>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    NP: NodePrimitives + DeserializeOwned,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
 {
-    type Prover = PV;
+    type Prover = C::Prover;
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
-        let client_input =
-            try_load_input_from_cache::<NP>(&self.cache_dir, self.chain_id, block_number)?
-                .ok_or(eyre::eyre!("No cached input found"))?;
+        let client_input = try_load_input_from_cache::<C::Primitives>(
+            &self.cache_dir,
+            self.chain_id,
+            block_number,
+        )?
+        .ok_or(eyre::eyre!("No cached input found"))?;
 
         self.process_client(client_input, &self.hooks, self.prove).await
     }
 
-    fn client(&self) -> Arc<PV> {
+    fn client(&self) -> Arc<C::Prover> {
         self.client.clone()
     }
 
@@ -443,11 +379,9 @@ where
     }
 }
 
-impl<PV, NP, H> Debug for CachedExecutor<PV, NP, H>
+impl<C> Debug for CachedExecutor<C>
 where
-    PV: Prover<CpuProverComponents> + 'static,
-    NP: NodePrimitives + DeserializeOwned,
-    H: ExecutionHooks,
+    C: ExecutorComponents,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CachedExecutor").field("cache_dir", &self.cache_dir).finish()

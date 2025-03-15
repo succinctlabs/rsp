@@ -5743,6 +5743,7 @@ dependencies = [
  "alloy-chains",
  "alloy-consensus",
  "alloy-evm",
+ "alloy-network",
  "alloy-primitives",
  "alloy-provider",
  "alloy-rlp",
