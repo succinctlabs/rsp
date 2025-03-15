@@ -52,13 +52,16 @@ alloy-chains.workspace = true
 alloy-consensus.workspace = true
 alloy-evm.workspace = true
 alloy-primitives.workspace = true
+alloy-network.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
 alloy-rpc-types.workspace = true
 
+# op
+op-alloy-network.workspace = true
+
 [dev-dependencies]
 alloy-primitives.workspace = true
-op-alloy-network.workspace = true
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde.workspace = true
 serde_json.workspace = true
