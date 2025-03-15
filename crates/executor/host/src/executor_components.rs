@@ -56,7 +56,7 @@ where
 }
 
 #[derive(Debug, Default)]
-pub struct OpExecutorComponents<H, P> {
+pub struct OpExecutorComponents<H, P = EnvProver> {
     phantom: PhantomData<(H, P)>,
 }
 
