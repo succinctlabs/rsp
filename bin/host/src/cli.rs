@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use alloy_chains::Chain;
 use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
-use clap::Parser;
+use clap::{Parser, Args};
 use rsp_host_executor::Config;
 use rsp_primitives::genesis::Genesis;
 use url::Url;
@@ -12,37 +12,37 @@ use url::Url;
 #[derive(Debug, Clone, Parser)]
 pub struct HostArgs {
     /// The block number of the block to execute.
-    #[clap(long)]
+    #[arg(long)]
     pub block_number: u64,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub provider: ProviderArgs,
 
     /// The path to the genesis json file to use for the execution.
-    #[clap(long)]
+    #[arg(long)]
     pub genesis_path: Option<PathBuf>,
 
     /// The custom beneficiary address, used with Clique consensus.
-    #[clap(long)]
+    #[arg(long)]
     pub custom_beneficiary: Option<Address>,
 
     /// Whether to generate a proof or just execute the block.
-    #[clap(long)]
+    #[arg(long)]
     pub prove: bool,
 
     /// Optional path to the directory containing cached client input. A new cache file will be
     /// created from RPC data if it doesn't already exist.
-    #[clap(long)]
+    #[arg(long)]
     pub cache_dir: Option<PathBuf>,
 
     /// The path to the CSV file containing the execution data.
-    #[clap(long, default_value = "report.csv")]
+    #[arg(long, default_value = "report.csv")]
     pub report_path: PathBuf,
 
-    #[clap(long)]
+    #[arg(long)]
     /// Whether to track the cycle count of precompiles.
     pub precompile_tracking: bool,
-    #[clap(long)]
+    #[arg(long)]
     /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
 }
@@ -104,13 +104,13 @@ impl HostArgs {
 }
 
 /// The arguments for configuring the chain data provider.
-#[derive(Debug, Clone, Parser)]
+#[derive(Debug, Clone, Args)]
 pub struct ProviderArgs {
     /// The rpc url used to fetch data about the block. If not provided, will use the
     /// RPC_{chain_id} env var.
-    #[clap(long)]
+    #[arg(long)]
     pub rpc_url: Option<Url>,
     /// The chain ID. If not provided, requires the rpc_url argument to be provided.
-    #[clap(long)]
+    #[arg(long)]
     pub chain_id: Option<u64>,
 }
