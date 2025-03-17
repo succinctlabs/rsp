@@ -3442,11 +3442,8 @@ name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
  "alloy-consensus",
- "alloy-eips",
  "alloy-evm",
- "alloy-genesis",
  "alloy-network",
- "alloy-op-evm",
  "alloy-primitives",
  "alloy-rpc-types",
  "itertools 0.13.0",
@@ -3468,7 +3465,6 @@ dependencies = [
  "reth-primitives-traits",
  "reth-trie",
  "revm",
- "revm-optimism",
  "revm-primitives",
  "rsp-mpt",
  "rsp-primitives",

@@ -41,19 +41,15 @@ reth-chainspec.workspace = true
 # revm
 revm.workspace = true
 revm-primitives.workspace = true
-revm-optimism = { workspace = true, optional = true }
 
 # alloy
-alloy-eips = { workspace = true, features = ["sha2"] }
 alloy-evm.workspace = true
-alloy-genesis.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-rpc-types.workspace = true
 
 # op
-alloy-op-evm = { workspace = true, optional = true }
 op-alloy-network = { workspace = true, optional = true }
 op-alloy-rpc-types = { workspace = true, optional = true }
 
@@ -61,12 +57,10 @@ op-alloy-rpc-types = { workspace = true, optional = true }
 [features]
 optimism = [
     "rsp-primitives/optimism",
-    "dep:alloy-op-evm",
     "dep:op-alloy-network",
     "dep:op-alloy-rpc-types",
     "dep:reth-optimism-evm",
     "reth-optimism-consensus",
     "dep:reth-optimism-chainspec",
     "dep:reth-optimism-primitives",
-    "dep:revm-optimism",
 ]
