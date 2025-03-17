@@ -18,6 +18,7 @@ tracing-subscriber = "0.3.18"
 # workspace
 rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
+rsp-provider.workspace = true
 
 # sp1
 sp1-sdk.workspace = true

@@ -1496,6 +1496,7 @@ dependencies = [
  "reth-primitives",
  "rsp-client-executor",
  "rsp-host-executor",
+ "rsp-provider",
  "serde",
  "sp1-build",
  "sp1-sdk",
@@ -2155,6 +2156,7 @@ dependencies = [
  "rsp-client-executor",
  "rsp-host-executor",
  "rsp-primitives",
+ "rsp-provider",
  "serde",
  "serde_json",
  "sp1-build",
@@ -5669,20 +5671,18 @@ dependencies = [
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-client",
- "alloy-transport",
  "clap",
  "csv",
  "dotenv",
  "eyre",
  "madato",
- "op-alloy-network",
  "reth-primitives",
  "reth-primitives-traits",
  "revm-bytecode",
  "rsp-client-executor",
  "rsp-host-executor",
  "rsp-primitives",
+ "rsp-provider",
  "serde",
  "serde_json",
  "sp1-build",
@@ -5821,6 +5821,17 @@ dependencies = [
  "reth-trie",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rsp-provider"
+version = "0.1.0"
+dependencies = [
+ "alloy-json-rpc",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-transport",
+ "url",
 ]
 
 [[package]]

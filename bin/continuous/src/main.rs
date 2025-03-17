@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
 use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, WsConnect};
-use alloy_rpc_client::RpcClient;
-use alloy_transport::layers::RetryBackoffLayer;
 use clap::Parser;
 use cli::Args;
 use db::PersistToPostgres;
@@ -13,6 +11,7 @@ use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
     FullExecutor,
 };
+use rsp_provider::create_provider;
 use sp1_sdk::include_elf;
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
@@ -52,9 +51,7 @@ async fn main() -> eyre::Result<()> {
     let db_pool = db::build_db_pool(&args.database_url).await?;
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
-    let retry_layer = RetryBackoffLayer::new(3, 1000, 100);
-    let client = RpcClient::builder().layer(retry_layer).http(args.http_rpc_url);
-    let http_provider = ProviderBuilder::new().network::<Ethereum>().on_client(client);
+    let http_provider = create_provider(args.http_rpc_url);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
 

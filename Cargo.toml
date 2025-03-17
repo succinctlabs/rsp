@@ -7,6 +7,7 @@ members = [
     "crates/executor/host",
     "crates/mpt",
     "crates/primitives",
+    "crates/provider",
     "crates/storage/rpc-db",
     "crates/storage/witness-db",
 ]
@@ -48,6 +49,8 @@ rsp-client-executor = { path = "./crates/executor/client" }
 rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
+rsp-provider = { path = "./crates/provider" }
+
 
 # sp1
 sp1-build = "4.1.3"
@@ -111,6 +114,7 @@ alloy-rpc-types = { version = "0.11.1", default-features = false, features = [
     "eth",
 ] }
 
+alloy-json-rpc = { version = "0.11.1", default-features = false }
 alloy-genesis = { version = "0.11.1", default-features = false }
 alloy-consensus = { version = "0.11.1", default-features = false, features = ["serde", "serde-bincode-compat"] }
 alloy-network = { version = "0.11.1", default-features = false }

@@ -1,0 +1,20 @@
+[package]
+name = "rsp-provider"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+url.workspace = true
+
+# alloy
+alloy-provider.workspace = true
+alloy-json-rpc.workspace = true
+alloy-rpc-client.workspace = true
+alloy-transport.workspace = true
