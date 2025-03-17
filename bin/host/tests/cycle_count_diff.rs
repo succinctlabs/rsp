@@ -134,7 +134,7 @@ impl ExecutionHooks for Hook {
                 let mut output_file = File::options().create(true).append(true).open(path)?;
 
                 let diff_percentage =
-                    |initial: f64, current: f64| (initial - current) / initial * 100_f64;
+                    |initial: f64, current: f64| (initial - current) / initial * -100_f64;
 
                 let row = |label: &str, initial: u64, current: u64| {
                     let mut r = TableRow::new();

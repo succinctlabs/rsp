@@ -2,10 +2,6 @@
 
 use std::sync::Arc;
 
-use alloy_network::Ethereum;
-use alloy_provider::RootProvider;
-use alloy_rpc_client::RpcClient;
-use alloy_transport::layers::RetryBackoffLayer;
 use clap::Parser;
 use execute::PersistExecutionReport;
 use rsp_host_executor::{
