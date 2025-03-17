@@ -1,16 +1,12 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
-use alloy_network::Ethereum;
-use alloy_provider::RootProvider;
-use alloy_rpc_client::RpcClient;
-use alloy_transport::layers::RetryBackoffLayer;
 use clap::Parser;
 use execute::PersistExecutionReport;
-use op_alloy_network::Optimism;
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory,
     create_op_block_execution_strategy_factory, BlockExecutor,
 };
+use rsp_provider::create_provider;
 use sp1_sdk::include_elf;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
@@ -31,7 +27,15 @@ async fn main() -> eyre::Result<()> {
     }
 
     // Initialize the logger.
-    tracing_subscriber::registry().with(fmt::layer()).with(EnvFilter::from_default_env()).init();
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(
+            EnvFilter::from_default_env()
+                .add_directive("sp1_core_machine=warn".parse().unwrap())
+                .add_directive("sp1_core_executor::executor=warn".parse().unwrap())
+                .add_directive("sp1_prover=warn".parse().unwrap()),
+        )
+        .init();
 
     // Parse the command line arguments.
     let args = HostArgs::parse();
@@ -44,15 +48,12 @@ async fn main() -> eyre::Result<()> {
         args.precompile_tracking,
         args.opcode_tracking,
     );
-    let rpc_client = config.rpc_url.clone().map(|rpc_url| {
-        RpcClient::builder().layer(RetryBackoffLayer::new(3, 1000, 100)).http(rpc_url)
-    });
 
     if config.chain.is_optimism() {
         let elf = include_elf!("rsp-client-op").to_vec();
         let block_execution_strategy_factory =
             create_op_block_execution_strategy_factory(&config.genesis);
-        let provider = rpc_client.map(RootProvider::<Optimism>::new);
+        let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
 
         let executor = build_executor(
             elf,
@@ -68,7 +69,7 @@ async fn main() -> eyre::Result<()> {
         let elf = include_elf!("rsp-client").to_vec();
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
-        let provider = rpc_client.map(RootProvider::<Ethereum>::new);
+        let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
 
         let executor = build_executor(
             elf,

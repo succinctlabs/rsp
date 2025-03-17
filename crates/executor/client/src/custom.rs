@@ -76,10 +76,13 @@ impl<CTX: ContextTr> PrecompileProvider for CustomPrecompiles<CTX> {
         gas_limit: u64,
     ) -> Result<Option<Self::Output>, PrecompileErrors> {
         if self.precompiles.contains(address) {
+            #[cfg(target_os = "zkvm")]
             let name = self.addresses_to_names.get(address).cloned().unwrap_or(address.to_string());
 
+            #[cfg(target_os = "zkvm")]
             println!("cycle-tracker-report-start: precompile-{name}");
             let result = self.precompiles.run(context, address, bytes, gas_limit);
+            #[cfg(target_os = "zkvm")]
             println!("cycle-tracker-report-end: precompile-{name}");
 
             result
@@ -175,6 +178,7 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
 
         self.current = OpCode::name_by_op(interp.bytecode.opcode()).to_lowercase();
 
+        #[cfg(target_os = "zkvm")]
         println!("cycle-tracker-report-start: opcode-{}", self.current);
     }
 
@@ -183,6 +187,7 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
         let _ = interp;
         let _ = context;
 
+        #[cfg(target_os = "zkvm")]
         println!("cycle-tracker-report-end: opcode-{}", self.current);
     }
 }

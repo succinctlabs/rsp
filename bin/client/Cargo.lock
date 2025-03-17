@@ -3207,9 +3207,7 @@ name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
  "alloy-consensus",
- "alloy-eips",
  "alloy-evm",
- "alloy-genesis",
  "alloy-network",
  "alloy-primitives",
  "alloy-rpc-types",

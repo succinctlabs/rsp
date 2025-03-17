@@ -24,6 +24,7 @@ futures = "0.3"
 rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
 rsp-primitives.workspace = true
+rsp-provider.workspace = true
 
 # sp1
 sp1-sdk.workspace = true

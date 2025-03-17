@@ -1,6 +1,4 @@
-use alloy_provider::{network::Ethereum, Provider, ProviderBuilder, WsConnect};
-use alloy_rpc_client::RpcClient;
-use alloy_transport::layers::RetryBackoffLayer;
+use alloy_provider::{Provider, ProviderBuilder, WsConnect};
 use clap::Parser;
 use cli::Args;
 use eth_proofs::EthProofsClient;
@@ -9,6 +7,7 @@ use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
     FullExecutor,
 };
+use rsp_provider::create_provider;
 use sp1_sdk::include_elf;
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -54,9 +53,7 @@ async fn main() -> eyre::Result<()> {
 
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
-    let retry_layer = RetryBackoffLayer::new(3, 1000, 100);
-    let client = RpcClient::builder().layer(retry_layer).http(args.http_rpc_url);
-    let http_provider = ProviderBuilder::new().network::<Ethereum>().on_client(client);
+    let http_provider = create_provider(args.http_rpc_url);
 
     // Subscribe to block headers.
     let subscription = ws_provider.subscribe_blocks().await?;

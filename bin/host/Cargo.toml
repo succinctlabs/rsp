@@ -18,16 +18,13 @@ csv = "1.1"
 rsp-client-executor.workspace = true
 rsp-host-executor.workspace = true
 rsp-primitives.workspace = true
+rsp-provider.workspace = true
 
 # alloy
 alloy-chains.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-provider.workspace = true
-alloy-rpc-client.workspace = true
-alloy-transport.workspace = true
-alloy-network.workspace = true
-op-alloy-network.workspace = true
 
 
 # reth 
@@ -42,6 +39,7 @@ sp1-sdk.workspace = true
 sp1-core-executor.workspace = true
 
 [dev-dependencies]
+alloy-network.workspace = true
 rsp-client-executor.workspace = true
 serde_json = "1.0"
 thousands = "0.2.0"
