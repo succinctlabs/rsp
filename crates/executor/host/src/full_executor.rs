@@ -61,23 +61,21 @@ where
     bail!("Either a RPC URL or a cache dir must be provided")
 }
 
-pub trait BlockExecutor {
-    type Prover: Prover<CpuProverComponents> + 'static;
-
+pub trait BlockExecutor<C: ExecutorComponents> {
     #[allow(async_fn_in_trait)]
     async fn execute(&self, block_number: u64) -> eyre::Result<()>;
 
-    fn client(&self) -> Arc<Self::Prover>;
+    fn client(&self) -> Arc<C::Prover>;
 
     fn pk(&self) -> Arc<SP1ProvingKey>;
 
     fn vk(&self) -> Arc<SP1VerifyingKey>;
 
     #[allow(async_fn_in_trait)]
-    async fn process_client<P: NodePrimitives, H: ExecutionHooks>(
+    async fn process_client(
         &self,
-        client_input: ClientExecutorInput<P>,
-        hooks: &H,
+        client_input: ClientExecutorInput<C::Primitives>,
+        hooks: &C::Hooks,
         prove: bool,
     ) -> eyre::Result<()> {
         // Generate the proof.
@@ -97,7 +95,9 @@ pub trait BlockExecutor {
         let block_hash = public_values.read::<B256>();
         info!(?block_hash, "Execution sucessful");
 
-        hooks.on_execution_end::<P>(&client_input.current_block, &execution_report).await?;
+        hooks
+            .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
+            .await?;
 
         if prove {
             info!("Starting proof generation");
@@ -135,13 +135,11 @@ pub trait BlockExecutor {
     }
 }
 
-impl<C, P> BlockExecutor for EitherExecutor<C, P>
+impl<C, P> BlockExecutor<C> for EitherExecutor<C, P>
 where
     C: ExecutorComponents,
     P: Provider<C::Network> + Clone,
 {
-    type Prover = C::Prover;
-
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
             Either::Left(ref executor) => executor.execute(block_number).await,
@@ -226,13 +224,11 @@ where
     }
 }
 
-impl<C, P> BlockExecutor for FullExecutor<C, P>
+impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
 where
     C: ExecutorComponents,
     P: Provider<C::Network> + Clone,
 {
-    type Prover = C::Prover;
-
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
 
@@ -350,11 +346,10 @@ where
     }
 }
 
-impl<C> BlockExecutor for CachedExecutor<C>
+impl<C> BlockExecutor<C> for CachedExecutor<C>
 where
     C: ExecutorComponents,
 {
-    type Prover = C::Prover;
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         let client_input = try_load_input_from_cache::<C::Primitives>(
             &self.cache_dir,
@@ -389,9 +384,9 @@ where
 }
 
 // Block execution in SP1 is a long-running, blocking task, so run it in a separate thread.
-async fn execute_client(
+async fn execute_client<P: Prover<CpuProverComponents> + 'static>(
     number: u64,
-    client: Arc<dyn Prover<CpuProverComponents>>,
+    client: Arc<P>,
     pk: Arc<SP1ProvingKey>,
     stdin: SP1Stdin,
 ) -> eyre::Result<(SP1Stdin, eyre::Result<(SP1PublicValues, ExecutionReport)>)> {
