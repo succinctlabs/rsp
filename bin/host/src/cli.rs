@@ -95,8 +95,6 @@ impl HostArgs {
             rpc_url,
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
-            #[cfg(feature = "cuda")]
-            moongate_endpoint: None,
             prove: self.prove,
             opcode_tracking: self.opcode_tracking,
         };

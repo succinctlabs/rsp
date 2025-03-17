@@ -47,6 +47,3 @@ madato = "0.7.0"
 
 [build-dependencies]
 sp1-build.workspace = true
-
-[features]
-cuda = ["sp1-sdk/cuda"]
