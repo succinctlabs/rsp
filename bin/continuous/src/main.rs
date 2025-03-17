@@ -5,14 +5,12 @@ use clap::Parser;
 use cli::Args;
 use db::PersistToPostgres;
 use futures_util::StreamExt;
-use reth_evm::execute::BlockExecutionStrategyFactory;
-use reth_primitives::EthPrimitives;
 use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
-    FullExecutor,
+    EthExecutorComponents, ExecutorComponents, FullExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::include_elf;
+use sp1_sdk::{include_elf, EnvProver};
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -54,12 +52,14 @@ async fn main() -> eyre::Result<()> {
     let http_provider = create_provider(args.http_rpc_url);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
+    let prover_client = Arc::new(EnvProver::new());
 
     let executor = Arc::new(
-        FullExecutor::try_new(
+        FullExecutor::<EthExecutorComponents<_>, _>::try_new(
             http_provider.clone(),
             elf,
             block_execution_strategy_factory,
+            prover_client,
             PersistToPostgres::new(db_pool.clone()),
             config,
         )
@@ -120,14 +120,14 @@ async fn main() -> eyre::Result<()> {
 }
 
 #[instrument(skip(executor, max_retries))]
-async fn process_block<P, F>(
+async fn process_block<C, P>(
     number: u64,
-    executor: Arc<FullExecutor<P, Ethereum, EthPrimitives, F, PersistToPostgres>>,
+    executor: Arc<FullExecutor<C, P>>,
     max_retries: usize,
 ) -> eyre::Result<()>
 where
+    C: ExecutorComponents<Network = Ethereum>,
     P: Provider<Ethereum> + Clone,
-    F: BlockExecutionStrategyFactory<Primitives = EthPrimitives>,
 {
     let mut retry_count = 0;
 

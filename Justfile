@@ -35,7 +35,7 @@ run-eth-proofs cluster_id="1" block_interval="100":
     #!/usr/bin/env bash
 
     echo "Running rsp..."
-    SP1_PROVER=cuda cargo run --bin eth-proofs --release -F cuda -- --eth-proofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
+    SP1_PROVER=cuda rsp --eth-proofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
 
 # Usage:
 # just run-eth-proofs <cluster-id> <sleep-time>

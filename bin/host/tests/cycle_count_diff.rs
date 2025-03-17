@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write};
+use std::{env, fs::File, io::Write, sync::Arc};
 
 use alloy_chains::Chain;
 use alloy_consensus::Block;
@@ -12,11 +12,11 @@ use rsp_client_executor::executor::{
 };
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
-    ExecutionHooks,
+    EthExecutorComponents, ExecutionHooks,
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{include_elf, ExecutionReport};
+use sp1_sdk::{include_elf, EnvProver, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
@@ -43,11 +43,13 @@ async fn test_in_zkvm() {
         create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
+    let client = Arc::new(EnvProver::new());
 
-    let executor = build_executor(
+    let executor = build_executor::<EthExecutorComponents<_>, _>(
         elf,
         Some(provider),
         block_execution_strategy_factory,
+        client,
         Hook::new(is_base_branch),
         config,
     )
@@ -130,7 +132,7 @@ impl ExecutionHooks for Hook {
                 let mut output_file = File::options().create(true).append(true).open(path)?;
 
                 let diff_percentage =
-                    |initial: f64, current: f64| (initial - current) / initial * 100_f64;
+                    |initial: f64, current: f64| (initial - current) / initial * -100_f64;
 
                 let row = |label: &str, initial: u64, current: u64| {
                     let mut r = TableRow::new();

@@ -55,6 +55,7 @@ rsp-provider = { path = "./crates/provider" }
 # sp1
 sp1-build = "4.1.3"
 sp1-core-executor = "4.1.3"
+sp1-prover = "4.1.3"
 sp1-sdk = "4.1.3"
 
 # reth
@@ -166,3 +167,9 @@ revm-specification = { git = "https://github.com/bluealloy/revm", rev = "a8a9893
 revm-optimism = { git = "https://github.com/bluealloy/revm", rev = "a8a9893b" }
 
 revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "8900c2b" }
+
+# TODO: Needed to use an existing Moongate server, remove when SP1 4.1.4 is out
+sp1-build = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}
+sp1-prover = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1", rev = "cbb59b41515e23d991d5e601c345a7276c96531e"}

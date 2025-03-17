@@ -63,11 +63,11 @@ impl<P: NodePrimitives> ClientExecutorInput<P> {
 
     /// Creates a [`WitnessDb`].
     pub fn witness_db(&self) -> Result<TrieDB<'_>, ClientError> {
-        <Self as WitnessInput<P>>::witness_db(self)
+        <Self as WitnessInput>::witness_db(self)
     }
 }
 
-impl<P: NodePrimitives> WitnessInput<P> for ClientExecutorInput<P> {
+impl<P: NodePrimitives> WitnessInput for ClientExecutorInput<P> {
     #[inline(always)]
     fn state(&self) -> &EthereumState {
         &self.parent_state
@@ -164,7 +164,7 @@ impl DatabaseRef for TrieDB<'_> {
 }
 
 /// A trait for constructing [`WitnessDb`].
-pub trait WitnessInput<P: NodePrimitives> {
+pub trait WitnessInput {
     /// Gets a reference to the state from which account info and storage slots are loaded.
     fn state(&self) -> &EthereumState;
 

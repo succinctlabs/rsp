@@ -18,6 +18,9 @@ pub mod alerting;
 
 mod error;
 
+mod executor_components;
+pub use executor_components::{EthExecutorComponents, ExecutorComponents, OpExecutorComponents};
+
 mod full_executor;
 pub use full_executor::{build_executor, BlockExecutor, EitherExecutor, FullExecutor};
 
