@@ -8,7 +8,7 @@ use std::{
 use alloy_provider::Provider;
 use either::Either;
 use eyre::bail;
-use reth_primitives::NodePrimitives;
+use reth_primitives_traits::NodePrimitives;
 use revm_primitives::B256;
 use rsp_client_executor::io::ClientExecutorInput;
 use rsp_rpc_db::RpcDb;

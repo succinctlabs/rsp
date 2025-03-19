@@ -1,7 +1,7 @@
 use std::{future::Future, time::Duration};
 
 use alloy_consensus::Block;
-use reth_primitives::NodePrimitives;
+use reth_primitives_traits::NodePrimitives;
 use sp1_sdk::{ExecutionReport, SP1VerifyingKey};
 
 pub trait ExecutionHooks: Send {

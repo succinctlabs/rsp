@@ -26,7 +26,6 @@ reth-consensus.workspace = true
 reth-ethereum-consensus.workspace = true
 reth-ethereum-primitives = { workspace = true, features = ["serde-bincode-compat"] }
 reth-execution-types.workspace = true
-reth-primitives.workspace = true
 reth-primitives-traits.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true

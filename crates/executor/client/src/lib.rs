@@ -1,7 +1,5 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
-use reth_ethereum_primitives as _;
-
 /// Client program input data types.
 pub mod io;
 #[macro_use]

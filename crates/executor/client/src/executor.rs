@@ -6,7 +6,6 @@ use alloy_primitives::Bloom;
 use reth_chainspec::ChainSpec;
 use reth_errors::BlockExecutionError;
 use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
-
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
@@ -177,12 +176,12 @@ where
 
     fn execute_one(
         &mut self,
-        block: &reth_primitives::RecoveredBlock<
-            <Self::Primitives as reth_primitives::NodePrimitives>::Block,
+        block: &reth_primitives_traits::RecoveredBlock<
+            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Block,
         >,
     ) -> Result<
         reth_execution_types::BlockExecutionResult<
-            <Self::Primitives as reth_primitives::NodePrimitives>::Receipt,
+            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Receipt,
         >,
         Self::Error,
     > {
@@ -196,13 +195,13 @@ where
 
     fn execute_one_with_state_hook<H>(
         &mut self,
-        block: &reth_primitives::RecoveredBlock<
-            <Self::Primitives as reth_primitives::NodePrimitives>::Block,
+        block: &reth_primitives_traits::RecoveredBlock<
+            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Block,
         >,
         state_hook: H,
     ) -> Result<
         reth_execution_types::BlockExecutionResult<
-            <Self::Primitives as reth_primitives::NodePrimitives>::Receipt,
+            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Receipt,
         >,
         Self::Error,
     >
