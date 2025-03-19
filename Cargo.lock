@@ -5784,20 +5784,12 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
- "alloy-rpc-types",
- "alloy-trie",
  "hex-literal",
- "itertools 0.13.0",
- "reth-execution-types",
- "reth-primitives",
  "reth-trie",
- "revm",
- "revm-primitives",
  "rlp",
  "rsp-mpt",
  "serde",
  "thiserror 1.0.69",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -5810,7 +5802,7 @@ dependencies = [
  "reth-chainspec",
  "reth-optimism-chainspec",
  "reth-optimism-forks",
- "reth-primitives",
+ "reth-primitives-traits",
  "reth-trie",
  "serde",
  "serde_json",

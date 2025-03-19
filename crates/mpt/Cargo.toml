@@ -14,26 +14,16 @@ workspace = true
 rlp.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-itertools = "0.13.0"
 
 # reth
-reth-primitives.workspace = true
 reth-trie.workspace = true
-reth-execution-types.workspace = true
-
-# revm
-revm.workspace = true
-revm-primitives.workspace = true
 
 # alloy
 alloy-primitives.workspace = true
 alloy-rlp.workspace = true
-alloy-rpc-types.workspace = true
 
 [dev-dependencies]
-alloy-trie.workspace = true
 hex-literal.workspace = true
-tracing-subscriber = "0.3.18"
 
 rsp-mpt = { path = ".", features = ["preimage_context"] }
 
