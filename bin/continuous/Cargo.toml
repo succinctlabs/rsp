@@ -32,7 +32,6 @@ alloy-transport-ws.workspace = true
 
 # reth 
 reth-evm.workspace = true
-reth-primitives.workspace = true
 
 [build-dependencies]
 sp1-build.workspace = true

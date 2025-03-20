@@ -1,6 +1,6 @@
 use alloy_consensus::{Block, BlockHeader};
 use csv::{Writer, WriterBuilder};
-use reth_primitives::NodePrimitives;
+use reth_primitives_traits::NodePrimitives;
 use reth_primitives_traits::BlockBody;
 use revm_bytecode::opcode::OPCODE_INFO;
 use rsp_client_executor::executor::{

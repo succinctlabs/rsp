@@ -61,26 +61,17 @@ sp1-sdk = "4.1.3"
 # reth
 # the rev 6b602f433ed7a67c8c2e255569f262c044601c53 contains the following commit that allow to `Send` block execution strategy factory:
 # https://github.com/paradigmxyz/reth/commit/1e48668bf23dabd4aa697e7dced5935374043232
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false, features = [
-    "alloy-compat",
-    "std",
-] }
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-trie = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-trie-common = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-execution-errors = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }
 reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "6b602f433ed7a67c8c2e255569f262c044601c53", default-features = false }

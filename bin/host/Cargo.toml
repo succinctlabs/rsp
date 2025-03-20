@@ -28,7 +28,6 @@ alloy-provider.workspace = true
 
 
 # reth 
-reth-primitives.workspace = true
 reth-primitives-traits.workspace = true
 
 # revm
