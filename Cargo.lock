@@ -1475,6 +1475,7 @@ dependencies = [
  "eyre",
  "futures-util",
  "reth-evm",
+ "reth-primitives-traits",
  "rsp-client-executor",
  "rsp-host-executor",
  "rsp-provider",
