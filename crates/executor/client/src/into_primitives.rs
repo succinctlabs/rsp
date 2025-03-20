@@ -2,8 +2,9 @@ use alloy_consensus::{Block, Header};
 use alloy_network::{Ethereum, Network};
 use reth_chainspec::ChainSpec;
 use reth_errors::ConsensusError;
+use reth_ethereum_primitives::EthPrimitives;
 use reth_execution_types::BlockExecutionOutput;
-use reth_primitives::{EthPrimitives, NodePrimitives, RecoveredBlock};
+use reth_primitives_traits::{NodePrimitives, RecoveredBlock};
 use rsp_primitives::genesis::Genesis;
 
 pub trait IntoPrimitives<N: Network>: NodePrimitives {

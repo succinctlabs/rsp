@@ -11,13 +11,12 @@ repository.workspace = true
 serde.workspace = true
 
 # alloy
-alloy-primitives.workspace = true
+alloy-primitives = { workspace = true, features = ["serde"] }
 
 # reth
-reth-primitives.workspace = true
 reth-storage-errors.workspace = true
 
 # revm
 revm-database-interface.workspace = true
 revm-primitives.workspace = true
-revm-state.workspace = true
+revm-state = { workspace = true, features = ["serde"] }

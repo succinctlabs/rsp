@@ -13,7 +13,7 @@ serde_json.workspace = true
 eyre = "0.6.12"
 
 # reth
-reth-primitives.workspace = true
+reth-primitives-traits.workspace = true
 reth-chainspec.workspace = true
 reth-optimism-chainspec = { workspace = true, optional = true }
 reth-optimism-forks = { workspace = true, optional = true }

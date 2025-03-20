@@ -4,7 +4,8 @@ use alloy_consensus::{Block, BlockHeader, Header};
 use alloy_primitives::map::HashMap;
 use itertools::Itertools;
 use reth_errors::ProviderError;
-use reth_primitives::{EthPrimitives, NodePrimitives};
+use reth_ethereum_primitives::EthPrimitives;
+use reth_primitives_traits::NodePrimitives;
 use reth_trie::TrieAccount;
 use revm::{
     state::{AccountInfo, Bytecode},

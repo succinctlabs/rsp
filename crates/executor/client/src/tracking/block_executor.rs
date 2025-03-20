@@ -5,7 +5,7 @@ use reth_evm::{
     system_calls::OnStateHook,
 };
 use reth_execution_types::BlockExecutionResult;
-use reth_primitives::{NodePrimitives, RecoveredBlock};
+use reth_primitives_traits::{NodePrimitives, RecoveredBlock};
 use revm::database::{states::bundle_state::BundleRetention, State};
 
 use crate::custom::OpCodeTrackingInspector;

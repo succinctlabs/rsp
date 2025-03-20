@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
+
 use alloy_primitives::B256;
 use reth_storage_errors::provider::ProviderError;
 use revm_database_interface::DatabaseRef;

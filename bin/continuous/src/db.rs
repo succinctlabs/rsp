@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use alloy_consensus::{Block, BlockHeader};
-use reth_primitives::NodePrimitives;
+use reth_primitives_traits::NodePrimitives;
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::ExecutionReport;
 use sqlx::{

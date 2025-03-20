@@ -4,11 +4,12 @@ use alloy_evm::EthEvmFactory;
 use alloy_network::Ethereum;
 use alloy_provider::Network;
 use op_alloy_network::Optimism;
+use reth_ethereum_primitives::EthPrimitives;
 use reth_evm::execute::BlockExecutionStrategyFactory;
 use reth_evm_ethereum::EthEvmConfig;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_primitives::OpPrimitives;
-use reth_primitives::{EthPrimitives, NodePrimitives};
+use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::{
     custom::CustomEvmFactory, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
 };

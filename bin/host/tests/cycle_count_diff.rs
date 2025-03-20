@@ -5,7 +5,7 @@ use alloy_consensus::Block;
 use alloy_network::Ethereum;
 use alloy_provider::RootProvider;
 use madato::{mk_table, types::TableRow};
-use reth_primitives::NodePrimitives;
+use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::executor::{
     ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, DESERIALZE_INPUTS, INIT_WITNESS_DB,
     RECOVER_SENDERS, VALIDATE_EXECUTION,
