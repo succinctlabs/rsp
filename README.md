@@ -8,7 +8,7 @@ A minimal implementation of generating zero-knowledge proofs of EVM block execut
 
 ## Getting Started
 
-To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/docs/getting-started/install) installed to build the client programs. Then follow the instructions below.
+To use RSP, you must first have [Rust](https://www.rust-lang.org/tools/install) installed and [SP1](https://docs.succinct.xyz/docs/sp1/getting-started/install) installed to build the client programs. Then follow the instructions below.
 
 ### Installing the CLI
 
@@ -169,7 +169,7 @@ This will continuously:
 
 ### Building the client programs manually
 
-By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/getting-started/install.html) installed):
+By default, the `build.rs` in the `bin/host` crate will rebuild the client programs every time they are modified. To manually build the client programs, you can run these commands (ake sure you have the [SP1 toolchain](https://docs.succinct.xyz/docs/sp1/getting-started/install) installed):
 
 ```console
 cd ./bin/client-eth
