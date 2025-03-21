@@ -11,7 +11,7 @@ use alloy_provider::{
     network::{primitives::HeaderResponse, BlockResponse},
     Network, Provider,
 };
-use alloy_rpc_types::{BlockId, BlockTransactionsKind};
+use alloy_rpc_types::BlockId;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_database_interface::DatabaseRef;
 use revm_primitives::{Address, B256};
@@ -136,7 +136,7 @@ impl<P: Provider<N> + Clone, N: Network> RpcDb<P, N> {
         // Fetch the block.
         let block = self
             .provider
-            .get_block_by_number(number.into(), BlockTransactionsKind::Hashes)
+            .get_block_by_number(number.into())
             .await
             .map_err(|e| RpcDbError::GetBlockError(number, e.to_string()))?;
 

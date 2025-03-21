@@ -141,6 +141,10 @@ impl ExecutionHooks for Hook {
                     r.insert(format!("Block {}", executed_block.number), label.to_string());
                     r.insert("Base Branch".to_string(), initial.separate_with_commas());
                     r.insert("Current PR".to_string(), current.separate_with_commas());
+                    r.insert(
+                        "Diff".to_string(),
+                        (initial as i64 - current as i64).separate_with_commas(),
+                    );
                     r.insert("Diff (%)".to_string(), diff);
                     r
                 };

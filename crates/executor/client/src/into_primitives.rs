@@ -1,4 +1,4 @@
-use alloy_consensus::{Block, Header};
+use alloy_consensus::{Block, Header, TxEnvelope};
 use alloy_network::{Ethereum, Network};
 use reth_chainspec::ChainSpec;
 use reth_errors::ConsensusError;
@@ -31,7 +31,7 @@ pub trait ValidateBlockPostExecution: NodePrimitives {
 
 impl IntoPrimitives<Ethereum> for EthPrimitives {
     fn into_primitive_block(block: alloy_rpc_types::Block) -> Self::Block {
-        let block = block.map_transactions(|tx| tx.inner.into());
+        let block = block.map_transactions(|tx| TxEnvelope::from(tx).into());
         block.into_consensus()
     }
 
@@ -73,7 +73,7 @@ impl IntoPrimitives<op_alloy_network::Optimism> for reth_optimism_primitives::Op
     fn into_primitive_block(
         block: alloy_rpc_types::Block<op_alloy_rpc_types::Transaction>,
     ) -> Self::Block {
-        let block = block.map_transactions(|tx| tx.inner.inner.into());
+        let block = block.map_transactions(|tx| tx.inner.inner.into_inner().into());
         block.into_consensus()
     }
 

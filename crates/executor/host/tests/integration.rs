@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
-use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_evm::ConfigureEvm;
 use reth_optimism_chainspec::OpChainSpec;
 use revm_primitives::{address, Address};
 use rsp_client_executor::{
@@ -86,16 +86,16 @@ async fn run_eth_e2e(
     .await;
 }
 
-async fn run_e2e<F, N>(
-    host_executor: HostExecutor<F>,
-    client_executor: ClientExecutor<F>,
+async fn run_e2e<C, N>(
+    host_executor: HostExecutor<C>,
+    client_executor: ClientExecutor<C>,
     env_var_key: &str,
     block_number: u64,
     genesis: &Genesis,
     custom_beneficiary: Option<Address>,
 ) where
-    F: BlockExecutionStrategyFactory,
-    F::Primitives: FromInput
+    C: ConfigureEvm,
+    C::Primitives: FromInput
         + IntoPrimitives<N>
         + IntoInput
         + ValidateBlockPostExecution
@@ -132,5 +132,5 @@ async fn run_e2e<F, N>(
     let buffer = bincode::serialize(&client_input).unwrap();
 
     // Load the client input from a buffer.
-    let _: ClientExecutorInput<F::Primitives> = bincode::deserialize(&buffer).unwrap();
+    let _: ClientExecutorInput<C::Primitives> = bincode::deserialize(&buffer).unwrap();
 }

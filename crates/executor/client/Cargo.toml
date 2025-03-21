@@ -55,11 +55,11 @@ op-alloy-rpc-types = { workspace = true, optional = true }
 
 [features]
 optimism = [
-    "rsp-primitives/optimism",
     "dep:op-alloy-network",
     "dep:op-alloy-rpc-types",
     "dep:reth-optimism-evm",
-    "reth-optimism-consensus",
+    "dep:reth-optimism-consensus",
     "dep:reth-optimism-chainspec",
     "dep:reth-optimism-primitives",
+    "rsp-primitives/optimism",
 ]
