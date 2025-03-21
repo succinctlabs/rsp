@@ -4,9 +4,11 @@ use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_evm::EthEvmFactory;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
-use alloy_rpc_types::BlockTransactionsKind;
 use reth_chainspec::ChainSpec;
-use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
+use reth_evm::{
+    execute::{BasicBlockExecutor, Executor},
+    ConfigureEvm,
+};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_evm::OpEvmConfig;
@@ -30,14 +32,14 @@ pub type OpHostExecutor = HostExecutor<OpEvmConfig>;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
-pub struct HostExecutor<F: BlockExecutionStrategyFactory> {
-    block_execution_strategy_factory: F,
+pub struct HostExecutor<C: ConfigureEvm> {
+    evm_config: C,
 }
 
 impl EthHostExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
-            block_execution_strategy_factory: EthEvmConfig::new_with_evm_factory(
+            evm_config: EthEvmConfig::new_with_evm_factory(
                 chain_spec,
                 CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
@@ -47,14 +49,14 @@ impl EthHostExecutor {
 
 impl OpHostExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self { block_execution_strategy_factory: OpEvmConfig::optimism(chain_spec) }
+        Self { evm_config: OpEvmConfig::optimism(chain_spec) }
     }
 }
 
-impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
+impl<C: ConfigureEvm> HostExecutor<C> {
     /// Creates a new [HostExecutor].
-    pub fn new(block_execution_strategy_factory: F) -> Self {
-        Self { block_execution_strategy_factory }
+    pub fn new(evm_config: C) -> Self {
+        Self { evm_config }
     }
 
     /// Executes the block with the given block number.
@@ -66,32 +68,33 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
         opcode_tracking: bool,
-    ) -> Result<ClientExecutorInput<F::Primitives>, HostError>
+    ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
-        F::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
+        C::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
         P: Provider<N> + Clone,
         N: Network,
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
         let current_block = provider
-            .get_block_by_number(block_number.into(), BlockTransactionsKind::Full)
+            .get_block_by_number(block_number.into())
+            .full()
             .await?
             .ok_or(HostError::ExpectedBlock(block_number))
-            .map(F::Primitives::into_primitive_block)?;
+            .map(C::Primitives::into_primitive_block)?;
 
         let previous_block = provider
-            .get_block_by_number((block_number - 1).into(), BlockTransactionsKind::Full)
+            .get_block_by_number((block_number - 1).into())
+            .full()
             .await?
             .ok_or(HostError::ExpectedBlock(block_number))
-            .map(F::Primitives::into_primitive_block)?;
+            .map(C::Primitives::into_primitive_block)?;
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
         let cache_db = CacheDB::new(rpc_db);
 
-        let block_executor =
-            BasicBlockExecutor::new(self.block_execution_strategy_factory.clone(), cache_db);
+        let block_executor = BasicBlockExecutor::new(self.evm_config.clone(), cache_db);
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
@@ -110,7 +113,7 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        F::Primitives::validate_block_post_execution(&block, &genesis, &execution_output)?;
+        C::Primitives::validate_block_post_execution(&block, &genesis, &execution_output)?;
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");
@@ -233,16 +236,16 @@ impl<F: BlockExecutionStrategyFactory> HostExecutor<F> {
         tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
         for height in (oldest_ancestor..=(block_number - 1)).rev() {
             let block = provider
-                .get_block_by_number(height.into(), BlockTransactionsKind::Hashes)
+                .get_block_by_number(height.into())
                 .await?
                 .ok_or(HostError::ExpectedBlock(height))?;
 
-            ancestor_headers.push(F::Primitives::into_primitive_header(block))
+            ancestor_headers.push(C::Primitives::into_primitive_header(block))
         }
 
         // Create the client input.
         let client_input = ClientExecutorInput {
-            current_block: F::Primitives::into_input_block(current_block),
+            current_block: C::Primitives::into_input_block(current_block),
             ancestor_headers,
             parent_state: state,
             state_requests,

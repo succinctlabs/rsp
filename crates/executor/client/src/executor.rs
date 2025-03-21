@@ -5,7 +5,10 @@ use alloy_evm::EthEvmFactory;
 use alloy_primitives::Bloom;
 use reth_chainspec::ChainSpec;
 use reth_errors::BlockExecutionError;
-use reth_evm::execute::{BasicBlockExecutor, BlockExecutionStrategyFactory, Executor};
+use reth_evm::{
+    execute::{BasicBlockExecutor, Executor},
+    ConfigureEvm, OnStateHook,
+};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
@@ -37,18 +40,18 @@ pub type OpClientExecutor = ClientExecutor<reth_optimism_evm::OpEvmConfig>;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone)]
-pub struct ClientExecutor<F: BlockExecutionStrategyFactory> {
-    block_execution_strategy_factory: F,
+pub struct ClientExecutor<C: ConfigureEvm> {
+    evm_config: C,
 }
 
-impl<F> ClientExecutor<F>
+impl<C> ClientExecutor<C>
 where
-    F: BlockExecutionStrategyFactory,
-    F::Primitives: FromInput + ValidateBlockPostExecution,
+    C: ConfigureEvm,
+    C::Primitives: FromInput + ValidateBlockPostExecution,
 {
     pub fn execute(
         &self,
-        mut input: ClientExecutorInput<F::Primitives>,
+        mut input: ClientExecutorInput<C::Primitives>,
     ) -> Result<Header, ClientError> {
         // Initialize the witnessed database with verified storage proofs.
         let db = profile_report!(INIT_WITNESS_DB, {
@@ -56,14 +59,10 @@ where
             WrapDatabaseRef(trie_db)
         });
 
-        let block_executor = BlockExecutor::new(
-            self.block_execution_strategy_factory.clone(),
-            db,
-            input.opcode_tracking,
-        );
+        let block_executor = BlockExecutor::new(self.evm_config.clone(), db, input.opcode_tracking);
 
         let block = profile_report!(RECOVER_SENDERS, {
-            F::Primitives::from_input_block(input.current_block.clone())
+            C::Primitives::from_input_block(input.current_block.clone())
                 .try_into_recovered()
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
@@ -73,7 +72,7 @@ where
 
         // Validate the block post execution.
         profile_report!(VALIDATE_EXECUTION, {
-            F::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
+            C::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
         })?;
 
         // Accumulate the logs bloom.
@@ -135,7 +134,7 @@ where
 impl EthClientExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
-            block_execution_strategy_factory: EthEvmConfig::new_with_evm_factory(
+            evm_config: EthEvmConfig::new_with_evm_factory(
                 chain_spec,
                 CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
@@ -146,19 +145,17 @@ impl EthClientExecutor {
 #[cfg(feature = "optimism")]
 impl OpClientExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self {
-            block_execution_strategy_factory: reth_optimism_evm::OpEvmConfig::optimism(chain_spec),
-        }
+        Self { evm_config: reth_optimism_evm::OpEvmConfig::optimism(chain_spec) }
     }
 }
 
-enum BlockExecutor<'a, F> {
-    Basic(BasicBlockExecutor<F, WrapDatabaseRef<TrieDB<'a>>>),
-    OpcodeTracking(OpCodesTrackingBlockExecutor<F, WrapDatabaseRef<TrieDB<'a>>>),
+enum BlockExecutor<'a, C> {
+    Basic(BasicBlockExecutor<C, WrapDatabaseRef<TrieDB<'a>>>),
+    OpcodeTracking(OpCodesTrackingBlockExecutor<C, WrapDatabaseRef<TrieDB<'a>>>),
 }
 
-impl<'a, F: BlockExecutionStrategyFactory> BlockExecutor<'a, F> {
-    fn new(strategy_factory: F, db: WrapDatabaseRef<TrieDB<'a>>, opcode_tracking: bool) -> Self {
+impl<'a, C: ConfigureEvm> BlockExecutor<'a, C> {
+    fn new(strategy_factory: C, db: WrapDatabaseRef<TrieDB<'a>>, opcode_tracking: bool) -> Self {
         if opcode_tracking {
             Self::OpcodeTracking(OpCodesTrackingBlockExecutor::new(strategy_factory, db))
         } else {
@@ -167,11 +164,11 @@ impl<'a, F: BlockExecutionStrategyFactory> BlockExecutor<'a, F> {
     }
 }
 
-impl<'a, F> Executor<WrapDatabaseRef<TrieDB<'a>>> for BlockExecutor<'a, F>
+impl<'a, C> Executor<WrapDatabaseRef<TrieDB<'a>>> for BlockExecutor<'a, C>
 where
-    F: BlockExecutionStrategyFactory,
+    C: ConfigureEvm,
 {
-    type Primitives = F::Primitives;
+    type Primitives = C::Primitives;
     type Error = BlockExecutionError;
 
     fn execute_one(
@@ -206,7 +203,7 @@ where
         Self::Error,
     >
     where
-        H: reth_evm::system_calls::OnStateHook + 'static,
+        H: OnStateHook + 'static,
     {
         match self {
             BlockExecutor::Basic(basic_block_executor) => {

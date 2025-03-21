@@ -90,7 +90,7 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
                         genesis: Default::default(),
                         genesis_header: Default::default(),
                         paris_block_and_final_difficulty: Default::default(),
-                        hardforks: reth_optimism_forks::OpHardfork::op_mainnet(),
+                        hardforks: reth_optimism_forks::OpHardfork::op_mainnet().into(),
                         deposit_contract: Default::default(),
                         base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                         prune_delete_limit: 10000,
