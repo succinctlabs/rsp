@@ -1,5 +1,6 @@
 use eyre::eyre;
 use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
+use reth_optimism_forks::OP_MAINNET_HARDFORKS;
 use serde::{Deserialize, Serialize};
 
 pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
@@ -90,9 +91,9 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
                         genesis: Default::default(),
                         genesis_header: Default::default(),
                         paris_block_and_final_difficulty: Default::default(),
-                        hardforks: reth_optimism_forks::OpHardfork::op_mainnet().into(),
+                        hardforks: OP_MAINNET_HARDFORKS.clone(),
                         deposit_contract: Default::default(),
-                        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+                        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::optimism()),
                         prune_delete_limit: 10000,
                         blob_params: Default::default(),
                     },
