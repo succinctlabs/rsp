@@ -19,7 +19,7 @@ use revm::{
         interpreter_types::{Jumps, LoopControl},
         InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
     },
-    precompile::{u64_to_address, PrecompileError},
+    precompile::u64_to_address,
     Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{hardfork::SpecId, Address, Bytes};
@@ -73,7 +73,7 @@ impl<CTX: ContextTr> PrecompileProvider<CTX> for CustomPrecompiles {
         address: &Address,
         bytes: &Bytes,
         gas_limit: u64,
-    ) -> Result<Option<Self::Output>, PrecompileError> {
+    ) -> Result<Option<Self::Output>, String> {
         if self.precompiles.contains(address) {
             #[cfg(target_os = "zkvm")]
             let name = self.addresses_to_names.get(address).cloned().unwrap_or(address.to_string());
