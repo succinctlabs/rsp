@@ -5,7 +5,7 @@ use alloy_network::Ethereum;
 use alloy_provider::Network;
 use op_alloy_network::Optimism;
 use reth_ethereum_primitives::EthPrimitives;
-use reth_evm::execute::BlockExecutionStrategyFactory;
+use reth_evm::ConfigureEvm;
 use reth_evm_ethereum::EthEvmConfig;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_primitives::OpPrimitives;
@@ -30,7 +30,7 @@ pub trait ExecutorComponents {
         + IntoInput
         + ValidateBlockPostExecution;
 
-    type StrategyFactory: BlockExecutionStrategyFactory<Primitives = Self::Primitives>;
+    type EvmConfig: ConfigureEvm<Primitives = Self::Primitives>;
 
     type Hooks: ExecutionHooks;
 }
@@ -51,7 +51,7 @@ where
 
     type Primitives = EthPrimitives;
 
-    type StrategyFactory = EthEvmConfig<CustomEvmFactory<EthEvmFactory>>;
+    type EvmConfig = EthEvmConfig<CustomEvmFactory<EthEvmFactory>>;
 
     type Hooks = H;
 }
@@ -72,7 +72,7 @@ where
 
     type Primitives = OpPrimitives;
 
-    type StrategyFactory = OpEvmConfig;
+    type EvmConfig = OpEvmConfig;
 
     type Hooks = H;
 }

@@ -28,7 +28,7 @@ pub type EitherExecutor<C, P> = Either<FullExecutor<C, P>, CachedExecutor<C>>;
 pub async fn build_executor<C, P>(
     elf: Vec<u8>,
     provider: Option<P>,
-    block_execution_strategy_factory: C::StrategyFactory,
+    evm_config: C::EvmConfig,
     client: Arc<C::Prover>,
     hooks: C::Hooks,
     config: Config,
@@ -39,15 +39,7 @@ where
 {
     if let Some(provider) = provider {
         return Ok(Either::Left(
-            FullExecutor::try_new(
-                provider,
-                elf,
-                block_execution_strategy_factory,
-                client,
-                hooks,
-                config,
-            )
-            .await?,
+            FullExecutor::try_new(provider, elf, evm_config, client, hooks, config).await?,
         ));
     }
 
@@ -175,7 +167,7 @@ where
     P: Provider<C::Network> + Clone,
 {
     provider: P,
-    host_executor: HostExecutor<C::StrategyFactory>,
+    host_executor: HostExecutor<C::EvmConfig>,
     client: Arc<C::Prover>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
@@ -191,7 +183,7 @@ where
     pub async fn try_new(
         provider: P,
         elf: Vec<u8>,
-        block_execution_strategy_factory: C::StrategyFactory,
+        evm_config: C::EvmConfig,
         client: Arc<C::Prover>,
         hooks: C::Hooks,
         config: Config,
@@ -207,7 +199,7 @@ where
 
         Ok(Self {
             provider,
-            host_executor: HostExecutor::new(block_execution_strategy_factory),
+            host_executor: HostExecutor::new(evm_config),
             client,
             pk: Arc::new(pk),
             vk: Arc::new(vk),
