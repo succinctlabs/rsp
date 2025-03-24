@@ -66,6 +66,8 @@ When running RSP, you should see logs similar to:
 
 The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report and statistics on the # of cycles to a CSV file (can be specified by the `--report-path` argument).
 
+Additional information about precompiles can be added to the CSV file when specifying the `--precompile-tracking` argument, and about opcodes with the `--opcode-tracking` argument.
+
 You can also run the CLI directly by running the following command:
 
 ```bash
