@@ -143,7 +143,7 @@ impl ExecutionHooks for Hook {
                     r.insert("Current PR".to_string(), current.separate_with_commas());
                     r.insert(
                         "Diff".to_string(),
-                        (initial as i64 - current as i64).separate_with_commas(),
+                        (current as i64 - initial as i64).separate_with_commas(),
                     );
                     r.insert("Diff (%)".to_string(), diff);
                     r
