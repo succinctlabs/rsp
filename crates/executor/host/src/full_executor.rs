@@ -209,7 +209,9 @@ where
     }
 
     pub async fn wait_for_block(&self, block_number: u64) -> eyre::Result<()> {
-        while self.provider.get_block_number().await? < block_number {
+        let block_number = block_number.into();
+
+        while self.provider.get_block_by_number(block_number).await?.is_none() {
             sleep(Duration::from_millis(100)).await;
         }
         Ok(())
