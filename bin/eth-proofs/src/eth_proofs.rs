@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use eyre::eyre;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
@@ -120,6 +121,7 @@ impl EthProofsClient {
     }
 }
 
+#[async_trait]
 impl ExecutionHooks for EthProofsClient {
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         self.queued(block_number).await;

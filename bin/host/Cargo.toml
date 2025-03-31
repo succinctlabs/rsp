@@ -13,6 +13,7 @@ eyre = "0.6.12"
 serde.workspace = true
 strum = "0.26"
 csv = "1.1"
+async-trait.workspace = true
 
 # workspace
 rsp-client-executor.workspace = true

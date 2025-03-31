@@ -1,39 +1,39 @@
-use std::{future::Future, time::Duration};
+use std::time::Duration;
 
 use alloy_consensus::Block;
+use async_trait::async_trait;
 use reth_primitives_traits::NodePrimitives;
 use sp1_sdk::{ExecutionReport, SP1VerifyingKey};
 
-pub trait ExecutionHooks: Send {
-    fn on_execution_start(
+#[async_trait]
+pub trait ExecutionHooks: Send + Sync {
+    async fn on_execution_start(
         &self,
         _block_number: u64,
-    ) -> impl Future<Output = eyre::Result<()>> + Send {
-        async { Ok(()) }
+    ) -> eyre::Result<()> {
+        Ok(())
     }
 
-    fn on_execution_end<P: NodePrimitives>(
+    async fn on_execution_end<P: NodePrimitives>(
         &self,
         _executed_block: &Block<P::SignedTx>,
         _execution_report: &ExecutionReport,
-    ) -> impl Future<Output = eyre::Result<()>> {
-        async { Ok(()) }
+    ) -> eyre::Result<()> {
+        Ok(())
     }
 
-    fn on_proving_start(&self, _block_number: u64) -> impl Future<Output = eyre::Result<()>> {
-        async { Ok(()) }
+    async fn on_proving_start(&self, _block_number: u64) -> eyre::Result<()> {
+        Ok(())
     }
 
-    fn on_proving_end(
+    async fn on_proving_end(
         &self,
         _block_number: u64,
         _proof_bytes: &[u8],
         _vk: &SP1VerifyingKey,
         _execution_report: &ExecutionReport,
         _proving_duration: Duration,
-    ) -> impl Future<Output = eyre::Result<()>> {
-        async { Ok(()) }
+    ) -> eyre::Result<()> {
+        Ok(())
     }
 }
-
-impl ExecutionHooks for () {}

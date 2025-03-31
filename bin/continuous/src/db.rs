@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use alloy_consensus::{Block, BlockHeader};
+use async_trait::async_trait;
 use reth_primitives_traits::NodePrimitives;
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::ExecutionReport;
@@ -20,6 +21,7 @@ impl PersistToPostgres {
     }
 }
 
+#[async_trait]
 impl ExecutionHooks for PersistToPostgres {
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         insert_block(&self.db_pool, block_number).await?;

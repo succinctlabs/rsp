@@ -1,4 +1,5 @@
 use alloy_consensus::{Block, BlockHeader};
+use async_trait::async_trait;
 use csv::{Writer, WriterBuilder};
 use reth_primitives_traits::{BlockBody, NodePrimitives};
 use revm_bytecode::opcode::OPCODE_INFO;
@@ -187,6 +188,7 @@ fn add_metrics(name: String, record: &mut Vec<String>, execution_report: &Execut
     record.push(total.checked_div(*count).unwrap_or(0).to_string());
 }
 
+#[async_trait]
 impl ExecutionHooks for PersistExecutionReport {
     async fn on_execution_end<P: NodePrimitives>(
         &self,

@@ -4,6 +4,7 @@ use alloy_chains::Chain;
 use alloy_consensus::Block;
 use alloy_network::Ethereum;
 use alloy_provider::RootProvider;
+use async_trait::async_trait;
 use madato::{mk_table, types::TableRow};
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::executor::{
@@ -74,6 +75,7 @@ impl Hook {
     }
 }
 
+#[async_trait]
 impl ExecutionHooks for Hook {
     async fn on_execution_end<P: NodePrimitives>(
         &self,
