@@ -239,7 +239,11 @@ where
         });
 
         let client_input = match client_input_from_cache {
-            Some(client_input_from_cache) => client_input_from_cache,
+            Some(mut client_input_from_cache) => {
+                // Override opcode tracking from cache by the setting provided by the user
+                client_input_from_cache.opcode_tracking = self.config.opcode_tracking;
+                client_input_from_cache
+            }
             None => {
                 let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
 
