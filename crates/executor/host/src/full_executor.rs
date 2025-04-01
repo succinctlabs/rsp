@@ -53,6 +53,13 @@ where
     bail!("Either a RPC URL or a cache dir must be provided")
 }
 
+pub struct ExecutionInfo {
+    pub block_number: u64,
+    pub stdin: SP1Stdin,
+    pub execution_report: ExecutionReport,
+    pub block_hash: B256,
+}
+
 pub trait BlockExecutor<C: ExecutorComponents> {
     #[allow(async_fn_in_trait)]
     async fn execute(&self, block_number: u64) -> eyre::Result<()>;
@@ -68,8 +75,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         &self,
         client_input: ClientExecutorInput<C::Primitives>,
         hooks: &C::Hooks,
-        prove: bool,
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<ExecutionInfo> {
         // Generate the proof.
         // Execute the block inside the zkVM.
         let mut stdin = SP1Stdin::new();
@@ -91,16 +97,12 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
             .await?;
 
-        if prove {
-            self.generate_proof(
-                client_input.current_block.number,
-                stdin,
-                hooks,
-                &execution_report,
-            ).await?;
-        }
-
-        Ok(())
+        Ok(ExecutionInfo {
+            block_number: client_input.current_block.number,
+            stdin,
+            execution_report,
+            block_hash,
+        })
     }
 
     #[allow(async_fn_in_trait)]
@@ -296,7 +298,17 @@ where
             }
         };
 
-        self.process_client(client_input, &self.hooks, self.config.prove).await?;
+        let execution_info = self.process_client(client_input, &self.hooks).await?;
+
+        if self.config.prove {
+            self.generate_proof(
+                execution_info.block_number,
+                execution_info.stdin,
+                &self.hooks,
+                &execution_info.execution_report,
+            )
+            .await?;
+        }
 
         Ok(())
     }
@@ -374,7 +386,19 @@ where
         )?
         .ok_or(eyre::eyre!("No cached input found"))?;
 
-        self.process_client(client_input, &self.hooks, self.prove).await
+        let execution_info = self.process_client(client_input, &self.hooks).await?;
+
+        if self.prove {
+            self.generate_proof(
+                execution_info.block_number,
+                execution_info.stdin,
+                &self.hooks,
+                &execution_info.execution_report,
+            )
+            .await?;
+        }
+
+        Ok(())
     }
 
     fn client(&self) -> Arc<C::Prover> {
