@@ -53,9 +53,17 @@ where
     bail!("Either a RPC URL or a cache dir must be provided")
 }
 
+#[derive(Debug)]
+pub struct ExecutionInfo {
+    pub block_number: u64,
+    pub stdin: SP1Stdin,
+    pub execution_report: ExecutionReport,
+    pub block_hash: B256,
+}
+
 pub trait BlockExecutor<C: ExecutorComponents> {
     #[allow(async_fn_in_trait)]
-    async fn execute(&self, block_number: u64) -> eyre::Result<()>;
+    async fn execute(&self, block_number: u64) -> eyre::Result<ExecutionInfo>;
 
     fn client(&self) -> Arc<C::Prover>;
 
@@ -68,9 +76,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         &self,
         client_input: ClientExecutorInput<C::Primitives>,
         hooks: &C::Hooks,
-        prove: bool,
-    ) -> eyre::Result<()> {
-        // Generate the proof.
+    ) -> eyre::Result<ExecutionInfo> {
         // Execute the block inside the zkVM.
         let mut stdin = SP1Stdin::new();
         let buffer = bincode::serialize(&client_input).unwrap();
@@ -91,37 +97,52 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
             .await?;
 
-        if prove {
-            info!("Starting proof generation");
+        Ok(ExecutionInfo {
+            block_number: client_input.current_block.number,
+            stdin,
+            execution_report,
+            block_hash,
+        })
+    }
 
-            let proving_start = Instant::now();
-            hooks.on_proving_start(client_input.current_block.number).await?;
-            let client = self.client();
-            let pk = self.pk();
+    #[allow(async_fn_in_trait)]
+    async fn generate_proof(
+        &self,
+        proving_client: Arc<C::Prover>, // NOTE: We allow using different client for proving!
+        block_number: u64,
+        stdin: SP1Stdin,
+        hooks: &C::Hooks,
+        execution_report: &ExecutionReport,
+    ) -> eyre::Result<()> {
+        info!("Starting proof generation");
 
-            let proof = task::spawn_blocking(move || {
-                client
-                    .prove(pk.as_ref(), &stdin, SP1ProofMode::Compressed)
-                    .map_err(|err| eyre::eyre!("{err}"))
-            })
-            .await
-            .map_err(|err| eyre::eyre!("{err}"))??;
+        let proving_start = Instant::now();
+        hooks.on_proving_start(block_number).await?;
+        let client = proving_client;
+        let pk = self.pk();
 
-            let proving_duration = proving_start.elapsed();
-            let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+        let proof = task::spawn_blocking(move || {
+            client
+                .prove(pk.as_ref(), &stdin, SP1ProofMode::Compressed)
+                .map_err(|err| eyre::eyre!("{err}"))
+        })
+        .await
+        .map_err(|err| eyre::eyre!("{err}"))??;
 
-            hooks
-                .on_proving_end(
-                    client_input.current_block.number,
-                    &proof_bytes,
-                    self.vk().as_ref(),
-                    &execution_report,
-                    proving_duration,
-                )
-                .await?;
+        let proving_duration = proving_start.elapsed();
+        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
 
-            info!("Proof successfully generated!");
-        }
+        hooks
+            .on_proving_end(
+                block_number,
+                &proof_bytes,
+                self.vk().as_ref(),
+                execution_report,
+                proving_duration,
+            )
+            .await?;
+
+        info!("Proof successfully generated!");
 
         Ok(())
     }
@@ -132,7 +153,7 @@ where
     C: ExecutorComponents,
     P: Provider<C::Network> + Clone,
 {
-    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<ExecutionInfo> {
         match self {
             Either::Left(ref executor) => executor.execute(block_number).await,
             Either::Right(ref executor) => executor.execute(block_number).await,
@@ -223,7 +244,7 @@ where
     C: ExecutorComponents,
     P: Provider<C::Network> + Clone,
 {
-    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<ExecutionInfo> {
         self.hooks.on_execution_start(block_number).await?;
 
         let client_input_from_cache = self.config.cache_dir.as_ref().and_then(|cache_dir| {
@@ -278,9 +299,7 @@ where
             }
         };
 
-        self.process_client(client_input, &self.hooks, self.config.prove).await?;
-
-        Ok(())
+        self.process_client(client_input, &self.hooks).await
     }
 
     fn client(&self) -> Arc<C::Prover> {
@@ -348,7 +367,7 @@ impl<C> BlockExecutor<C> for CachedExecutor<C>
 where
     C: ExecutorComponents,
 {
-    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
+    async fn execute(&self, block_number: u64) -> eyre::Result<ExecutionInfo> {
         let client_input = try_load_input_from_cache::<C::Primitives>(
             &self.cache_dir,
             self.chain_id,
@@ -356,7 +375,7 @@ where
         )?
         .ok_or(eyre::eyre!("No cached input found"))?;
 
-        self.process_client(client_input, &self.hooks, self.prove).await
+        self.process_client(client_input, &self.hooks).await
     }
 
     fn client(&self) -> Arc<C::Prover> {
