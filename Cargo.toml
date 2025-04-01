@@ -59,8 +59,6 @@ sp1-prover = "4.1.6"
 sp1-sdk = "4.1.6"
 
 # reth
-# the rev 6b602f433ed7a67c8c2e255569f262c044601c53 contains the following commit that allow to `Send` block execution strategy factory:
-# https://github.com/paradigmxyz/reth/commit/1e48668bf23dabd4aa697e7dced5935374043232
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.4", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.4", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.4", default-features = false }
