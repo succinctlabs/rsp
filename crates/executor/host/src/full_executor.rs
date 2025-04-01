@@ -85,7 +85,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
         // Read the block hash.
         let block_hash = public_values.read::<B256>();
-        info!(?block_hash, "Execution sucessful");
+        info!(?block_hash, "Execution successful");
 
         hooks
             .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
@@ -141,8 +141,8 @@ where
 
     fn client(&self) -> Arc<C::Prover> {
         match self {
-            Either::Left(ref executor) => executor.client.clone(),
-            Either::Right(ref executor) => executor.client.clone(),
+            Either::Left(ref executor) => &executor.client,
+            Either::Right(ref executor) => &executor.client,
         }
     }
 
