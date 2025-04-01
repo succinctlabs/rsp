@@ -92,36 +92,54 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             .await?;
 
         if prove {
-            info!("Starting proof generation");
-
-            let proving_start = Instant::now();
-            hooks.on_proving_start(client_input.current_block.number).await?;
-            let client = self.client();
-            let pk = self.pk();
-
-            let proof = task::spawn_blocking(move || {
-                client
-                    .prove(pk.as_ref(), &stdin, SP1ProofMode::Compressed)
-                    .map_err(|err| eyre::eyre!("{err}"))
-            })
-            .await
-            .map_err(|err| eyre::eyre!("{err}"))??;
-
-            let proving_duration = proving_start.elapsed();
-            let proof_bytes = bincode::serialize(&proof.proof).unwrap();
-
-            hooks
-                .on_proving_end(
-                    client_input.current_block.number,
-                    &proof_bytes,
-                    self.vk().as_ref(),
-                    &execution_report,
-                    proving_duration,
-                )
-                .await?;
-
-            info!("Proof successfully generated!");
+            self.generate_proof(
+                client_input.current_block.number,
+                stdin,
+                hooks,
+                &execution_report,
+            ).await?;
         }
+
+        Ok(())
+    }
+
+    #[allow(async_fn_in_trait)]
+    async fn generate_proof(
+        &self,
+        block_number: u64,
+        stdin: SP1Stdin,
+        hooks: &C::Hooks,
+        execution_report: &ExecutionReport,
+    ) -> eyre::Result<()> {
+        info!("Starting proof generation");
+
+        let proving_start = Instant::now();
+        hooks.on_proving_start(block_number).await?;
+        let client = self.client();
+        let pk = self.pk();
+
+        let proof = task::spawn_blocking(move || {
+            client
+                .prove(pk.as_ref(), &stdin, SP1ProofMode::Compressed)
+                .map_err(|err| eyre::eyre!("{err}"))
+        })
+        .await
+        .map_err(|err| eyre::eyre!("{err}"))??;
+
+        let proving_duration = proving_start.elapsed();
+        let proof_bytes = bincode::serialize(&proof.proof).unwrap();
+
+        hooks
+            .on_proving_end(
+                block_number,
+                &proof_bytes,
+                self.vk().as_ref(),
+                execution_report,
+                proving_duration,
+            )
+            .await?;
+
+        info!("Proof successfully generated!");
 
         Ok(())
     }
