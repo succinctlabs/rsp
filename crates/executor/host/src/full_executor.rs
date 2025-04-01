@@ -108,6 +108,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
     #[allow(async_fn_in_trait)]
     async fn generate_proof(
         &self,
+        proving_client: Arc<C::Prover>, // NOTE: We allow using different client for proving!
         block_number: u64,
         stdin: SP1Stdin,
         hooks: &C::Hooks,
@@ -117,7 +118,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
         let proving_start = Instant::now();
         hooks.on_proving_start(block_number).await?;
-        let client = self.client();
+        let client = proving_client;
         let pk = self.pk();
 
         let proof = task::spawn_blocking(move || {
