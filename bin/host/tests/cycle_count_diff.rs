@@ -60,12 +60,13 @@ async fn test_in_zkvm() {
     executor.execute(20600000).await.unwrap();
 }
 
-enum Hook {
+enum Hook<P: NodePrimitives> {
     WithCurrentDev,
     OnBaseBranch,
+    _Phantom(std::marker::PhantomData<P>),
 }
 
-impl Hook {
+impl<P: NodePrimitives> Hook<P> {
     pub fn new(is_base_branch: bool) -> Self {
         if is_base_branch {
             Self::OnBaseBranch
@@ -76,10 +77,12 @@ impl Hook {
 }
 
 #[async_trait]
-impl ExecutionHooks for Hook {
-    async fn on_execution_end<P: NodePrimitives>(
+impl<P: NodePrimitives + 'static> ExecutionHooks for Hook<P> {
+    type Primitives = P;
+
+    async fn on_execution_end(
         &self,
-        executed_block: &Block<P::SignedTx>,
+        executed_block: &Block<<Self::Primitives as NodePrimitives>::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         match self {
@@ -241,6 +244,7 @@ impl ExecutionHooks for Hook {
                 writeln!(output_file, "{}", table)?;
                 writeln!(output_file, "EOF")?;
             }
+            Hook::_Phantom(_) => unreachable!(),
         }
 
         Ok(())

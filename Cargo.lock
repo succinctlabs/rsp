@@ -2371,6 +2371,7 @@ dependencies = [
  "reqwest",
  "reqwest-middleware",
  "reqwest-retry",
+ "reth-primitives-traits",
  "rsp-client-executor",
  "rsp-host-executor",
  "rsp-primitives",

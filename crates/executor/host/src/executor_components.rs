@@ -32,7 +32,7 @@ pub trait ExecutorComponents {
 
     type EvmConfig: ConfigureEvm<Primitives = Self::Primitives>;
 
-    type Hooks: ExecutionHooks;
+    type Hooks: ExecutionHooks<Primitives = Self::Primitives>;
 }
 
 #[derive(Debug, Default)]
@@ -42,7 +42,7 @@ pub struct EthExecutorComponents<H, P = EnvProver> {
 
 impl<H, P> ExecutorComponents for EthExecutorComponents<H, P>
 where
-    H: ExecutionHooks,
+    H: ExecutionHooks<Primitives = EthPrimitives>,
     P: Prover<CpuProverComponents> + 'static,
 {
     type Prover = P;
@@ -63,7 +63,7 @@ pub struct OpExecutorComponents<H, P = EnvProver> {
 
 impl<H, P> ExecutorComponents for OpExecutorComponents<H, P>
 where
-    H: ExecutionHooks,
+    H: ExecutionHooks<Primitives = OpPrimitives>,
     P: Prover<CpuProverComponents> + 'static,
 {
     type Prover = P;

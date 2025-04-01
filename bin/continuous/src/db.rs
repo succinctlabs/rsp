@@ -11,26 +11,29 @@ use sqlx::{
     Pool, Postgres,
 };
 
-pub struct PersistToPostgres {
+pub struct PersistToPostgres<P: NodePrimitives> {
     pub db_pool: Pool<Postgres>,
+    _phantom: std::marker::PhantomData<P>,
 }
 
-impl PersistToPostgres {
+impl<P: NodePrimitives> PersistToPostgres<P> {
     pub fn new(db_pool: Pool<Postgres>) -> Self {
-        Self { db_pool }
+        Self { db_pool, _phantom: std::marker::PhantomData }
     }
 }
 
 #[async_trait]
-impl ExecutionHooks for PersistToPostgres {
+impl<P: NodePrimitives + 'static> ExecutionHooks for PersistToPostgres<P> {
+    type Primitives = P;
+
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         insert_block(&self.db_pool, block_number).await?;
         Ok(())
     }
 
-    async fn on_execution_end<P: NodePrimitives>(
+    async fn on_execution_end(
         &self,
-        executed_block: &Block<P::SignedTx>,
+        executed_block: &Block<<Self::Primitives as NodePrimitives>::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         // Update the block status in PostgreSQL

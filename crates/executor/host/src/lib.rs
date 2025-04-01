@@ -25,7 +25,7 @@ mod full_executor;
 pub use full_executor::{build_executor, BlockExecutor, EitherExecutor, FullExecutor};
 
 mod hooks;
-pub use hooks::ExecutionHooks;
+pub use hooks::{ExecutionHooks, ExecutionHooksList};
 
 mod host_executor;
 pub use host_executor::{EthHostExecutor, HostExecutor, OpHostExecutor};

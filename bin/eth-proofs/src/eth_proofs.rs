@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -5,26 +6,28 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use eyre::eyre;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use reth_primitives_traits::NodePrimitives;
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
 use tracing::error;
 
 #[derive(Debug, Clone)]
-pub struct EthProofsClient {
+pub struct EthProofsClient<P: NodePrimitives> {
     cluster_id: u64,
     endpoint: String,
     api_token: String,
     client: ClientWithMiddleware,
+    _phantom: PhantomData<P>,
 }
 
-impl EthProofsClient {
+impl<P: NodePrimitives> EthProofsClient<P> {
     pub fn new(cluster_id: u64, endpoint: String, api_token: String) -> Self {
         let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
         let client = ClientBuilder::new(reqwest::Client::new())
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))
             .build();
 
-        Self { cluster_id, endpoint, api_token, client }
+        Self { cluster_id, endpoint, api_token, client, _phantom: PhantomData }
     }
 
     pub async fn queued(&self, block_number: u64) {
@@ -122,7 +125,9 @@ impl EthProofsClient {
 }
 
 #[async_trait]
-impl ExecutionHooks for EthProofsClient {
+impl<P: NodePrimitives + 'static> ExecutionHooks for EthProofsClient<P> {
+    type Primitives = P;
+
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         self.queued(block_number).await;
 
@@ -151,7 +156,6 @@ impl ExecutionHooks for EthProofsClient {
             vk,
         )
         .await;
-
         Ok(())
     }
 }

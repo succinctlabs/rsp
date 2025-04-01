@@ -47,21 +47,28 @@ struct ExecutionReportData {
 }
 
 #[derive(Debug)]
-pub struct PersistExecutionReport {
+pub struct PersistExecutionReport<P: NodePrimitives> {
     chain_id: u64,
     report_path: PathBuf,
     precompile_tracking: bool,
     opcode_tracking: bool,
+    _phantom: std::marker::PhantomData<P>,
 }
 
-impl PersistExecutionReport {
+impl<P: NodePrimitives> PersistExecutionReport<P> {
     pub fn new(
         chain_id: u64,
         report_path: PathBuf,
         precompile_tracking: bool,
         opcode_tracking: bool,
     ) -> Self {
-        Self { chain_id, report_path, precompile_tracking, opcode_tracking }
+        Self {
+            chain_id,
+            report_path,
+            precompile_tracking,
+            opcode_tracking,
+            _phantom: std::marker::PhantomData,
+        }
     }
 
     fn write_header(&self, writer: &mut Writer<File>) -> csv::Result<()> {
@@ -115,7 +122,7 @@ impl PersistExecutionReport {
         writer.write_record(&headers)
     }
 
-    fn write_record<P: NodePrimitives>(
+    fn write_record(
         &self,
         writer: &mut Writer<File>,
         block: &Block<P::SignedTx>,
@@ -189,10 +196,12 @@ fn add_metrics(name: String, record: &mut Vec<String>, execution_report: &Execut
 }
 
 #[async_trait]
-impl ExecutionHooks for PersistExecutionReport {
-    async fn on_execution_end<P: NodePrimitives>(
+impl<P: NodePrimitives + 'static> ExecutionHooks for PersistExecutionReport<P> {
+    type Primitives = P;
+
+    async fn on_execution_end(
         &self,
-        executed_block: &Block<P::SignedTx>,
+        executed_block: &Block<<Self::Primitives as NodePrimitives>::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
         println!("\nExecution report:\n{}", execution_report);
@@ -208,7 +217,7 @@ impl ExecutionHooks for PersistExecutionReport {
             self.write_header(&mut writer)?;
         }
 
-        self.write_record::<P>(&mut writer, executed_block, execution_report)?;
+        self.write_record(&mut writer, executed_block, execution_report)?;
 
         writer.flush()?;
 
