@@ -7,7 +7,7 @@ use eth_proofs::EthProofsClient;
 use futures::{future::ready, StreamExt};
 use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
-    EthExecutorComponents, FullExecutor,
+    EthExecutorComponents, ExecutionHooksList, FullExecutor,
 };
 use rsp_provider::create_provider;
 use sp1_sdk::{include_elf, ProverClient};
@@ -69,12 +69,16 @@ async fn main() -> eyre::Result<()> {
 
     let client = Arc::new(builder.build());
 
+    // Example usage of multi-hooks interface.
+    let mut hooks_list = ExecutionHooksList::new();
+    hooks_list.add_hook(eth_proofs_client);
+
     let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(
         http_provider.clone(),
         elf,
         block_execution_strategy_factory,
         client,
-        eth_proofs_client,
+        hooks_list,
         config,
     )
     .await?;

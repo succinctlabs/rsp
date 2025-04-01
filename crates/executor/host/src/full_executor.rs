@@ -87,9 +87,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         let block_hash = public_values.read::<B256>();
         info!(?block_hash, "Execution sucessful");
 
-        hooks
-            .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
-            .await?;
+        hooks.on_execution_end(&client_input.current_block, &execution_report).await?;
 
         if prove {
             info!("Starting proof generation");

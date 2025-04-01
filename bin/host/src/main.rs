@@ -45,12 +45,6 @@ async fn main() -> eyre::Result<()> {
     let block_number = args.block_number;
     let report_path = args.report_path.clone();
     let config = args.as_config().await?;
-    let persist_execution_report = PersistExecutionReport::new(
-        config.chain.id(),
-        report_path,
-        args.precompile_tracking,
-        args.opcode_tracking,
-    );
 
     let prover_client = Arc::new(EnvProver::new());
 
@@ -59,6 +53,13 @@ async fn main() -> eyre::Result<()> {
         let block_execution_strategy_factory =
             create_op_block_execution_strategy_factory(&config.genesis);
         let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
+
+        let persist_execution_report = PersistExecutionReport::new(
+            config.chain.id(),
+            report_path,
+            args.precompile_tracking,
+            args.opcode_tracking,
+        );
 
         let executor = build_executor::<OpExecutorComponents<_>, _>(
             elf,
@@ -76,6 +77,13 @@ async fn main() -> eyre::Result<()> {
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
         let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
+
+        let persist_execution_report = PersistExecutionReport::new(
+            config.chain.id(),
+            report_path,
+            args.precompile_tracking,
+            args.opcode_tracking,
+        );
 
         let executor = build_executor::<EthExecutorComponents<_>, _>(
             elf,
