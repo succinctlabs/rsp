@@ -1,3 +1,6 @@
+[![License Apache](https://img.shields.io/github/license/succinctlabs/rsp)](https://github.com/succinctlabs/rsp/blob/main/LICENSE-APACHE)
+[![License MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/succinctlabs/rsp/blob/main/LICENSE-MIT)
+
 # Reth Succinct Processor (RSP)
 
 A minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://github.com/paradigmxyz/reth). Supports both Ethereum and OP Stack.
