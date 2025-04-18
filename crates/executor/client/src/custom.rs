@@ -17,12 +17,12 @@ use revm::{
     inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
-        InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
+        InputsImpl, InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
     },
     precompile::u64_to_address,
     Context, Inspector, MainBuilder, MainContext,
 };
-use revm_primitives::{hardfork::SpecId, Address, Bytes};
+use revm_primitives::{hardfork::SpecId, Address};
 use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 #[derive(Clone)]
@@ -63,15 +63,16 @@ impl Default for CustomPrecompiles {
 impl<CTX: ContextTr> PrecompileProvider<CTX> for CustomPrecompiles {
     type Output = InterpreterResult;
 
-    fn set_spec(&mut self, spec: <CTX::Cfg as Cfg>::Spec) {
-        <EthPrecompiles as PrecompileProvider<CTX>>::set_spec(&mut self.precompiles, spec);
+    fn set_spec(&mut self, spec: <CTX::Cfg as Cfg>::Spec) -> bool {
+        <EthPrecompiles as PrecompileProvider<CTX>>::set_spec(&mut self.precompiles, spec)
     }
 
     fn run(
         &mut self,
         context: &mut CTX,
         address: &Address,
-        bytes: &Bytes,
+        inputs: &InputsImpl,
+        is_static: bool,
         gas_limit: u64,
     ) -> Result<Option<Self::Output>, String> {
         if self.precompiles.contains(address) {
@@ -80,7 +81,7 @@ impl<CTX: ContextTr> PrecompileProvider<CTX> for CustomPrecompiles {
 
             #[cfg(target_os = "zkvm")]
             println!("cycle-tracker-report-start: precompile-{name}");
-            let result = self.precompiles.run(context, address, bytes, gas_limit);
+            let result = self.precompiles.run(context, address, inputs, is_static, gas_limit);
             #[cfg(target_os = "zkvm")]
             println!("cycle-tracker-report-end: precompile-{name}");
 

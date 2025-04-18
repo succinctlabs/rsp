@@ -43,7 +43,7 @@ jobs:
       - name: "Run tests"
         run: |
           export RUST_LOG=info
-          cargo test test_in_zkvm -- --exact --nocapture
+          cargo test --release test_in_zkvm -- --exact --nocapture
 
       - name: "Checkout base branch"
         run: |
@@ -54,7 +54,7 @@ jobs:
         id: tests-report
         run: |
           export RUST_LOG=info
-          BASE_BRANCH=1 cargo test test_in_zkvm -- --exact --nocapture
+          BASE_BRANCH=1 cargo test  --release test_in_zkvm -- --exact --nocapture
 
       - name: "Add execution report"
         uses: actions/github-script@v7
