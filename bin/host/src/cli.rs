@@ -6,6 +6,7 @@ use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
 use rsp_host_executor::Config;
 use rsp_primitives::genesis::Genesis;
+use sp1_sdk::SP1ProofMode;
 use url::Url;
 
 /// The arguments for the host executable.
@@ -95,7 +96,7 @@ impl HostArgs {
             rpc_url,
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
-            prove: self.prove,
+            prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
             opcode_tracking: self.opcode_tracking,
         };
 

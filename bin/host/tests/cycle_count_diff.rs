@@ -33,7 +33,7 @@ async fn test_in_zkvm() {
         rpc_url: None,
         cache_dir: None,
         custom_beneficiary: None,
-        prove: false,
+        prove_mode: None,
         opcode_tracking: false,
     };
 
