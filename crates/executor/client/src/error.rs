@@ -9,6 +9,8 @@ pub enum ClientError {
     SignatureRecoveryFailed,
     #[error("Mismatched state root after executing the block")]
     MismatchedStateRoot,
+    #[error("Mismatched storage root after executing the block")]
+    MismatchedStorageRoot,
     #[error("unknown chain ID: {}", .0)]
     UnknownChainId(u64),
     #[error("Missing bytecode for account {}", .0)]
