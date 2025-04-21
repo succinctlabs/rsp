@@ -10,7 +10,9 @@ use rsp_host_executor::{
     OpExecutorComponents,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, EnvProver};
+#[cfg(feature = "with-elf")]
+use sp1_sdk::include_elf;
+use sp1_sdk::EnvProver;
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };
@@ -55,7 +57,10 @@ async fn main() -> eyre::Result<()> {
     let prover_client = Arc::new(EnvProver::new());
 
     if config.chain.is_optimism() {
+        #[cfg(feature = "with-elf")]
         let elf = include_elf!("rsp-client-op").to_vec();
+        #[cfg(not(feature = "with-elf"))]
+        let elf = Vec::new();
         let block_execution_strategy_factory =
             create_op_block_execution_strategy_factory(&config.genesis);
         let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
@@ -72,7 +77,10 @@ async fn main() -> eyre::Result<()> {
 
         executor.execute(block_number).await?;
     } else {
+        #[cfg(feature = "with-elf")]
         let elf = include_elf!("rsp-client").to_vec();
+        #[cfg(not(feature = "with-elf"))]
+        let elf = Vec::new();
         let block_execution_strategy_factory =
             create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
         let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));

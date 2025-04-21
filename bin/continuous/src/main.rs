@@ -10,7 +10,9 @@ use rsp_host_executor::{
     EthExecutorComponents, ExecutorComponents, FullExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, EnvProver};
+#[cfg(feature = "with-elf")]
+use sp1_sdk::include_elf;
+use sp1_sdk::EnvProver;
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -42,7 +44,11 @@ async fn main() -> eyre::Result<()> {
     let args = Args::parse();
     let config = Config::mainnet();
 
+    #[cfg(feature = "with-elf")]
     let elf = include_elf!("rsp-client").to_vec();
+    #[cfg(not(feature = "with-elf"))]
+    let elf = Vec::new();
+
     let block_execution_strategy_factory =
         create_eth_block_execution_strategy_factory(&config.genesis, None);
 
