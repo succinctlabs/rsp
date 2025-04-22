@@ -201,12 +201,11 @@ pub trait WitnessInput {
         }
 
         // Hash all of the storage tries and compare them to the state trie.
-        for (address, storage_trie) in state.storage_tries.iter() {
+        for (hashed_address, storage_trie) in state.storage_tries.iter() {
             let storage_root = storage_trie.hash();
-            let hashed_address = keccak256(address);
             let hashed_address = hashed_address.as_slice();
-            if storage_root
-                != state
+            if storage_root !=
+                state
                     .state_trie
                     .get_rlp::<TrieAccount>(hashed_address)
                     .unwrap()
