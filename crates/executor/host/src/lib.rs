@@ -10,6 +10,7 @@ use reth_optimism_evm::OpEvmConfig;
 use revm_primitives::Address;
 use rsp_client_executor::custom::CustomEvmFactory;
 use rsp_primitives::genesis::Genesis;
+use sp1_sdk::SP1ProofMode;
 use std::{path::PathBuf, sync::Arc};
 use url::Url;
 
@@ -54,7 +55,7 @@ pub struct Config {
     pub rpc_url: Option<Url>,
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
-    pub prove: bool,
+    pub prove_mode: Option<SP1ProofMode>,
     pub opcode_tracking: bool,
 }
 
@@ -66,7 +67,7 @@ impl Config {
             rpc_url: None,
             cache_dir: None,
             custom_beneficiary: None,
-            prove: false,
+            prove_mode: None,
             opcode_tracking: false,
         }
     }
