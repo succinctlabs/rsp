@@ -6,7 +6,7 @@ use itertools::Itertools;
 use reth_errors::ProviderError;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_primitives_traits::NodePrimitives;
-use reth_trie::TrieAccount;
+use reth_trie::{TrieAccount, EMPTY_ROOT_HASH};
 use revm::{
     state::{AccountInfo, Bytecode},
     DatabaseRef,
@@ -198,6 +198,15 @@ pub trait WitnessInput {
 
         if self.state_anchor() != state.state_root() {
             return Err(ClientError::MismatchedStateRoot);
+        }
+
+        for (hashed_address, storage_trie) in state.storage_tries.iter() {
+            let account =
+                state.state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice()).unwrap();
+            let storage_root = account.map_or(EMPTY_ROOT_HASH, |a| a.storage_root);
+            if storage_root != storage_trie.hash() {
+                return Err(ClientError::MismatchedStorageRoot);
+            }
         }
 
         let bytecodes_by_hash =
