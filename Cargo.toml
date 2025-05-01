@@ -59,22 +59,23 @@ sp1-prover = "4.2.0"
 sp1-sdk = "4.2.0"
 
 # reth
-reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false, features = ["serde"] }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
+# TODO(fakedev9999): use tag once a new release is made.
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-trie = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false, features = ["serde"] }
+reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
+reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", rev = "37741fdcbc59d9f8f966da11b9a6b79a0a2aecf7", default-features = false }
 
 # revm
 revm = { version = "22.0.1", features = [
@@ -95,35 +96,35 @@ revm-inspectors = "0.19.0"
 
 # alloy
 alloy-chains = { version = "0.2.0", default-features = false }
-alloy-evm = { version = "0.4.0", default-features = false }
+alloy-evm = { version = "0.6.0", default-features = false }
 alloy-primitives = { version = "1.0.0", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
-alloy-provider = { version = "0.14.0", default-features = false, features = [
+alloy-provider = { version = "0.15.7", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
 ] }
-alloy-rpc-types = { version = "0.14.0", default-features = false, features = [
+alloy-rpc-types = { version = "0.15.7", default-features = false, features = [
     "eth",
 ] }
 
-alloy-json-rpc = { version = "0.14.0", default-features = false }
-alloy-genesis = { version = "0.14.0", default-features = false }
-alloy-consensus = { version = "0.14.0", default-features = false, features = ["serde", "serde-bincode-compat"] }
-alloy-network = { version = "0.14.0", default-features = false }
-alloy-transport = { version = "0.14.0", default-features = false }
-alloy-transport-http = { version = "0.14.0", features = [
+alloy-json-rpc = { version = "0.15.7", default-features = false }
+alloy-genesis = { version = "0.15.7", default-features = false }
+alloy-consensus = { version = "0.15.7", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-network = { version = "0.15.7", default-features = false }
+alloy-transport = { version = "0.15.7", default-features = false }
+alloy-transport-http = { version = "0.15.7", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
-alloy-transport-ws = { version = "0.14.0" }
-alloy-rpc-client = { version = "0.14.0", default-features = false }
-alloy-eips = { version = "0.14.0", default-features = false }
+alloy-transport-ws = { version = "0.15.7" }
+alloy-rpc-client = { version = "0.15.7", default-features = false }
+alloy-eips = { version = "0.15.7", default-features = false }
 alloy-rlp = "0.3.10"
 alloy-trie = "0.8.1"
 
 # op
-alloy-op-evm = { version = "0.4.0", default-features = false }
-op-alloy-consensus = "0.13.0"
-op-alloy-network = "0.13.0"
-op-alloy-rpc-types = "0.13.0"
+alloy-op-evm = { version = "0.6.0", default-features = false }
+op-alloy-consensus = "0.15.0"
+op-alloy-network = "0.15.0"
+op-alloy-rpc-types = "0.15.0"
 
 
 [workspace.lints]
