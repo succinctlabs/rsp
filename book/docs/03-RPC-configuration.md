@@ -11,9 +11,9 @@ We supports the following chains:
 * Linea (59144)
 * Sepolia (11155111)
 
-RSP can be run on other custom chains. See the [Custom chains](./04-Advanced/03-Custom-chains) page for more details.
+RSP can be run on other custom chains. See the [Custom chains](./Advanced/Custom-chains) page for more details.
 
-## RPC Node Requirement
+## RPC Node Requirements
 
 RSP fetches block and state data from a JSON-RPC node. You must use an archive node which preserves historical intermediate trie nodes needed for fetching storage proofs.
 
