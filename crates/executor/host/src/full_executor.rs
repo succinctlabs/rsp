@@ -146,8 +146,8 @@ where
 
     fn client(&self) -> Arc<C::Prover> {
         match self {
-            Either::Left(ref executor) => &executor.client,
-            Either::Right(ref executor) => &executor.client,
+            Either::Left(ref executor) => executor.client.clone(),
+            Either::Right(ref executor) => executor.client.clone(),
         }
     }
 
