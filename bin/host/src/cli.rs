@@ -97,6 +97,7 @@ impl HostArgs {
             cache_dir: self.cache_dir.clone(),
             custom_beneficiary: self.custom_beneficiary,
             prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
+            skip_client_execution: false,
             opcode_tracking: self.opcode_tracking,
         };
 

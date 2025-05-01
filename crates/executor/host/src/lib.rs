@@ -56,6 +56,7 @@ pub struct Config {
     pub cache_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
     pub prove_mode: Option<SP1ProofMode>,
+    pub skip_client_execution: bool,
     pub opcode_tracking: bool,
 }
 
@@ -68,6 +69,7 @@ impl Config {
             cache_dir: None,
             custom_beneficiary: None,
             prove_mode: None,
+            skip_client_execution: false,
             opcode_tracking: false,
         }
     }

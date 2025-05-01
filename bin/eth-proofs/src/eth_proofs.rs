@@ -5,7 +5,7 @@ use eyre::eyre;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use rsp_host_executor::ExecutionHooks;
-use sp1_sdk::{ExecutionReport, HashableKey, SP1VerifyingKey};
+use sp1_sdk::{HashableKey, SP1VerifyingKey};
 use tracing::error;
 
 #[derive(Debug, Clone)]
@@ -83,14 +83,14 @@ impl EthProofsClient {
         &self,
         proof_bytes: &[u8],
         block_number: u64,
-        execution_report: &ExecutionReport,
+        cycle_count: u64,
         elapsed: f32,
         vk: &SP1VerifyingKey,
     ) {
         let json = serde_json::json!({
             "proof": STANDARD.encode(proof_bytes),
             "block_number": block_number,
-            "proving_cycles": execution_report.total_instruction_count(),
+            "proving_cycles": cycle_count,
             "proving_time": (elapsed * 1000.0) as u64,
             "verifier_id": vk.bytes32(),
             "cluster_id": self.cluster_id,
@@ -138,13 +138,13 @@ impl ExecutionHooks for EthProofsClient {
         block_number: u64,
         proof_bytes: &[u8],
         vk: &SP1VerifyingKey,
-        execution_report: &ExecutionReport,
+        cycle_count: Option<u64>,
         proving_duration: Duration,
     ) -> eyre::Result<()> {
         self.proved(
             proof_bytes,
             block_number,
-            execution_report,
+            cycle_count.ok_or_else(|| eyre!("The cycle count is required"))?,
             proving_duration.as_secs_f32(),
             vk,
         )
