@@ -20,7 +20,7 @@ The repository is organized into the following directories:
 >
 > This repository is still an active work-in-progress and is not audited or meant for production usage.
 
-Acknowledgments
+## Acknowledgments
 
 This repo would not exist without:
 
