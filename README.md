@@ -2,7 +2,7 @@
 
 RSP is a minimal implementation of generating zero-knowledge proofs of EVM block execution using [Reth](https://reth.rs). Supports both Ethereum and OP Stack.
 
-[Docs](https://succinctlabs.github.io/)
+[Docs](https://succinctlabs.github.io/rsp/)
 
 ## Overview
 

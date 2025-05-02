@@ -54,6 +54,7 @@ impl Args {
             cache_dir: None,
             custom_beneficiary: None,
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
+            skip_client_execution: true,
             opcode_tracking: false,
         };
 
