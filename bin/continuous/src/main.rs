@@ -127,7 +127,7 @@ async fn process_block<C, P>(
 ) -> eyre::Result<()>
 where
     C: ExecutorComponents<Network = Ethereum>,
-    P: Provider<Ethereum> + Clone,
+    P: Provider<Ethereum> + Clone + 'static,
 {
     let mut retry_count = 0;
 

@@ -8,6 +8,7 @@ members = [
     "crates/mpt",
     "crates/primitives",
     "crates/provider",
+    "crates/storage/storage",
     "crates/storage/rpc-db",
     "crates/storage/witness-db",
 ]
@@ -50,7 +51,7 @@ rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 rsp-provider = { path = "./crates/provider" }
-
+rsp-storage = { path = "./crates/storage/storage" }
 
 # sp1
 sp1-build = "4.2.0"
@@ -59,6 +60,9 @@ sp1-prover = "4.2.0"
 sp1-sdk = "4.2.0"
 
 # reth
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
+reth-db-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }

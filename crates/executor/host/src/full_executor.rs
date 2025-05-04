@@ -140,7 +140,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 impl<C, P> BlockExecutor<C> for EitherExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + 'static,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
@@ -238,7 +238,7 @@ where
 impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + 'static,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
@@ -264,7 +264,12 @@ where
                 client_input_from_cache
             }
             None => {
-                let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
+                let provider = self.provider.clone();
+                #[cfg(feature = "cache-bytecodes")]
+                let provider =
+                    rsp_storage::CacheBytecodesProvider::try_new(provider, self.config.chain.id())?;
+
+                let rpc_db = RpcDb::new(provider.clone(), block_number - 1);
 
                 // Execute the host.
                 let client_input = self
@@ -272,7 +277,7 @@ where
                     .execute(
                         block_number,
                         &rpc_db,
-                        &self.provider,
+                        &provider,
                         self.config.genesis.clone(),
                         self.config.custom_beneficiary,
                         self.config.opcode_tracking,

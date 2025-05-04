@@ -1,0 +1,22 @@
+[package]
+name = "rsp-storage"
+description = ""
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+dirs-next = "2.0.0"
+eyre = "0.6.12"
+tracing = "0.1"
+
+# reth
+reth-db = { workspace = true, features = ["mdbx"] }
+reth-db-api.workspace = true
+reth-primitives.workspace = true
+
+# alloy
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
