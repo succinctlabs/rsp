@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use alloy_evm::EthEvmFactory;
 use alloy_network::Ethereum;
 use alloy_provider::Network;
+use eyre::{eyre, Ok};
 use op_alloy_network::Optimism;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_evm::ConfigureEvm;
@@ -15,12 +16,14 @@ use rsp_client_executor::{
 };
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
-use sp1_sdk::{EnvProver, Prover};
+use sp1_sdk::{
+    CudaProver, EnvProver, Prover, SP1ProofMode, SP1ProofWithPublicValues, SP1ProvingKey, SP1Stdin,
+};
 
 use crate::ExecutionHooks;
 
 pub trait ExecutorComponents {
-    type Prover: Prover<CpuProverComponents> + 'static;
+    type Prover: Prover<CpuProverComponents> + MaybeProveWithCycles + 'static;
 
     type Network: Network;
 
@@ -35,6 +38,42 @@ pub trait ExecutorComponents {
     type Hooks: ExecutionHooks;
 }
 
+pub trait MaybeProveWithCycles {
+    fn prove_with_cycles(
+        &self,
+        pk: &SP1ProvingKey,
+        stdin: &SP1Stdin,
+        mode: SP1ProofMode,
+    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error>;
+}
+
+impl MaybeProveWithCycles for EnvProver {
+    fn prove_with_cycles(
+        &self,
+        pk: &SP1ProvingKey,
+        stdin: &SP1Stdin,
+        mode: SP1ProofMode,
+    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
+        let proof = self.prove(pk, stdin).mode(mode).run().map_err(|err| eyre!("{err}"))?;
+
+        Ok((proof, None))
+    }
+}
+
+impl MaybeProveWithCycles for CudaProver {
+    fn prove_with_cycles(
+        &self,
+        pk: &SP1ProvingKey,
+        stdin: &SP1Stdin,
+        mode: SP1ProofMode,
+    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
+        let (proof, cycles) =
+            self.prove_with_cycles(pk, stdin, mode).map_err(|err| eyre!("{err}"))?;
+
+        Ok((proof, Some(cycles)))
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct EthExecutorComponents<H, P = EnvProver> {
     phantom: PhantomData<(H, P)>,
@@ -43,7 +82,7 @@ pub struct EthExecutorComponents<H, P = EnvProver> {
 impl<H, P> ExecutorComponents for EthExecutorComponents<H, P>
 where
     H: ExecutionHooks,
-    P: Prover<CpuProverComponents> + 'static,
+    P: Prover<CpuProverComponents> + MaybeProveWithCycles + 'static,
 {
     type Prover = P;
 
@@ -64,7 +103,7 @@ pub struct OpExecutorComponents<H, P = EnvProver> {
 impl<H, P> ExecutorComponents for OpExecutorComponents<H, P>
 where
     H: ExecutionHooks,
-    P: Prover<CpuProverComponents> + 'static,
+    P: Prover<CpuProverComponents> + MaybeProveWithCycles + 'static,
 {
     type Prover = P;
 
