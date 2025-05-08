@@ -3,6 +3,10 @@ version = "0.1.0"
 name = "rsp"
 edition = "2021"
 
+[features]
+default = []
+with-elf = []
+
 [dependencies]
 tokio.workspace = true
 url.workspace = true
