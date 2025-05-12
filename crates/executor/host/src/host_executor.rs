@@ -11,14 +11,14 @@ use reth_evm::{
 };
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
+use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_primitives_traits::{Block, BlockBody};
 use reth_trie::KeccakKeyHasher;
 use revm::database::CacheDB;
 use revm_primitives::{Address, B256};
 use rsp_client_executor::{
-    custom::CustomEvmFactory, io::ClientExecutorInput, IntoInput, IntoPrimitives,
-    ValidateBlockPostExecution,
+    custom::CustomEvmFactory, io::ClientExecutorInput, BlockValidator, IntoInput, IntoPrimitives,
 };
 use rsp_mpt::EthereumState;
 use rsp_primitives::{account_proof::eip1186_proof_to_account_proof, genesis::Genesis};
@@ -26,37 +26,39 @@ use rsp_rpc_db::RpcDb;
 
 use crate::HostError;
 
-pub type EthHostExecutor = HostExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
+pub type EthHostExecutor = HostExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>, ChainSpec>;
 
-pub type OpHostExecutor = HostExecutor<OpEvmConfig>;
+pub type OpHostExecutor = HostExecutor<OpEvmConfig, OpChainSpec>;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
-pub struct HostExecutor<C: ConfigureEvm> {
+pub struct HostExecutor<C: ConfigureEvm, CS> {
     evm_config: C,
+    chain_spec: Arc<CS>,
 }
 
 impl EthHostExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
             evm_config: EthEvmConfig::new_with_evm_factory(
-                chain_spec,
+                chain_spec.clone(),
                 CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
+            chain_spec,
         }
     }
 }
 
 impl OpHostExecutor {
-    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self { evm_config: OpEvmConfig::optimism(chain_spec) }
+    pub fn optimism(chain_spec: Arc<OpChainSpec>) -> Self {
+        Self { evm_config: OpEvmConfig::optimism(chain_spec.clone()), chain_spec }
     }
 }
 
-impl<C: ConfigureEvm> HostExecutor<C> {
+impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     /// Creates a new [HostExecutor].
-    pub fn new(evm_config: C) -> Self {
-        Self { evm_config }
+    pub fn new(evm_config: C, chain_spec: Arc<CS>) -> Self {
+        Self { evm_config, chain_spec }
     }
 
     /// Executes the block with the given block number.
@@ -70,7 +72,7 @@ impl<C: ConfigureEvm> HostExecutor<C> {
         opcode_tracking: bool,
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
-        C::Primitives: IntoPrimitives<N> + IntoInput + ValidateBlockPostExecution,
+        C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
         P: Provider<N> + Clone,
         N: Network,
     {
@@ -109,11 +111,21 @@ impl<C: ConfigureEvm> HostExecutor<C> {
             .map_err(|_| HostError::FailedToRecoverSenders)
             .unwrap();
 
+        // Validate the block header.
+        C::Primitives::validate_header(
+            block.sealed_block().sealed_header(),
+            self.chain_spec.clone(),
+        )?;
+
         let execution_output = block_executor.execute(&block)?;
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        C::Primitives::validate_block_post_execution(&block, &genesis, &execution_output)?;
+        C::Primitives::validate_block_post_execution(
+            &block,
+            self.chain_spec.clone(),
+            &execution_output,
+        )?;
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");

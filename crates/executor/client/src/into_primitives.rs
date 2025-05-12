@@ -1,11 +1,14 @@
+use std::sync::Arc;
+
 use alloy_consensus::{Block, Header, TxEnvelope};
 use alloy_network::{Ethereum, Network};
 use reth_chainspec::ChainSpec;
+use reth_consensus::HeaderValidator;
 use reth_errors::ConsensusError;
+use reth_ethereum_consensus::EthBeaconConsensus;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_execution_types::BlockExecutionOutput;
-use reth_primitives_traits::{NodePrimitives, RecoveredBlock};
-use rsp_primitives::genesis::Genesis;
+use reth_primitives_traits::{NodePrimitives, RecoveredBlock, SealedHeader};
 
 pub trait IntoPrimitives<N: Network>: NodePrimitives {
     fn into_primitive_block(block: N::BlockResponse) -> Self::Block;
@@ -21,10 +24,14 @@ pub trait IntoInput: NodePrimitives {
     fn into_input_block(block: Self::Block) -> Block<Self::SignedTx>;
 }
 
-pub trait ValidateBlockPostExecution: NodePrimitives {
+pub trait BlockValidator<CS>: NodePrimitives {
+    fn validate_header(
+        header: &SealedHeader<Self::BlockHeader>,
+        chain_spec: Arc<CS>,
+    ) -> Result<(), ConsensusError>;
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
-        genesis: &Genesis,
+        chain_spec: Arc<CS>,
         execution_output: &BlockExecutionOutput<Self::Receipt>,
     ) -> Result<(), ConsensusError>;
 }
@@ -52,13 +59,21 @@ impl IntoInput for EthPrimitives {
     }
 }
 
-impl ValidateBlockPostExecution for EthPrimitives {
+impl BlockValidator<ChainSpec> for EthPrimitives {
+    fn validate_header(
+        header: &SealedHeader,
+        chain_spec: Arc<ChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        let validator = EthBeaconConsensus::new(chain_spec);
+
+        validator.validate_header(header)
+    }
+
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
-        genesis: &Genesis,
+        chain_spec: Arc<ChainSpec>,
         execution_output: &BlockExecutionOutput<Self::Receipt>,
     ) -> Result<(), ConsensusError> {
-        let chain_spec = ChainSpec::try_from(genesis).unwrap();
         reth_ethereum_consensus::validate_block_post_execution(
             block,
             &chain_spec,
@@ -99,13 +114,22 @@ impl IntoInput for reth_optimism_primitives::OpPrimitives {
 }
 
 #[cfg(feature = "optimism")]
-impl ValidateBlockPostExecution for reth_optimism_primitives::OpPrimitives {
+impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
+    for reth_optimism_primitives::OpPrimitives
+{
+    fn validate_header(
+        header: &SealedHeader,
+        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        let validator = reth_optimism_consensus::OpBeaconConsensus::new(chain_spec);
+
+        validator.validate_header(header)
+    }
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
-        genesis: &Genesis,
+        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
         execution_output: &BlockExecutionOutput<Self::Receipt>,
     ) -> Result<(), ConsensusError> {
-        let chain_spec = reth_optimism_chainspec::OpChainSpec::try_from(genesis).unwrap();
         reth_optimism_consensus::validate_block_post_execution(
             block.header(),
             &chain_spec,

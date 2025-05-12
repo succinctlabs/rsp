@@ -8,7 +8,7 @@ use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
-    FromInput, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
+    BlockValidator, FromInput, IntoInput, IntoPrimitives,
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
 use rsp_primitives::genesis::Genesis;
@@ -34,7 +34,7 @@ async fn test_e2e_optimism() {
     // Setup the client executor.
     let client_executor = rsp_client_executor::executor::OpClientExecutor::optimism(chain_spec);
 
-    run_e2e::<_, op_alloy_network::Optimism>(
+    run_e2e::<_, OpChainSpec, op_alloy_network::Optimism>(
         host_executor,
         client_executor,
         "RPC_10",
@@ -75,7 +75,7 @@ async fn run_eth_e2e(
     // Setup the client executor.
     let client_executor = EthClientExecutor::eth(chain_spec, custom_beneficiary);
 
-    run_e2e::<_, Ethereum>(
+    run_e2e::<_, ChainSpec, Ethereum>(
         host_executor,
         client_executor,
         env_var_key,
@@ -86,9 +86,9 @@ async fn run_eth_e2e(
     .await;
 }
 
-async fn run_e2e<C, N>(
-    host_executor: HostExecutor<C>,
-    client_executor: ClientExecutor<C>,
+async fn run_e2e<C, CS, N>(
+    host_executor: HostExecutor<C, CS>,
+    client_executor: ClientExecutor<C, CS>,
     env_var_key: &str,
     block_number: u64,
     genesis: &Genesis,
@@ -98,7 +98,7 @@ async fn run_e2e<C, N>(
     C::Primitives: FromInput
         + IntoPrimitives<N>
         + IntoInput
-        + ValidateBlockPostExecution
+        + BlockValidator<CS>
         + Serialize
         + DeserializeOwned,
     N: Network,

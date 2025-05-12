@@ -19,7 +19,7 @@ use tracing::{info, info_span, warn};
 
 use crate::{
     executor_components::MaybeProveWithCycles, Config, ExecutionHooks, ExecutorComponents,
-    HostExecutor,
+    HostError, HostExecutor,
 };
 
 pub type EitherExecutor<C, P> = Either<FullExecutor<C, P>, CachedExecutor<C>>;
@@ -190,7 +190,7 @@ where
     P: Provider<C::Network> + Clone,
 {
     provider: P,
-    host_executor: HostExecutor<C::EvmConfig>,
+    host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,
     client: Arc<C::Prover>,
     pk: Arc<SP1ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
@@ -222,7 +222,10 @@ where
 
         Ok(Self {
             provider,
-            host_executor: HostExecutor::new(evm_config),
+            host_executor: HostExecutor::new(
+                evm_config,
+                Arc::new(C::try_into_chain_spec(&config.genesis)?),
+            ),
             client,
             pk: Arc::new(pk),
             vk: Arc::new(vk),
