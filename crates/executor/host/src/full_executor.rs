@@ -9,8 +9,7 @@ use alloy_provider::Provider;
 use either::Either;
 use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
-use revm_primitives::B256;
-use rsp_client_executor::io::ClientExecutorInput;
+use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use rsp_rpc_db::RpcDb;
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
@@ -92,9 +91,16 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             .await?;
             let (mut public_values, execution_report) = execute_result?;
 
-            // Read the block hash.
-            let block_hash = public_values.read::<B256>();
-            info!(?block_hash, "Execution successful");
+            // Read the block header.
+            let header = public_values.read::<CommittedHeader>().header;
+            let executed_block_hash = header.hash_slow();
+            let input_block_hash = client_input.current_block.header.hash_slow();
+
+            if input_block_hash != executed_block_hash {
+                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?
+            }
+
+            info!(?executed_block_hash, "Execution successful");
 
             hooks
                 .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)

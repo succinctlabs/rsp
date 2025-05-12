@@ -95,6 +95,20 @@ impl<P: NodePrimitives> WitnessInput for ClientExecutorInput<P> {
     }
 }
 
+// The headed committed at the end of execution
+#[serde_as]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CommittedHeader {
+    #[serde_as(as = "alloy_consensus::serde_bincode_compat::Header")]
+    pub header: Header,
+}
+
+impl From<Header> for CommittedHeader {
+    fn from(header: Header) -> Self {
+        CommittedHeader { header }
+    }
+}
+
 #[derive(Debug)]
 pub struct TrieDB<'a> {
     inner: &'a EthereumState,
