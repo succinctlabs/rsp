@@ -3,7 +3,7 @@
 /// Client program input data types.
 pub mod io;
 #[macro_use]
-mod utils;
+pub mod utils;
 pub mod custom;
 pub mod error;
 pub mod executor;
