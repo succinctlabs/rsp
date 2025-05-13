@@ -22,32 +22,36 @@ use crate::{
     into_primitives::FromInput,
     io::{ClientExecutorInput, TrieDB},
     tracking::OpCodesTrackingBlockExecutor,
-    ValidateBlockPostExecution,
+    BlockValidator,
 };
 
 pub const DESERIALZE_INPUTS: &str = "deserialize inputs";
 pub const INIT_WITNESS_DB: &str = "initialize witness db";
 pub const RECOVER_SENDERS: &str = "recover senders";
 pub const BLOCK_EXECUTION: &str = "block execution";
+pub const VALIDATE_HEADER: &str = "validate header";
 pub const VALIDATE_EXECUTION: &str = "validate block post-execution";
 pub const ACCRUE_LOG_BLOOM: &str = "accrue logs bloom";
 pub const COMPUTE_STATE_ROOT: &str = "compute state root";
 
-pub type EthClientExecutor = ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>>;
+pub type EthClientExecutor =
+    ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>, ChainSpec>;
 
 #[cfg(feature = "optimism")]
-pub type OpClientExecutor = ClientExecutor<reth_optimism_evm::OpEvmConfig>;
+pub type OpClientExecutor =
+    ClientExecutor<reth_optimism_evm::OpEvmConfig, reth_optimism_chainspec::OpChainSpec>;
 
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone)]
-pub struct ClientExecutor<C: ConfigureEvm> {
+pub struct ClientExecutor<C: ConfigureEvm, CS> {
     evm_config: C,
+    chain_spec: Arc<CS>,
 }
 
-impl<C> ClientExecutor<C>
+impl<C, CS> ClientExecutor<C, CS>
 where
     C: ConfigureEvm,
-    C::Primitives: FromInput + ValidateBlockPostExecution,
+    C::Primitives: FromInput + BlockValidator<CS>,
 {
     pub fn execute(
         &self,
@@ -67,12 +71,24 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
+        // Validate the block header.
+        profile_report!(VALIDATE_HEADER, {
+            C::Primitives::validate_header(
+                block.sealed_block().sealed_header(),
+                self.chain_spec.clone(),
+            )
+        })?;
+
         let execution_output =
             profile_report!(BLOCK_EXECUTION, { block_executor.execute(&block) })?;
 
         // Validate the block post execution.
         profile_report!(VALIDATE_EXECUTION, {
-            C::Primitives::validate_block_post_execution(&block, &input.genesis, &execution_output)
+            C::Primitives::validate_block_post_execution(
+                &block,
+                self.chain_spec.clone(),
+                &execution_output,
+            )
         })?;
 
         // Accumulate the logs bloom.
@@ -135,9 +151,10 @@ impl EthClientExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
         Self {
             evm_config: EthEvmConfig::new_with_evm_factory(
-                chain_spec,
+                chain_spec.clone(),
                 CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
             ),
+            chain_spec,
         }
     }
 }
@@ -145,7 +162,10 @@ impl EthClientExecutor {
 #[cfg(feature = "optimism")]
 impl OpClientExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        Self { evm_config: reth_optimism_evm::OpEvmConfig::optimism(chain_spec) }
+        Self {
+            evm_config: reth_optimism_evm::OpEvmConfig::optimism(chain_spec.clone()),
+            chain_spec,
+        }
     }
 }
 

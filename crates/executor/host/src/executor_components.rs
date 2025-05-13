@@ -5,15 +5,16 @@ use alloy_network::Ethereum;
 use alloy_provider::Network;
 use eyre::{eyre, Ok};
 use op_alloy_network::Optimism;
+use reth_chainspec::ChainSpec;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_evm::ConfigureEvm;
 use reth_evm_ethereum::EthEvmConfig;
+use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_optimism_primitives::OpPrimitives;
 use reth_primitives_traits::NodePrimitives;
-use rsp_client_executor::{
-    custom::CustomEvmFactory, IntoInput, IntoPrimitives, ValidateBlockPostExecution,
-};
+use rsp_client_executor::{custom::CustomEvmFactory, BlockValidator, IntoInput, IntoPrimitives};
+use rsp_primitives::genesis::Genesis;
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{
@@ -31,11 +32,15 @@ pub trait ExecutorComponents {
         + DeserializeOwned
         + IntoPrimitives<Self::Network>
         + IntoInput
-        + ValidateBlockPostExecution;
+        + BlockValidator<Self::ChainSpec>;
 
     type EvmConfig: ConfigureEvm<Primitives = Self::Primitives>;
 
+    type ChainSpec;
+
     type Hooks: ExecutionHooks;
+
+    fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<Self::ChainSpec>;
 }
 
 pub trait MaybeProveWithCycles {
@@ -92,7 +97,13 @@ where
 
     type EvmConfig = EthEvmConfig<CustomEvmFactory<EthEvmFactory>>;
 
+    type ChainSpec = ChainSpec;
+
     type Hooks = H;
+
+    fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<ChainSpec> {
+        genesis.try_into()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -113,5 +124,11 @@ where
 
     type EvmConfig = OpEvmConfig;
 
+    type ChainSpec = OpChainSpec;
+
     type Hooks = H;
+
+    fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<OpChainSpec> {
+        genesis.try_into()
+    }
 }

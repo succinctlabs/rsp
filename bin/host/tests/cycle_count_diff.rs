@@ -8,7 +8,7 @@ use madato::{mk_table, types::TableRow};
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::executor::{
     ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, DESERIALZE_INPUTS, INIT_WITNESS_DB,
-    RECOVER_SENDERS, VALIDATE_EXECUTION,
+    RECOVER_SENDERS, VALIDATE_EXECUTION, VALIDATE_HEADER,
 };
 use rsp_host_executor::{
     build_executor, create_eth_block_execution_strategy_factory, BlockExecutor, Config,
@@ -100,6 +100,11 @@ impl ExecutionHooks for Hook {
                         .get(RECOVER_SENDERS)
                         .copied()
                         .unwrap_or(0),
+                    header_validation_cycles_count: execution_report
+                        .cycle_tracker
+                        .get(VALIDATE_HEADER)
+                        .copied()
+                        .unwrap_or(0),
                     block_execution_cycles_count: execution_report
                         .cycle_tracker
                         .get(BLOCK_EXECUTION)
@@ -185,6 +190,15 @@ impl ExecutionHooks for Hook {
                             current_dev_stats.recover_senders_cycles_count,
                         ),
                         row(
+                            "Header Validation",
+                            execution_report
+                                .cycle_tracker
+                                .get(VALIDATE_HEADER)
+                                .copied()
+                                .unwrap_or_default(),
+                            current_dev_stats.header_validation_cycles_count,
+                        ),
+                        row(
                             "Block Execution",
                             execution_report
                                 .cycle_tracker
@@ -252,6 +266,7 @@ struct Stats {
     pub deserialize_inputs: u64,
     pub initialize_witness_db_cycles_count: u64,
     pub recover_senders_cycles_count: u64,
+    pub header_validation_cycles_count: u64,
     pub block_execution_cycles_count: u64,
     pub block_validation_cycles_count: u64,
     pub accrue_logs_bloom_cycles_count: u64,

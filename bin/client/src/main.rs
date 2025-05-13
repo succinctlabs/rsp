@@ -3,7 +3,7 @@ sp1_zkvm::entrypoint!(main);
 
 use rsp_client_executor::{
     executor::{EthClientExecutor, DESERIALZE_INPUTS},
-    io::EthClientExecutorInput,
+    io::{CommittedHeader, EthClientExecutorInput},
 };
 use std::sync::Arc;
 
@@ -20,8 +20,7 @@ pub fn main() {
         input.custom_beneficiary,
     );
     let header = executor.execute(input).expect("failed to execute client");
-    let block_hash = header.hash_slow();
 
-    // Commit the block hash.
-    sp1_zkvm::io::commit(&block_hash);
+    // Commit the block header.
+    sp1_zkvm::io::commit::<CommittedHeader>(&header.into());
 }
