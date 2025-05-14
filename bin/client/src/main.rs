@@ -2,7 +2,7 @@
 sp1_zkvm::entrypoint!(main);
 
 use rsp_client_executor::{
-    executor::{EthClientExecutor, DESERIALZE_INPUTS},
+    executor::{EthClientExecutor, DESERIALIZE_INPUTS},
     io::{CommittedHeader, EthClientExecutorInput},
 };
 use std::sync::Arc;
