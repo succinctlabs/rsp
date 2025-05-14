@@ -1,4 +1,4 @@
-//! A cunstom EVM configuration for annotated precompiles.
+//! A custom EVM configuration for annotated precompiles.
 //!
 //! Originally from: https://github.com/paradigmxyz/alphanet/blob/main/crates/node/src/evm.rs.
 //!
