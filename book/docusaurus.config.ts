@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'RSP Book',
-  tagline: 'Powered by Succinct SP{1',
+  tagline: 'Powered by Succinct SP1',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
