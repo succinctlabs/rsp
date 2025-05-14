@@ -131,7 +131,7 @@ where
 {
     let mut retry_count = 0;
 
-    // Wait for the block to be avaliable in the HTTP provider
+    // Wait for the block to be available in the HTTP provider
     executor.wait_for_block(number).await?;
 
     loop {
