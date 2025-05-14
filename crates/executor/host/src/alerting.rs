@@ -3,7 +3,7 @@
 use serde::Serialize;
 use tracing::error;
 
-const PAGER_DUTY_ENDPOINT: &str = "https://events.pagerduty.com/v2";
+const PAGER_DUTY_ENDPOINT: &str = "https://www.pagerduty.com/events/";
 
 #[derive(Debug)]
 pub struct AlertingClient {

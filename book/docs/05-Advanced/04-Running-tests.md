@@ -9,7 +9,7 @@ export RPC_59144="YOUR_LINEA_MAINNET_RPC_URL"
 export RPC_11155111="YOUR_SEPOLIA_RPC_URL"
 ```
 
-Note that these JSON-RPC nodes must fulfill the [RPC node requirement](../RPC-configuration#rpc-node-requirements).
+Note that these JSON-RPC nodes must fulfill the [RPC node requirement](../03-RPC-configuration.md#rpc-node-requirements).
 
 Then execute:
 

@@ -2,17 +2,17 @@
 sp1_zkvm::entrypoint!(main);
 
 use rsp_client_executor::{
-    executor::{EthClientExecutor, DESERIALZE_INPUTS},
+    executor::{EthClientExecutor, DESERIALIZE_INPUTS},
     io::{CommittedHeader, EthClientExecutorInput},
 };
 use std::sync::Arc;
 
 pub fn main() {
     // Read the input.
-    println!("cycle-tracker-report-start: {}", DESERIALZE_INPUTS);
+    println!("cycle-tracker-report-start: {}", DESERIALIZE_INPUTS);
     let input = sp1_zkvm::io::read_vec();
     let input = bincode::deserialize::<EthClientExecutorInput>(&input).unwrap();
-    println!("cycle-tracker-report-end: {}", DESERIALZE_INPUTS);
+    println!("cycle-tracker-report-end: {}", DESERIALIZE_INPUTS);
 
     // Execute the block.
     let executor = EthClientExecutor::eth(
