@@ -21,7 +21,7 @@ pub enum ClientError {
     InvalidHeaderBlockNumber(u64, u64),
     #[error("Invalid parent header found for block \n expected: {}, found: {}", .0, .1)]
     InvalidHeaderParentHash(FixedBytes<32>, FixedBytes<32>),
-    #[error("Failed to validate post exectution state {}", 0)]
+    #[error("Failed to validate post execution state {}", 0)]
     PostExecutionError(#[from] ConsensusError),
     #[error("Block Execution Failed: {}", .0)]
     BlockExecutionError(#[from] BlockExecutionError),
