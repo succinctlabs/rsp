@@ -13,7 +13,7 @@ pub enum Genesis {
     Custom(String),
 }
 
-/// Returns the [alloy_genesis::Genesis] fron a json string.
+/// Returns the [alloy_genesis::Genesis] from a json string.
 pub fn genesis_from_json(json: &str) -> eyre::Result<alloy_genesis::Genesis> {
     let genesis = serde_json::from_str::<alloy_genesis::Genesis>(json)?;
 
