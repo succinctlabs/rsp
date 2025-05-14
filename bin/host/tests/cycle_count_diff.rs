@@ -7,7 +7,7 @@ use alloy_provider::RootProvider;
 use madato::{mk_table, types::TableRow};
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::executor::{
-    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, DESERIALZE_INPUTS, INIT_WITNESS_DB,
+    ACCRUE_LOG_BLOOM, BLOCK_EXECUTION, COMPUTE_STATE_ROOT, DESERIALIZE_INPUTS, INIT_WITNESS_DB,
     RECOVER_SENDERS, VALIDATE_EXECUTION, VALIDATE_HEADER,
 };
 use rsp_host_executor::{
@@ -87,7 +87,7 @@ impl ExecutionHooks for Hook {
                     total_cycle_count: execution_report.total_instruction_count(),
                     deserialize_inputs: execution_report
                         .cycle_tracker
-                        .get(DESERIALZE_INPUTS)
+                        .get(DESERIALIZE_INPUTS)
                         .copied()
                         .unwrap_or(0),
                     initialize_witness_db_cycles_count: execution_report
@@ -166,7 +166,7 @@ impl ExecutionHooks for Hook {
                             "Inputs deserialization",
                             execution_report
                                 .cycle_tracker
-                                .get(DESERIALZE_INPUTS)
+                                .get(DESERIALIZE_INPUTS)
                                 .copied()
                                 .unwrap_or_default(),
                             current_dev_stats.deserialize_inputs,
