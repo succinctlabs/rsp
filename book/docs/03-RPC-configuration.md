@@ -11,7 +11,7 @@ We supports the following chains:
 * Linea (59144)
 * Sepolia (11155111)
 
-RSP can be run on other custom chains. See the [Custom chains](./Advanced/03-Custom-chains.md) page for more details.
+RSP can be run on other custom chains. See the [Custom chains](./05-Advanced/03-Custom-chains.md) page for more details.
 
 ## RPC Node Requirements
 
