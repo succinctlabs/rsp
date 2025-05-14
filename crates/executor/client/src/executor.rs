@@ -25,7 +25,7 @@ use crate::{
     BlockValidator,
 };
 
-pub const DESERIALZE_INPUTS: &str = "deserialize inputs";
+pub const DESERIALIZE_INPUTS: &str = "deserialize inputs";
 pub const INIT_WITNESS_DB: &str = "initialize witness db";
 pub const RECOVER_SENDERS: &str = "recover senders";
 pub const BLOCK_EXECUTION: &str = "block execution";
