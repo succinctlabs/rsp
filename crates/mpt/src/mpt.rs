@@ -288,7 +288,9 @@ impl Decodable for MptNode {
 /// debugging.
 impl MptNode {
     /// Creates a Merkle Patricia trie from an EIP-1186 proof.
-    pub fn try_from_account_proof(account_proof: &[Bytes]) -> Result<Self, FromProofError> {
+    pub fn try_from_account_proof(
+        account_proof: &[impl AsRef<[u8]>],
+    ) -> Result<Self, FromProofError> {
         let nodes = parse_proof(account_proof)?;
         mpt_from_proof(&nodes)
     }
