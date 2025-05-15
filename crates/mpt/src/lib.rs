@@ -38,13 +38,20 @@ impl EthereumState {
         proofs_to_tries(state_root, proofs)
     }
 
+    /// Builds Ethereum state tries from a EIP-1186 proof.
     pub fn from_account_proof(proof: EIP1186AccountProofResponse) -> Result<Self, FromProofError> {
         let mut storage_tries = HashMap::with_hasher(Default::default());
         let mut storage_nodes = HashMap::with_hasher(Default::default());
+        let mut storage_root_node = MptNode::default();
 
         for storage_proof in &proof.storage_proof {
             let proof_nodes = parse_proof(&storage_proof.proof)?;
             mpt_from_proof(&proof_nodes)?;
+
+            // the first node in the proof is the root
+            if let Some(node) = proof_nodes.first() {
+                storage_root_node = node.clone();
+            }
 
             proof_nodes.into_iter().for_each(|node| {
                 storage_nodes.insert(node.reference(), node);
@@ -52,7 +59,7 @@ impl EthereumState {
         }
 
         storage_tries
-            .insert(keccak256(proof.address), resolve_nodes(&MptNode::default(), &storage_nodes));
+            .insert(keccak256(proof.address), resolve_nodes(&storage_root_node, &storage_nodes));
 
         let state = EthereumState {
             state_trie: MptNode::from_account_proof(&proof.account_proof)?,
