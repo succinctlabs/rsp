@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
-pub use mpt::Error;
-use mpt::{proofs_to_tries, transition_proofs_to_tries, MptNode};
+use mpt::{proofs_to_tries, transition_proofs_to_tries};
+pub use mpt::{Error, MptNode};
 
 /// Ethereum state trie and account storage tries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
