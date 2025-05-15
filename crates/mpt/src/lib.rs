@@ -1,6 +1,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
-use alloy_primitives::{map::HashMap, Address, B256};
+use alloy_primitives::{keccak256, map::HashMap, Address, B256};
 use alloy_rpc_types::EIP1186AccountProofResponse;
 use reth_trie::{AccountProof, HashedPostState, HashedStorage, TrieAccount};
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,10 @@ use serde::{Deserialize, Serialize};
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
 pub use mpt::Error;
-use mpt::{proofs_to_tries, transition_proofs_to_tries, MptNode};
+use mpt::{
+    mpt_from_proof, parse_proof, proofs_to_tries, resolve_nodes, transition_proofs_to_tries,
+    MptNode,
+};
 
 /// Ethereum state trie and account storage tries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,12 +39,20 @@ impl EthereumState {
     }
 
     pub fn from_account_proof(proof: EIP1186AccountProofResponse) -> Result<Self, FromProofError> {
-        let storage_proof =
-            proof.storage_proof.iter().flat_map(|p| p.proof.clone()).collect::<Vec<_>>();
-
         let mut storage_tries = HashMap::with_hasher(Default::default());
+        let mut storage_nodes = HashMap::with_hasher(Default::default());
 
-        storage_tries.insert(proof.storage_hash, MptNode::from_account_proof(&storage_proof)?);
+        for storage_proof in &proof.storage_proof {
+            let proof_nodes = parse_proof(&storage_proof.proof)?;
+            mpt_from_proof(&proof_nodes)?;
+
+            proof_nodes.into_iter().for_each(|node| {
+                storage_nodes.insert(node.reference(), node);
+            });
+        }
+
+        storage_tries
+            .insert(keccak256(proof.address), resolve_nodes(&MptNode::default(), &storage_nodes));
 
         let state = EthereumState {
             state_trie: MptNode::from_account_proof(&proof.account_proof)?,
