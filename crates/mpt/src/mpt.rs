@@ -287,6 +287,12 @@ impl Decodable for MptNode {
 /// and retrieving values, as well as utility methods for encoding, decoding, and
 /// debugging.
 impl MptNode {
+    /// Creates a Merkle Patricia trie from an EIP-1186 proof.
+    pub fn from_account_proof(account_proof: &[impl AsRef<[u8]>]) -> Result<Self, FromProofError> {
+        let nodes = parse_proof(account_proof)?;
+        mpt_from_proof(&nodes)
+    }
+
     /// Clears the trie, replacing its data with an empty node, [MptNodeData::Null].
     ///
     /// This method effectively removes all key-value pairs from the trie.

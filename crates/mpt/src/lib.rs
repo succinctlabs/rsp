@@ -1,13 +1,17 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
-use alloy_primitives::{map::HashMap, Address, B256};
+use alloy_primitives::{keccak256, map::HashMap, Address, B256};
+use alloy_rpc_types::EIP1186AccountProofResponse;
 use reth_trie::{AccountProof, HashedPostState, HashedStorage, TrieAccount};
 use serde::{Deserialize, Serialize};
 
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
 pub use mpt::Error;
-use mpt::{proofs_to_tries, transition_proofs_to_tries, MptNode};
+use mpt::{
+    mpt_from_proof, parse_proof, proofs_to_tries, resolve_nodes, transition_proofs_to_tries,
+    MptNode,
+};
 
 /// Ethereum state trie and account storage tries.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -32,6 +36,37 @@ impl EthereumState {
         proofs: &HashMap<Address, AccountProof>,
     ) -> Result<Self, FromProofError> {
         proofs_to_tries(state_root, proofs)
+    }
+
+    /// Builds Ethereum state tries from a EIP-1186 proof.
+    pub fn from_account_proof(proof: EIP1186AccountProofResponse) -> Result<Self, FromProofError> {
+        let mut storage_tries = HashMap::with_hasher(Default::default());
+        let mut storage_nodes = HashMap::with_hasher(Default::default());
+        let mut storage_root_node = MptNode::default();
+
+        for storage_proof in &proof.storage_proof {
+            let proof_nodes = parse_proof(&storage_proof.proof)?;
+            mpt_from_proof(&proof_nodes)?;
+
+            // the first node in the proof is the root
+            if let Some(node) = proof_nodes.first() {
+                storage_root_node = node.clone();
+            }
+
+            proof_nodes.into_iter().for_each(|node| {
+                storage_nodes.insert(node.reference(), node);
+            });
+        }
+
+        storage_tries
+            .insert(keccak256(proof.address), resolve_nodes(&storage_root_node, &storage_nodes));
+
+        let state = EthereumState {
+            state_trie: MptNode::from_account_proof(&proof.account_proof)?,
+            storage_tries,
+        };
+
+        Ok(state)
     }
 
     /// Mutates state based on diffs provided in [`HashedPostState`].
