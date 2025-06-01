@@ -62,12 +62,14 @@ async fn main() -> eyre::Result<()> {
     let mut stream =
         subscription.into_stream().filter(|h| ready(h.number % args.block_interval == 0));
 
-    let mut builder = ProverClient::builder().cuda();
-    if let Some(endpoint) = &args.moongate_endpoint {
-        builder = builder.with_moongate_endpoint(endpoint)
-    }
+    let builder = ProverClient::builder().cuda();
+    let client = if let Some(endpoint) = &args.moongate_endpoint {
+        builder.server(endpoint).build()
+    } else {
+        builder.build()
+    };
 
-    let client = Arc::new(builder.build());
+    let client = Arc::new(client);
 
     let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(
         http_provider.clone(),
