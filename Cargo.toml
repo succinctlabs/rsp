@@ -53,10 +53,10 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "4.2.0"
-sp1-core-executor = "4.2.0"
-sp1-prover = "4.2.0"
-sp1-sdk = "4.2.0"
+sp1-build = "5.0.0"
+sp1-core-executor = { version = "5.0.0", features = ["bigint-rug"] }
+sp1-prover = "5.0.0"
+sp1-sdk = "5.0.0"
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
@@ -137,13 +137,7 @@ rustdoc.all = "warn"
 [patch.crates-io]
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.8-sp1-4.0.0", package = "sha2" }
-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-4.0.0", package = "substrate-bn" }
+bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-5.0.0", package = "substrate-bn" }
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
-k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-4.1.0" }
-p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-4.1.0" }
-
-# Needed for prove_with_cycles(), can be removed once SP1 v4.2.1 is out
-sp1-build = { git = "https://github.com/succinctlabs/sp1", rev = "42dbf08c6167641812162ed0d146dfed3ca0517a" }
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1", rev = "42dbf08c6167641812162ed0d146dfed3ca0517a" }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1", rev = "42dbf08c6167641812162ed0d146dfed3ca0517a" }
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1", rev = "42dbf08c6167641812162ed0d146dfed3ca0517a"}
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-5.0.0" }
+p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-5.0.0" }
