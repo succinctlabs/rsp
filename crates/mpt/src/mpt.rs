@@ -23,12 +23,12 @@ use alloc::boxed::Box;
 use alloy_primitives::{b256, map::HashMap, B256};
 use alloy_rlp::Encodable;
 use core::{
-    cell::RefCell,
     cmp,
     fmt::{Debug, Write},
     iter, mem,
 };
 use reth_trie::AccountProof;
+use std::sync::{Arc, Mutex};
 
 use rlp::{Decodable, DecoderError, Prototype, Rlp};
 use serde::{Deserialize, Serialize};
@@ -91,14 +91,34 @@ pub fn keccak(data: impl AsRef<[u8]>) -> [u8; 32] {
 /// optimizing storage. However, operations targeting a truncated part will fail and
 /// return an error. Another distinction of this implementation is that branches cannot
 /// store values, aligning with the construction of MPTs in Ethereum.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MptNode {
     /// The type and data of the node.
     data: MptNodeData,
     /// Cache for a previously computed reference of this node. This is skipped during
     /// serialization.
     #[serde(skip)]
-    cached_reference: RefCell<Option<MptNodeReference>>,
+    cached_reference: Arc<Mutex<Option<MptNodeReference>>>,
+}
+
+impl Ord for MptNode {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.data.cmp(&other.data)
+    }
+}
+
+impl PartialOrd for MptNode {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for MptNode {}
+
+impl PartialEq for MptNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.data == other.data
+    }
 }
 
 /// Represents custom error types for the sparse Merkle Patricia Trie (MPT).
@@ -171,7 +191,7 @@ pub enum MptNodeReference {
 /// `cached_reference` field to `None`.
 impl From<MptNodeData> for MptNode {
     fn from(value: MptNodeData) -> Self {
-        Self { data: value, cached_reference: RefCell::new(None) }
+        Self { data: value, cached_reference: Arc::new(Mutex::new(None)) }
     }
 }
 
@@ -326,7 +346,7 @@ impl MptNode {
     /// storage or transmission purposes.
     #[inline]
     pub fn reference(&self) -> MptNodeReference {
-        self.cached_reference.borrow_mut().get_or_insert_with(|| self.calc_reference()).clone()
+        self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()).clone()
     }
 
     /// Computes and returns the 256-bit hash of the node.
@@ -338,7 +358,8 @@ impl MptNode {
             MptNodeData::Null => EMPTY_ROOT,
             _ => match self
                 .cached_reference
-                .borrow_mut()
+                .lock()
+                .unwrap()
                 .get_or_insert_with(|| self.calc_reference())
             {
                 MptNodeReference::Digest(digest) => *digest,
@@ -349,7 +370,7 @@ impl MptNode {
 
     /// Encodes the [MptNodeReference] of this node into the `out` buffer.
     fn reference_encode(&self, out: &mut dyn alloy_rlp::BufMut) {
-        match self.cached_reference.borrow_mut().get_or_insert_with(|| self.calc_reference()) {
+        match self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()) {
             // if the reference is an RLP-encoded byte slice, copy it directly
             MptNodeReference::Bytes(bytes) => out.put_slice(bytes),
             // if the reference is a digest, RLP-encode it with its fixed known length
@@ -362,7 +383,7 @@ impl MptNode {
 
     /// Returns the length of the encoded [MptNodeReference] of this node.
     fn reference_length(&self) -> usize {
-        match self.cached_reference.borrow_mut().get_or_insert_with(|| self.calc_reference()) {
+        match self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()) {
             MptNodeReference::Bytes(bytes) => bytes.len(),
             MptNodeReference::Digest(_) => 1 + 32,
         }
@@ -717,7 +738,7 @@ impl MptNode {
     }
 
     fn invalidate_ref_cache(&mut self) {
-        self.cached_reference.borrow_mut().take();
+        self.cached_reference.lock().unwrap().take();
     }
 
     /// Returns the number of traversable nodes in the trie.
