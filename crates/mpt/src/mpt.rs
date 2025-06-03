@@ -28,7 +28,7 @@ use core::{
     iter, mem,
 };
 use reth_trie::AccountProof;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use rlp::{Decodable, DecoderError, Prototype, Rlp};
 use serde::{Deserialize, Serialize};
@@ -91,14 +91,14 @@ pub fn keccak(data: impl AsRef<[u8]>) -> [u8; 32] {
 /// optimizing storage. However, operations targeting a truncated part will fail and
 /// return an error. Another distinction of this implementation is that branches cannot
 /// store values, aligning with the construction of MPTs in Ethereum.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct MptNode {
     /// The type and data of the node.
     data: MptNodeData,
     /// Cache for a previously computed reference of this node. This is skipped during
     /// serialization.
     #[serde(skip)]
-    cached_reference: Arc<Mutex<Option<MptNodeReference>>>,
+    cached_reference: Mutex<Option<MptNodeReference>>,
 }
 
 impl Ord for MptNode {
@@ -118,6 +118,15 @@ impl Eq for MptNode {}
 impl PartialEq for MptNode {
     fn eq(&self, other: &Self) -> bool {
         self.data == other.data
+    }
+}
+
+impl Clone for MptNode {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            cached_reference: Mutex::new(self.cached_reference.lock().unwrap().clone()),
+        }
     }
 }
 
@@ -191,7 +200,7 @@ pub enum MptNodeReference {
 /// `cached_reference` field to `None`.
 impl From<MptNodeData> for MptNode {
     fn from(value: MptNodeData) -> Self {
-        Self { data: value, cached_reference: Arc::new(Mutex::new(None)) }
+        Self { data: value, cached_reference: Mutex::new(None) }
     }
 }
 
