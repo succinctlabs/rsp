@@ -53,10 +53,20 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "4.2.0"
-sp1-core-executor = "4.2.0"
-sp1-prover = "4.2.0"
-sp1-sdk = "4.2.0"
+# sp1-build = "4.2.0"
+# sp1-core-executor = "4.2.0"
+# sp1-prover = "4.2.0"
+# sp1-sdk = "4.2.0"
+
+# sp1 (local)
+# sp1-build = { path = "../sp1/crates/build" } 
+# sp1-core-executor = { path = "../sp1/crates/core/executor" }
+# sp1-prover = { path = "../sp1/crates/prover" }
+# sp1-sdk = { path = "../sp1/crates/sdk" }
+sp1-build = { git = "https://github.com/succinctlabs/sp1.git", branch = "j/v4-2-1-network-v3"}
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "j/v4-2-1-network-v3"}
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "j/v4-2-1-network-v3"}
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", branch = "j/v4-2-1-network-v3"}
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.5", default-features = false }
