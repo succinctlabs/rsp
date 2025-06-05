@@ -54,7 +54,7 @@ async fn main() -> eyre::Result<()> {
     let alerting_client = args.pager_duty_integration_key.map(AlertingClient::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);
-    let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
+    let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
     let http_provider = create_provider(args.http_rpc_url);
 
     // Subscribe to block headers.
