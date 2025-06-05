@@ -102,7 +102,7 @@ impl IntoPrimitives<op_alloy_network::Optimism> for reth_optimism_primitives::Op
     fn into_primitive_block(
         block: alloy_rpc_types::Block<op_alloy_rpc_types::Transaction>,
     ) -> Self::Block {
-        let block = block.map_transactions(|tx| tx.inner.inner.into_inner().into());
+        let block = block.map_transactions(|tx| tx.inner.inner.into_inner());
         block.into_consensus()
     }
 
