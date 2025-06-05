@@ -48,7 +48,7 @@ async fn main() -> eyre::Result<()> {
 
     let db_pool = db::build_db_pool(&args.database_url).await?;
     let ws = WsConnect::new(args.ws_rpc_url);
-    let ws_provider = ProviderBuilder::new().on_ws(ws).await?;
+    let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
     let http_provider = create_provider(args.http_rpc_url);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
