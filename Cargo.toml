@@ -53,10 +53,15 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "5.0.0"
-sp1-core-executor = { version = "5.0.0", features = ["bigint-rug"] }
-sp1-prover = "5.0.0"
-sp1-sdk = "5.0.0"
+# sp1-build = "5.0.0"
+# sp1-core-executor = { version = "5.0.0", features = ["bigint-rug"] }
+# sp1-prover = "5.0.0"
+# sp1-sdk = "5.0.0"
+sp1-build = { git = "https://github.com/succinctlabs/sp1.git", branch = "ernesto/sdk-v5-network-v3" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1.git", branch = "ernesto/sdk-v5-network-v3" }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1.git", branch = "ernesto/sdk-v5-network-v3" }
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1.git", branch = "ernesto/sdk-v5-network-v3" }
+
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
@@ -72,7 +77,9 @@ reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false, features = ["serde"] }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false, features = [
+    "serde",
+] }
 reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 
@@ -80,7 +87,7 @@ reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3
 revm = { version = "22.0.1", features = [
     "serde",
     "kzg-rs",
-    "bn"
+    "bn",
 ], default-features = false }
 revm-bytecode = { version = "3.0.0", default-features = false }
 revm-state = { version = "3.0.0", default-features = false }
@@ -97,7 +104,10 @@ revm-inspectors = "0.19.0"
 # alloy
 alloy-chains = { version = "0.2.0", default-features = false }
 alloy-evm = { version = "0.4.0", default-features = false }
-alloy-primitives = { version = "1.0.0", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
+alloy-primitives = { version = "1.0.0", default-features = false, features = [
+    "sha3-keccak",
+    "map-foldhash",
+] }
 alloy-provider = { version = "0.14.0", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
@@ -108,7 +118,10 @@ alloy-rpc-types = { version = "0.14.0", default-features = false, features = [
 
 alloy-json-rpc = { version = "0.14.0", default-features = false }
 alloy-genesis = { version = "0.14.0", default-features = false }
-alloy-consensus = { version = "0.14.0", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-consensus = { version = "0.14.0", default-features = false, features = [
+    "serde",
+    "serde-bincode-compat",
+] }
 alloy-network = { version = "0.14.0", default-features = false }
 alloy-transport = { version = "0.14.0", default-features = false }
 alloy-transport-http = { version = "0.14.0", features = [

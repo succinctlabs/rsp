@@ -1170,12 +1170,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "az"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b7e4c2464d97fe331d41de9d5db0def0a96f4d823b8b32a2efd503578988973"
-
-[[package]]
 name = "backoff"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2767,16 +2761,6 @@ name = "glob"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
-
-[[package]]
-name = "gmp-mpfr-sys"
-version = "1.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c66d61197a68f6323b9afa616cf83d55d69191e1bf364d4eb7d35ae18defe776"
-dependencies = [
- "libc",
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "group"
@@ -6131,18 +6115,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rug"
-version = "1.27.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4207e8d668e5b8eb574bda8322088ccd0d7782d3d03c7e8d562e82ed82bdcbc3"
-dependencies = [
- "az",
- "gmp-mpfr-sys",
- "libc",
- "libm",
-]
-
-[[package]]
 name = "ruint"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6745,21 +6717,20 @@ dependencies = [
 [[package]]
 name = "sp1-build"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62ef25d7c5d6f3a8fb695c57a248abfc7627eaab3a663b89edc3ceafee593cd0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "anyhow",
  "cargo_metadata",
  "chrono",
  "clap",
  "dirs",
+ "sp1-prover",
 ]
 
 [[package]]
 name = "sp1-core-executor"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9049775ff1ab0114a6bce05d4ba9ca2f82494f781780e070f6465c8751644c8"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "bincode",
  "bytemuck",
@@ -6782,7 +6753,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp1-curves",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-stark",
  "strum 0.26.3",
  "strum_macros 0.26.4",
@@ -6797,8 +6768,7 @@ dependencies = [
 [[package]]
 name = "sp1-core-machine"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f76e4a9944e7be4531470f88a9436c95c944275886f8d82824986088af20e414"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -6836,7 +6806,7 @@ dependencies = [
  "sp1-core-executor",
  "sp1-curves",
  "sp1-derive",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-stark",
  "static_assertions",
  "strum 0.26.3",
@@ -6853,8 +6823,7 @@ dependencies = [
 [[package]]
 name = "sp1-cuda"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6f03537814ef0b91ca4c45d777e8d584cf4d401bb03fe384b7baae1d14e7707"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "bincode",
  "ctrlc",
@@ -6870,8 +6839,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af6b4ff36255b8472d4c99688118638724c8fc19dcfe41b7b75e2cd817077461"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -6882,10 +6850,9 @@ dependencies = [
  "num",
  "p256",
  "p3-field",
- "rug",
  "serde",
  "snowbridge-amcl",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-stark",
  "typenum",
 ]
@@ -6893,8 +6860,7 @@ dependencies = [
 [[package]]
 name = "sp1-derive"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "766e1af068bafdcc15786dbc0b555c9ff2a5fa7d249944474fe1fa63560d3870"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -6909,7 +6875,7 @@ dependencies = [
  "bincode",
  "elliptic-curve",
  "serde",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -6933,10 +6899,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "sp1-primitives"
+version = "5.0.0"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
+dependencies = [
+ "bincode",
+ "blake3",
+ "cfg-if",
+ "hex",
+ "lazy_static",
+ "num-bigint 0.4.6",
+ "p3-baby-bear",
+ "p3-field",
+ "p3-poseidon2",
+ "p3-symmetric",
+ "serde",
+ "sha2",
+]
+
+[[package]]
 name = "sp1-prover"
 version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "361f7b36d98cf8874c0fbd7e9401cfd1293652c45d9bdde5904393826c8e54a5"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -6965,7 +6949,7 @@ dependencies = [
  "sha2",
  "sp1-core-executor",
  "sp1-core-machine",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-recursion-circuit",
  "sp1-recursion-compiler",
  "sp1-recursion-core",
@@ -6980,8 +6964,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-circuit"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a11af2fae529dd5e4e39024d0fa218dc5ec2e8bec63fe85d9fe1277467b47d6"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "hashbrown 0.14.5",
  "itertools 0.13.0",
@@ -7004,7 +6987,7 @@ dependencies = [
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-derive",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-recursion-compiler",
  "sp1-recursion-core",
  "sp1-recursion-gnark-ffi",
@@ -7015,8 +6998,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-compiler"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34bb81efd405febb3ad3efb0a23c2aad461e1795f09b803a84bb0fe8cd170835"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "backtrace",
  "itertools 0.13.0",
@@ -7026,7 +7008,7 @@ dependencies = [
  "p3-symmetric",
  "serde",
  "sp1-core-machine",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-recursion-core",
  "sp1-recursion-derive",
  "sp1-stark",
@@ -7037,8 +7019,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-core"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9df08e7ab1319f51ea1710b0443ea26acf331f40bff3e1368e99c3ca37073604"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "backtrace",
  "cbindgen",
@@ -7068,7 +7049,7 @@ dependencies = [
  "serde",
  "sp1-core-machine",
  "sp1-derive",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-stark",
  "static_assertions",
  "thiserror 1.0.69",
@@ -7080,8 +7061,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-derive"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc5096fa5c675329bbd52de0d54d6eca0fbda8aa8b5beccf99fffa85c8700c36"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -7090,8 +7070,7 @@ dependencies = [
 [[package]]
 name = "sp1-recursion-gnark-ffi"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e22fa911c322afa6ec75d7a5100f3bb4fbe28e823f1bb28e13774ea7c2b904ae"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "anyhow",
  "bincode",
@@ -7115,11 +7094,11 @@ dependencies = [
 
 [[package]]
 name = "sp1-sdk"
-version = "5.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "068484167c3efeff7edb47d093174e8d42836ebc1574fb367ea4ff92e1ffafcd"
+version = "5.0.3"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "alloy-primitives",
+ "alloy-sol-types",
  "anyhow",
  "async-trait",
  "backoff",
@@ -7145,7 +7124,7 @@ dependencies = [
  "sp1-core-executor",
  "sp1-core-machine",
  "sp1-cuda",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "sp1-prover",
  "sp1-stark",
  "strum 0.26.3",
@@ -7161,8 +7140,7 @@ dependencies = [
 [[package]]
 name = "sp1-stark"
 version = "5.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee69877415d24d3a9b1ecedd80143aa5162da370ec653f174ecf25f14c42cb8a"
+source = "git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3#faa26c2263fdccb0c05fc33531928b4a35479fa8"
 dependencies = [
  "arrayref",
  "hashbrown 0.14.5",
@@ -7186,7 +7164,7 @@ dependencies = [
  "rayon-scan",
  "serde",
  "sp1-derive",
- "sp1-primitives",
+ "sp1-primitives 5.0.0 (git+https://github.com/succinctlabs/sp1.git?branch=ernesto%2Fsdk-v5-network-v3)",
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "sysinfo",
