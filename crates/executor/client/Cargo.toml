@@ -40,6 +40,7 @@ reth-chainspec.workspace = true
 # revm
 revm.workspace = true
 revm-primitives.workspace = true
+revm-precompile.workspace = true
 
 # alloy
 alloy-evm.workspace = true

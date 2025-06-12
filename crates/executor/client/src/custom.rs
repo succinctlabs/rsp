@@ -5,7 +5,7 @@
 //! The [CustomEvmConfig] type implements the [ConfigureEvm] and [ConfigureEvmEnv] traits,
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
-use alloy_evm::{EthEvm, EthEvmFactory};
+use alloy_evm::{precompiles::PrecompilesMap, EthEvm, EthEvmFactory};
 use reth_evm::{Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
@@ -118,8 +118,7 @@ impl<F> CustomEvmFactory<F> {
 }
 
 impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
-    type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> =
-        EthEvm<DB, I, CustomPrecompiles>;
+    type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> = EthEvm<DB, I, PrecompilesMap>;
 
     type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
 
@@ -130,6 +129,8 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
     type HaltReason = HaltReason;
 
     type Spec = SpecId;
+
+    type Precompiles = PrecompilesMap;
 
     fn create_evm<DB: Database>(
         &self,
@@ -145,7 +146,7 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
             .with_cfg(input.cfg_env)
             .with_block(input.block_env)
             .build_mainnet_with_inspector(NoOpInspector {})
-            .with_precompiles(CustomPrecompiles::default());
+            .with_precompiles(PrecompilesMap::from_static(&revm_precompile::Precompiles::cancun()));
 
         EthEvm::new(evm, false)
     }
