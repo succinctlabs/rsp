@@ -1,3 +1,9 @@
+use std::{
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
+
+use alloy_genesis::ChainConfig;
 use eyre::eyre;
 use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
 use serde::{Deserialize, Serialize};
@@ -10,7 +16,28 @@ pub enum Genesis {
     OpMainnet,
     Sepolia,
     Linea,
-    Custom(String),
+    Custom(ChainConfig),
+}
+
+impl Hash for Genesis {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Custom(config) => {
+                let buf = serde_json::to_vec(config).unwrap();
+                buf.hash(state);
+            }
+            other => other.hash(state),
+        }
+    }
+}
+
+impl FromStr for Genesis {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let config = serde_json::from_str(s)?;
+        Ok(Genesis::Custom(config))
+    }
 }
 
 /// Returns the [alloy_genesis::Genesis] fron a json string.
@@ -72,7 +99,10 @@ impl TryFrom<&Genesis> for ChainSpec {
                 Err(eyre!("Only converting Genesis::OpMainnet to OpChainSpec is supported"))
             }
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
-            Genesis::Custom(json) => Ok(ChainSpec::from_genesis(genesis_from_json(json)?)),
+            Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
+                config: config.clone(),
+                ..Default::default()
+            })),
         }
     }
 }

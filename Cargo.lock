@@ -5952,6 +5952,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
+ "alloy-genesis",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",

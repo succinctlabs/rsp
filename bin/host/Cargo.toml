@@ -11,6 +11,7 @@ dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
 eyre = "0.6.12"
 serde.workspace = true
+serde_json.workspace = true
 strum = "0.26"
 csv = "1.1"
 
@@ -22,6 +23,7 @@ rsp-provider.workspace = true
 
 # alloy
 alloy-chains.workspace = true
+alloy-genesis.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-provider.workspace = true
