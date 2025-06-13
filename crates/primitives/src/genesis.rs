@@ -130,6 +130,16 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
 
                 Ok(op_mainnet)
             }
+            Genesis::Custom(config) => {
+                let custom = reth_optimism_chainspec::OpChainSpec {
+                    inner: ChainSpec::from_genesis(alloy_genesis::Genesis {
+                        config: config.clone(),
+                        ..Default::default()
+                    }),
+                };
+
+                Ok(custom)
+            }
             _ => Err(eyre!("Only converting Genesis::OpMainnet to OpChainSpec is supported")),
         }
     }
