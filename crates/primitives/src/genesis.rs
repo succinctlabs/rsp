@@ -4,9 +4,10 @@ use std::{
 };
 
 use alloy_genesis::ChainConfig;
-use eyre::eyre;
 use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
 use serde::{Deserialize, Serialize};
+
+use crate::error::Error;
 
 pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
 
@@ -41,14 +42,12 @@ impl FromStr for Genesis {
 }
 
 /// Returns the [alloy_genesis::Genesis] fron a json string.
-pub fn genesis_from_json(json: &str) -> eyre::Result<alloy_genesis::Genesis> {
-    let genesis = serde_json::from_str::<alloy_genesis::Genesis>(json)?;
-
-    Ok(genesis)
+pub fn genesis_from_json(json: &str) -> Result<alloy_genesis::Genesis, serde_json::Error> {
+    serde_json::from_str::<alloy_genesis::Genesis>(json)
 }
 
 impl TryFrom<u64> for Genesis {
-    type Error = eyre::Error;
+    type Error = Error;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
@@ -56,13 +55,13 @@ impl TryFrom<u64> for Genesis {
             10 => Ok(Genesis::OpMainnet),
             59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
-            id => Err(eyre!("The chain {id} is not supported")),
+            id => Err(Error::ChainNotSupported(id)),
         }
     }
 }
 
 impl TryFrom<&Genesis> for ChainSpec {
-    type Error = eyre::Error;
+    type Error = Error;
 
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
@@ -95,9 +94,7 @@ impl TryFrom<&Genesis> for ChainSpec {
                 };
                 Ok(sepolia)
             }
-            Genesis::OpMainnet => {
-                Err(eyre!("Only converting Genesis::OpMainnet to OpChainSpec is supported"))
-            }
+            Genesis::OpMainnet => Err(Error::InvalidConversion),
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
             Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
                 config: config.clone(),
@@ -109,7 +106,7 @@ impl TryFrom<&Genesis> for ChainSpec {
 
 #[cfg(feature = "optimism")]
 impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
-    type Error = eyre::Error;
+    type Error = Error;
 
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
@@ -140,7 +137,7 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
 
                 Ok(custom)
             }
-            _ => Err(eyre!("Only converting Genesis::OpMainnet to OpChainSpec is supported")),
+            _ => Err(Error::InvalidConversion),
         }
     }
 }

@@ -102,7 +102,8 @@ where
     type Hooks = H;
 
     fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<ChainSpec> {
-        genesis.try_into()
+        let spec = genesis.try_into()?;
+        Ok(spec)
     }
 }
 
@@ -129,6 +130,7 @@ where
     type Hooks = H;
 
     fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<OpChainSpec> {
-        genesis.try_into()
+        let spec = genesis.try_into()?;
+        Ok(spec)
     }
 }
