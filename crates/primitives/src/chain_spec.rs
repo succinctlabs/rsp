@@ -1,25 +1,25 @@
 use reth_chainspec::ChainSpec;
 
-use crate::genesis::Genesis;
+use crate::{error::Error, genesis::Genesis};
 
 /// Returns the [ChainSpec] for Ethereum mainnet.
-pub fn mainnet() -> eyre::Result<ChainSpec> {
+pub fn mainnet() -> Result<ChainSpec, Error> {
     (&Genesis::Mainnet).try_into()
 }
 
 #[cfg(feature = "optimism")]
 /// Returns the [ChainSpec] for OP Mainnet.
-pub fn op_mainnet() -> eyre::Result<reth_optimism_chainspec::OpChainSpec> {
+pub fn op_mainnet() -> Result<reth_optimism_chainspec::OpChainSpec, Error> {
     (&Genesis::OpMainnet).try_into()
 }
 
 /// Returns the [ChainSpec] for Linea Mainnet.
-pub fn linea_mainnet() -> eyre::Result<ChainSpec> {
+pub fn linea_mainnet() -> Result<ChainSpec, Error> {
     (&Genesis::Linea).try_into()
 }
 
 /// Returns the [ChainSpec] for Sepolia testnet.
-pub fn sepolia() -> eyre::Result<ChainSpec> {
+pub fn sepolia() -> Result<ChainSpec, Error> {
     (&Genesis::Sepolia).try_into()
 }
 

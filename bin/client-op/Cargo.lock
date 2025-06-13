@@ -3802,7 +3802,6 @@ version = "0.1.0"
 dependencies = [
  "alloy-genesis",
  "alloy-rpc-types",
- "eyre",
  "reth-chainspec",
  "reth-optimism-chainspec",
  "reth-optimism-forks",
@@ -3810,6 +3809,7 @@ dependencies = [
  "reth-trie",
  "serde",
  "serde_json",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
