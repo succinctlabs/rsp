@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum ChainSpecError {
     #[error("The chain {0} is not supported")]
     ChainNotSupported(u64),
 

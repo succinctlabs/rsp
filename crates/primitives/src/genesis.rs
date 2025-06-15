@@ -7,7 +7,7 @@ use alloy_genesis::ChainConfig;
 use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
 use serde::{Deserialize, Serialize};
 
-use crate::error::Error;
+use crate::error::ChainSpecError;
 
 pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
 
@@ -47,7 +47,7 @@ pub fn genesis_from_json(json: &str) -> Result<alloy_genesis::Genesis, serde_jso
 }
 
 impl TryFrom<u64> for Genesis {
-    type Error = Error;
+    type Error = ChainSpecError;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
@@ -55,13 +55,13 @@ impl TryFrom<u64> for Genesis {
             10 => Ok(Genesis::OpMainnet),
             59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
-            id => Err(Error::ChainNotSupported(id)),
+            id => Err(ChainSpecError::ChainNotSupported(id)),
         }
     }
 }
 
 impl TryFrom<&Genesis> for ChainSpec {
-    type Error = Error;
+    type Error = ChainSpecError;
 
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
@@ -94,7 +94,7 @@ impl TryFrom<&Genesis> for ChainSpec {
                 };
                 Ok(sepolia)
             }
-            Genesis::OpMainnet => Err(Error::InvalidConversion),
+            Genesis::OpMainnet => Err(ChainSpecError::InvalidConversion),
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
             Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
                 config: config.clone(),
@@ -106,7 +106,7 @@ impl TryFrom<&Genesis> for ChainSpec {
 
 #[cfg(feature = "optimism")]
 impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
-    type Error = Error;
+    type Error = ChainSpecError;
 
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
@@ -137,7 +137,7 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
 
                 Ok(custom)
             }
-            _ => Err(Error::InvalidConversion),
+            _ => Err(ChainSpecError::InvalidConversion),
         }
     }
 }
