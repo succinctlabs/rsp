@@ -13,7 +13,7 @@ use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
-use reth_primitives_traits::{Block, BlockBody};
+use reth_primitives_traits::{Block, BlockBody, SealedHeader};
 use reth_trie::KeccakKeyHasher;
 use revm::database::CacheDB;
 use revm_primitives::{Address, B256};
@@ -78,12 +78,13 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
-        let current_block = provider
+        let rpc_block = provider
             .get_block_by_number(block_number.into())
             .full()
             .await?
-            .ok_or(HostError::ExpectedBlock(block_number))
-            .map(C::Primitives::into_primitive_block)?;
+            .ok_or(HostError::ExpectedBlock(block_number))?;
+
+        let current_block = C::Primitives::into_primitive_block(rpc_block.clone());
 
         let previous_block = provider
             .get_block_by_number((block_number - 1).into())
@@ -113,7 +114,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
 
         // Validate the block header.
         C::Primitives::validate_header(
-            block.sealed_block().sealed_header(),
+            &SealedHeader::seal_slow(C::Primitives::into_consensus_header(rpc_block)),
             self.chain_spec.clone(),
         )?;
 
@@ -252,7 +253,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
                 .await?
                 .ok_or(HostError::ExpectedBlock(height))?;
 
-            ancestor_headers.push(C::Primitives::into_primitive_header(block))
+            ancestor_headers.push(C::Primitives::into_consensus_header(block))
         }
 
         // Create the client input.

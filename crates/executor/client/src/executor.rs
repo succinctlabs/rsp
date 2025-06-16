@@ -3,6 +3,7 @@ use std::sync::Arc;
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_evm::EthEvmFactory;
 use alloy_primitives::Bloom;
+use itertools::Itertools;
 use reth_chainspec::ChainSpec;
 use reth_errors::BlockExecutionError;
 use reth_evm::{
@@ -11,7 +12,7 @@ use reth_evm::{
 };
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives_traits::Block;
+use reth_primitives_traits::{Block, SealedHeader};
 use reth_trie::KeccakKeyHasher;
 use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
@@ -20,7 +21,7 @@ use crate::{
     custom::CustomEvmFactory,
     error::ClientError,
     into_primitives::FromInput,
-    io::{ClientExecutorInput, TrieDB},
+    io::{ClientExecutorInput, TrieDB, WitnessInput},
     tracking::OpCodesTrackingBlockExecutor,
     BlockValidator,
 };
@@ -57,9 +58,11 @@ where
         &self,
         mut input: ClientExecutorInput<C::Primitives>,
     ) -> Result<Header, ClientError> {
+        let sealed_headers = input.sealed_headers().collect::<Vec<_>>();
+
         // Initialize the witnessed database with verified storage proofs.
         let db = profile_report!(INIT_WITNESS_DB, {
-            let trie_db = input.witness_db().unwrap();
+            let trie_db = input.witness_db(&sealed_headers).unwrap();
             WrapDatabaseRef(trie_db)
         });
 
@@ -74,10 +77,23 @@ where
         // Validate the block header.
         profile_report!(VALIDATE_HEADER, {
             C::Primitives::validate_header(
-                block.sealed_block().sealed_header(),
+                &SealedHeader::seal_slow(input.current_block.header().clone()),
                 self.chain_spec.clone(),
             )
-        })?;
+            .expect("The header is invalid");
+
+            for (header, parent) in sealed_headers.iter().tuple_windows() {
+                C::Primitives::validate_header(parent, self.chain_spec.clone())
+                    .expect("A parent header is invalid");
+
+                C::Primitives::validate_header_against_parent(
+                    header,
+                    parent,
+                    self.chain_spec.clone(),
+                )
+                .expect("The header is invalid against its parent");
+            }
+        });
 
         let execution_output =
             profile_report!(BLOCK_EXECUTION, { block_executor.execute(&block) })?;
