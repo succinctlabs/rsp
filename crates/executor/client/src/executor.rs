@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use alloy_consensus::{BlockHeader, Header, TxReceipt};
+use alloy_consensus::{BlockHeader, Header};
 use alloy_evm::EthEvmFactory;
-use alloy_primitives::Bloom;
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
 use reth_consensus_common::validation::validate_body_against_header;
@@ -33,7 +32,6 @@ pub const RECOVER_SENDERS: &str = "recover senders";
 pub const BLOCK_EXECUTION: &str = "block execution";
 pub const VALIDATE_HEADER: &str = "validate header";
 pub const VALIDATE_EXECUTION: &str = "validate block post-execution";
-pub const ACCRUE_LOG_BLOOM: &str = "accrue logs bloom";
 pub const COMPUTE_STATE_ROOT: &str = "compute state root";
 
 pub type EthClientExecutor =
@@ -111,14 +109,6 @@ where
             )
         })?;
 
-        // Accumulate the logs bloom.
-        let mut logs_bloom = Bloom::default();
-        profile_report!(ACCRUE_LOG_BLOOM, {
-            execution_output.result.receipts.iter().for_each(|r| {
-                logs_bloom.accrue_bloom(&r.bloom());
-            })
-        });
-
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
             execution_output.state,
@@ -146,7 +136,7 @@ where
             state_root,
             transactions_root: input.current_block.header().transactions_root(),
             receipts_root: input.current_block.header().receipts_root(),
-            logs_bloom,
+            logs_bloom: input.current_block.logs_bloom,
             difficulty: input.current_block.header().difficulty(),
             number: input.current_block.header().number(),
             gas_limit: input.current_block.header().gas_limit(),
