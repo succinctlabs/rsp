@@ -5,6 +5,7 @@ use alloy_evm::EthEvmFactory;
 use alloy_primitives::Bloom;
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
+use reth_consensus_common::validation::validate_body_against_header;
 use reth_errors::BlockExecutionError;
 use reth_evm::{
     execute::{BasicBlockExecutor, Executor},
@@ -74,13 +75,16 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
-        // Validate the block header.
+        // Validate the blocks.
         profile_report!(VALIDATE_HEADER, {
             C::Primitives::validate_header(
                 &SealedHeader::seal_slow(input.current_block.header().clone()),
                 self.chain_spec.clone(),
             )
             .expect("The header is invalid");
+
+            validate_body_against_header(block.body(), block.header())
+                .expect("The block body is invalid against its header");
 
             for (header, parent) in sealed_headers.iter().tuple_windows() {
                 C::Primitives::validate_header(parent, self.chain_spec.clone())
