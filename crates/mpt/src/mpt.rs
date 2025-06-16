@@ -365,13 +365,8 @@ impl MptNode {
     pub fn hash(&self) -> B256 {
         match self.data {
             MptNodeData::Null => EMPTY_ROOT,
-            _ => match self
-                .cached_reference
-                .lock()
-                .unwrap()
-                .get_or_insert_with(|| self.calc_reference())
-            {
-                MptNodeReference::Digest(digest) => *digest,
+            _ => match self.reference() {
+                MptNodeReference::Digest(digest) => digest,
                 MptNodeReference::Bytes(bytes) => keccak(bytes).into(),
             },
         }
@@ -379,9 +374,9 @@ impl MptNode {
 
     /// Encodes the [MptNodeReference] of this node into the `out` buffer.
     fn reference_encode(&self, out: &mut dyn alloy_rlp::BufMut) {
-        match self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()) {
+        match self.reference() {
             // if the reference is an RLP-encoded byte slice, copy it directly
-            MptNodeReference::Bytes(bytes) => out.put_slice(bytes),
+            MptNodeReference::Bytes(bytes) => out.put_slice(&bytes),
             // if the reference is a digest, RLP-encode it with its fixed known length
             MptNodeReference::Digest(digest) => {
                 out.put_u8(alloy_rlp::EMPTY_STRING_CODE + 32);
@@ -392,7 +387,7 @@ impl MptNode {
 
     /// Returns the length of the encoded [MptNodeReference] of this node.
     fn reference_length(&self) -> usize {
-        match self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()) {
+        match self.reference() {
             MptNodeReference::Bytes(bytes) => bytes.len(),
             MptNodeReference::Digest(_) => 1 + 32,
         }
