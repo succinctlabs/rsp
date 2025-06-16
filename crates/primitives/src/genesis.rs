@@ -23,11 +23,14 @@ pub enum Genesis {
 impl Hash for Genesis {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
+            Genesis::Mainnet => 1.hash(state),
+            Genesis::OpMainnet => 10.hash(state),
+            Genesis::Sepolia => 11155111.hash(state),
+            Genesis::Linea => 59144.hash(state),
             Self::Custom(config) => {
                 let buf = serde_json::to_vec(config).unwrap();
                 buf.hash(state);
             }
-            other => other.hash(state),
         }
     }
 }
