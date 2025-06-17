@@ -61,6 +61,7 @@ sp1-sdk = "5.0.0"
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
+reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }
 reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.3.10", default-features = false }

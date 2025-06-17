@@ -114,6 +114,9 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
     fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
         match value {
             Genesis::OpMainnet => {
+                use reth_chainspec::Hardfork;
+                use reth_optimism_forks::OpHardfork;
+
                 let op_mainnet = reth_optimism_chainspec::OpChainSpec {
                     inner: ChainSpec {
                         chain: Chain::optimism_mainnet(),
@@ -122,7 +125,13 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
                         paris_block_and_final_difficulty: Default::default(),
                         hardforks: reth_optimism_forks::OP_MAINNET_HARDFORKS.clone(),
                         deposit_contract: Default::default(),
-                        base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::optimism()),
+                        base_fee_params: BaseFeeParamsKind::Variable(
+                            vec![
+                                (EthereumHardfork::London.boxed(), BaseFeeParams::optimism()),
+                                (OpHardfork::Canyon.boxed(), BaseFeeParams::optimism_canyon()),
+                            ]
+                            .into(),
+                        ),
                         prune_delete_limit: 10000,
                         blob_params: Default::default(),
                     },

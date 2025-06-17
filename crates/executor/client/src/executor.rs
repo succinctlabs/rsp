@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use alloy_consensus::{BlockHeader, Header, TxReceipt};
+use alloy_consensus::{BlockHeader, Header};
 use alloy_evm::EthEvmFactory;
-use alloy_primitives::Bloom;
+use itertools::Itertools;
 use reth_chainspec::ChainSpec;
+use reth_consensus_common::validation::validate_body_against_header;
 use reth_errors::BlockExecutionError;
 use reth_evm::{
     execute::{BasicBlockExecutor, Executor},
@@ -11,7 +12,7 @@ use reth_evm::{
 };
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives_traits::Block;
+use reth_primitives_traits::{Block, SealedHeader};
 use reth_trie::KeccakKeyHasher;
 use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
@@ -20,7 +21,7 @@ use crate::{
     custom::CustomEvmFactory,
     error::ClientError,
     into_primitives::FromInput,
-    io::{ClientExecutorInput, TrieDB},
+    io::{ClientExecutorInput, TrieDB, WitnessInput},
     tracking::OpCodesTrackingBlockExecutor,
     BlockValidator,
 };
@@ -31,7 +32,6 @@ pub const RECOVER_SENDERS: &str = "recover senders";
 pub const BLOCK_EXECUTION: &str = "block execution";
 pub const VALIDATE_HEADER: &str = "validate header";
 pub const VALIDATE_EXECUTION: &str = "validate block post-execution";
-pub const ACCRUE_LOG_BLOOM: &str = "accrue logs bloom";
 pub const COMPUTE_STATE_ROOT: &str = "compute state root";
 
 pub type EthClientExecutor =
@@ -57,9 +57,11 @@ where
         &self,
         mut input: ClientExecutorInput<C::Primitives>,
     ) -> Result<Header, ClientError> {
+        let sealed_headers = input.sealed_headers().collect::<Vec<_>>();
+
         // Initialize the witnessed database with verified storage proofs.
         let db = profile_report!(INIT_WITNESS_DB, {
-            let trie_db = input.witness_db().unwrap();
+            let trie_db = input.witness_db(&sealed_headers).unwrap();
             WrapDatabaseRef(trie_db)
         });
 
@@ -71,13 +73,29 @@ where
                 .map_err(|_| ClientError::SignatureRecoveryFailed)
         })?;
 
-        // Validate the block header.
+        // Validate the blocks.
         profile_report!(VALIDATE_HEADER, {
             C::Primitives::validate_header(
-                block.sealed_block().sealed_header(),
+                &SealedHeader::seal_slow(input.current_block.header().clone()),
                 self.chain_spec.clone(),
             )
-        })?;
+            .expect("The header is invalid");
+
+            validate_body_against_header(block.body(), block.header())
+                .expect("The block body is invalid against its header");
+
+            for (header, parent) in sealed_headers.iter().tuple_windows() {
+                C::Primitives::validate_header(parent, self.chain_spec.clone())
+                    .expect("A parent header is invalid");
+
+                C::Primitives::validate_header_against_parent(
+                    header,
+                    parent,
+                    self.chain_spec.clone(),
+                )
+                .expect("The header is invalid against its parent");
+            }
+        });
 
         let execution_output =
             profile_report!(BLOCK_EXECUTION, { block_executor.execute(&block) })?;
@@ -90,14 +108,6 @@ where
                 &execution_output,
             )
         })?;
-
-        // Accumulate the logs bloom.
-        let mut logs_bloom = Bloom::default();
-        profile_report!(ACCRUE_LOG_BLOOM, {
-            execution_output.result.receipts.iter().for_each(|r| {
-                logs_bloom.accrue_bloom(&r.bloom());
-            })
-        });
 
         // Convert the output to an execution outcome.
         let executor_outcome = ExecutionOutcome::new(
@@ -126,7 +136,7 @@ where
             state_root,
             transactions_root: input.current_block.header().transactions_root(),
             receipts_root: input.current_block.header().receipts_root(),
-            logs_bloom,
+            logs_bloom: input.current_block.logs_bloom,
             difficulty: input.current_block.header().difficulty(),
             number: input.current_block.header().number(),
             gas_limit: input.current_block.header().gas_limit(),

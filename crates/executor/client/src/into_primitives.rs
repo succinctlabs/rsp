@@ -13,7 +13,7 @@ use reth_primitives_traits::{NodePrimitives, RecoveredBlock, SealedHeader};
 pub trait IntoPrimitives<N: Network>: NodePrimitives {
     fn into_primitive_block(block: N::BlockResponse) -> Self::Block;
 
-    fn into_primitive_header(block: N::BlockResponse) -> Header;
+    fn into_consensus_header(block: N::BlockResponse) -> Header;
 }
 
 pub trait FromInput: NodePrimitives {
@@ -25,10 +25,14 @@ pub trait IntoInput: NodePrimitives {
 }
 
 pub trait BlockValidator<CS>: NodePrimitives {
-    fn validate_header(
-        header: &SealedHeader<Self::BlockHeader>,
+    fn validate_header(header: &SealedHeader, chain_spec: Arc<CS>) -> Result<(), ConsensusError>;
+
+    fn validate_header_against_parent(
+        header: &SealedHeader,
+        parent: &SealedHeader,
         chain_spec: Arc<CS>,
     ) -> Result<(), ConsensusError>;
+
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
         chain_spec: Arc<CS>,
@@ -42,7 +46,7 @@ impl IntoPrimitives<Ethereum> for EthPrimitives {
         block.into_consensus()
     }
 
-    fn into_primitive_header(block: alloy_rpc_types::Block) -> Header {
+    fn into_consensus_header(block: alloy_rpc_types::Block) -> Header {
         block.header.into()
     }
 }
@@ -69,6 +73,16 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
         validator.validate_header(header)
     }
 
+    fn validate_header_against_parent(
+        header: &SealedHeader,
+        parent: &SealedHeader,
+        chain_spec: Arc<ChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        let validator = EthBeaconConsensus::new(chain_spec);
+
+        validator.validate_header_against_parent(header, parent)
+    }
+
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
         chain_spec: Arc<ChainSpec>,
@@ -92,7 +106,7 @@ impl IntoPrimitives<op_alloy_network::Optimism> for reth_optimism_primitives::Op
         block.into_consensus()
     }
 
-    fn into_primitive_header(
+    fn into_consensus_header(
         block: alloy_rpc_types::Block<op_alloy_rpc_types::Transaction>,
     ) -> Header {
         block.header.into()
@@ -125,6 +139,17 @@ impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
 
         validator.validate_header(header)
     }
+
+    fn validate_header_against_parent(
+        header: &SealedHeader,
+        parent: &SealedHeader,
+        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        let validator = reth_optimism_consensus::OpBeaconConsensus::new(chain_spec);
+
+        validator.validate_header_against_parent(header, parent)
+    }
+
     fn validate_block_post_execution(
         block: &RecoveredBlock<Self::Block>,
         chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
