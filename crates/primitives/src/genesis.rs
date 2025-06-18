@@ -247,7 +247,6 @@ pub(crate) mod serde_bincode_compat {
             let mut extra_fields = OtherFields::default();
 
             for (k, v) in value.extra_fields {
-                println!("{k}: {v}");
                 extra_fields.insert(k, v.parse().unwrap());
             }
 
