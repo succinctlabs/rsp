@@ -6081,8 +6081,12 @@ dependencies = [
 name = "rsp-primitives"
 version = "0.1.0"
 dependencies = [
+ "alloy-eips",
  "alloy-genesis",
+ "alloy-primitives",
  "alloy-rpc-types",
+ "alloy-serde",
+ "bincode",
  "reth-chainspec",
  "reth-optimism-chainspec",
  "reth-optimism-forks",
@@ -6090,6 +6094,7 @@ dependencies = [
  "reth-trie",
  "serde",
  "serde_json",
+ "serde_with",
  "thiserror 1.0.69",
 ]
 
