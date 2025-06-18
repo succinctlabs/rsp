@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_consensus::{Block, Header, TxEnvelope};
 use alloy_network::{Ethereum, Network};
-use reth_chainspec::ChainSpec;
+use reth_chainspec::{ChainSpec, EthChainSpec, NamedChain};
 use reth_consensus::HeaderValidator;
 use reth_errors::ConsensusError;
 use reth_ethereum_consensus::EthBeaconConsensus;
@@ -68,9 +68,9 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
         header: &SealedHeader,
         chain_spec: Arc<ChainSpec>,
     ) -> Result<(), ConsensusError> {
-        let validator = EthBeaconConsensus::new(chain_spec);
+        let validator = EthBeaconConsensus::new(chain_spec.clone());
 
-        validator.validate_header(header)
+        handle_custom_chains(validator.validate_header(header), chain_spec)
     }
 
     fn validate_header_against_parent(
@@ -160,5 +160,34 @@ impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
             &chain_spec,
             &execution_output.result.receipts,
         )
+    }
+}
+
+fn handle_custom_chains(
+    result: Result<(), ConsensusError>,
+    chain_spec: Arc<ChainSpec>,
+) -> Result<(), ConsensusError> {
+    let err = if let Err(err) = result { err } else { return Ok(()) };
+
+    let chain = if let Ok(chain) = NamedChain::try_from(chain_spec.chain_id()) {
+        chain
+    } else {
+        return Err(err)
+    };
+
+    match chain {
+        NamedChain::Linea | NamedChain::LineaSepolia | NamedChain::LineaGoerli => {
+            // Skip extra data and Merge difficulty checks for Linea chains
+            if matches!(
+                err,
+                ConsensusError::ExtraDataExceedsMax { .. } |
+                    ConsensusError::TheMergeDifficultyIsNotZero
+            ) {
+                Ok(())
+            } else {
+                Err(err)
+            }
+        }
+        _ => Err(err),
     }
 }
