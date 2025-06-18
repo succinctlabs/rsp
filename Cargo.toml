@@ -53,10 +53,10 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "5.0.0"
-sp1-core-executor = { version = "5.0.0", features = ["bigint-rug"] }
-sp1-prover = "5.0.0"
-sp1-sdk = "5.0.0"
+sp1-build = "5.0.5"
+sp1-core-executor = { version = "5.0.5", features = ["bigint-rug"] }
+sp1-prover = "5.0.5"
+sp1-sdk = "5.0.5"
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.4.8", default-features = false }
