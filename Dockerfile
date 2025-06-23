@@ -32,7 +32,7 @@ RUN cargo chef cook --profile release --recipe-path recipe.json
 
 # Install SP1
 RUN curl -L https://sp1.succinct.xyz | bash && \
-    ~/.sp1/bin/sp1up && \
+    ~/.sp1/bin/sp1up -v v5.0.5 && \
     ~/.sp1/bin/cargo-prove prove --version
 
 ###############################################################################
@@ -90,7 +90,7 @@ ENV PATH=/root/.cargo/bin:$PATH
 
 # Install SP1
 RUN curl -L https://sp1.succinct.xyz | bash && \
-    ~/.sp1/bin/sp1up && \
+    ~/.sp1/bin/sp1up -v v5.0.5 && \
     ~/.sp1/bin/cargo-prove prove --version
 
 ###############################################################################
