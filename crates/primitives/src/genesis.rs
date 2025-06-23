@@ -197,6 +197,11 @@ pub(crate) mod serde_bincode_compat {
         extra_fields: BTreeMap<String, String>,
         deposit_contract_address: Option<Address>,
         blob_schedule: BTreeMap<String, BlobParams>,
+        bpo1_time: Option<u64>,
+        bpo2_time: Option<u64>,
+        bpo3_time: Option<u64>,
+        bpo4_time: Option<u64>,
+        bpo5_time: Option<u64>,
     }
 
     impl From<&super::ChainConfig> for ChainConfig {
@@ -238,6 +243,11 @@ pub(crate) mod serde_bincode_compat {
                 extra_fields,
                 deposit_contract_address: value.deposit_contract_address,
                 blob_schedule: value.blob_schedule.clone(),
+                bpo1_time: value.bpo1_time,
+                bpo2_time: value.bpo2_time,
+                bpo3_time: value.bpo3_time,
+                bpo4_time: value.bpo4_time,
+                bpo5_time: value.bpo5_time,
             }
         }
     }
@@ -280,6 +290,11 @@ pub(crate) mod serde_bincode_compat {
                 extra_fields,
                 deposit_contract_address: value.deposit_contract_address,
                 blob_schedule: value.blob_schedule,
+                bpo1_time: value.bpo1_time,
+                bpo2_time: value.bpo2_time,
+                bpo3_time: value.bpo3_time,
+                bpo4_time: value.bpo4_time,
+                bpo5_time: value.bpo5_time,
             }
         }
     }

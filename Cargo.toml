@@ -99,28 +99,28 @@ revm-inspectors = "0.23.0"
 alloy-chains = { version = "0.2.0", default-features = false }
 alloy-evm = { version = "0.10", default-features = false }
 alloy-primitives = { version = "1.1.0", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
-alloy-provider = { version = "1.0.9", default-features = false, features = [
+alloy-provider = { version = "1.0.12", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
 ] }
-alloy-rpc-types = { version = "1.0.9", default-features = false, features = [
+alloy-rpc-types = { version = "1.0.12", default-features = false, features = [
     "eth",
 ] }
 
-alloy-json-rpc = { version = "1.0.9", default-features = false }
-alloy-genesis = { version = "1.0.9", default-features = false }
-alloy-consensus = { version = "1.0.9", default-features = false, features = ["serde", "serde-bincode-compat"] }
-alloy-network = { version = "1.0.9", default-features = false }
-alloy-transport = { version = "1.0.9", default-features = false }
-alloy-transport-http = { version = "1.0.9", features = [
+alloy-json-rpc = { version = "1.0.12", default-features = false }
+alloy-genesis = { version = "1.0.12", default-features = false }
+alloy-consensus = { version = "1.0.12", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-network = { version = "1.0.12", default-features = false }
+alloy-transport = { version = "1.0.12", default-features = false }
+alloy-transport-http = { version = "1.0.12", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
-alloy-transport-ws = { version = "1.0.9" }
-alloy-rpc-client = { version = "1.0.9", default-features = false }
-alloy-eips = { version = "1.0.9", default-features = false }
+alloy-transport-ws = { version = "1.0.12" }
+alloy-rpc-client = { version = "1.0.12", default-features = false }
+alloy-eips = { version = "1.0.12", default-features = false }
+alloy-serde = "1.0.12"
 alloy-rlp = "0.3.10"
 alloy-trie = "0.8.1"
-alloy-serde = "1.0.9"
 
 # op
 alloy-op-evm = { version = "0.10.0", default-features = false }
