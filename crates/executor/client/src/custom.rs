@@ -5,7 +5,7 @@
 //! The [CustomEvmConfig] type implements the [ConfigureEvm] and [ConfigureEvmEnv] traits,
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
-use alloy_evm::{EthEvm, EthEvmFactory};
+use alloy_evm::EthEvm;
 use reth_evm::{precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
@@ -17,31 +17,29 @@ use revm::{
     inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
-        InstructionResult, Interpreter, InterpreterTypes,
+        Interpreter, InterpreterTypes,
     },
     Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{hardfork::SpecId, Address};
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
-pub struct CustomEvmFactory<F> {
+pub struct CustomEvmFactory {
     // Some chains uses Clique consensus, which is not implemented in Reth.
     // The main difference for execution is the block beneficiary: Reth will
     // credit the block reward to the beneficiary address, whereas in Clique,
     // the reward is credited to the signer.
     custom_beneficiary: Option<Address>,
-
-    phantom: PhantomData<F>,
 }
 
-impl<F> CustomEvmFactory<F> {
+impl CustomEvmFactory {
     pub fn new(custom_beneficiary: Option<Address>) -> Self {
-        Self { custom_beneficiary, phantom: PhantomData }
+        Self { custom_beneficiary }
     }
 }
 
-impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
+impl EvmFactory for CustomEvmFactory {
     type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> = EthEvm<DB, I, PrecompilesMap>;
 
     type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
@@ -71,6 +69,7 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
         #[cfg(target_os = "zkvm")]
         precompiles.map_precompiles(|address, p| {
             use alloy_evm::precompiles::Precompile;
+            use reth_evm::precompiles::PrecompileInput;
             use revm::precompile::u64_to_address;
             use std::collections::HashMap;
 
@@ -89,9 +88,9 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
 
             let name = addresses_to_names.get(address).cloned().unwrap_or("unknown");
 
-            let precompile = move |data: &[u8], gas| {
+            let precompile = move |input: PrecompileInput<'_>| {
                 println!("cycle-tracker-report-start: precompile-{name}");
-                let result = p.call(data, gas);
+                let result = p.call(input);
                 println!("cycle-tracker-report-end: precompile-{name}");
 
                 result
@@ -133,7 +132,7 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
     fn step(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
         let _ = context;
 
-        if interp.control.instruction_result() != InstructionResult::Continue {
+        if interp.bytecode.instruction_result().is_some() {
             return;
         }
 
