@@ -11,7 +11,7 @@ RSP is designed to generate zero-knowledge proofs of EVM block execution using c
 The repository is organized into the following directories:
 
 * `book`: The documentation for RSP users and developers.
-* `bin/client` and `bin/client`: The programs that runs inside the zkVM.
+* `bin/client` and `bin/client-op`: The programs that run inside the zkVM.
 * `bin/host`: The CLI to prepare the proving process.
 * `crates`: RSP components like the host and client executors
 
