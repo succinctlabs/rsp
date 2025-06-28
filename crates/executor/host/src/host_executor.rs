@@ -260,7 +260,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             current_block: C::Primitives::into_input_block(current_block),
             ancestor_headers,
             parent_state: state,
-            state_requests,
             bytecodes: rpc_db.get_bytecodes(),
             genesis,
             custom_beneficiary,
