@@ -31,4 +31,4 @@ When running RSP, you should see logs similar to:
 ...
 ```
 
-The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report. If you want to generate proofs, see [Generating proofs](./Generating-proofs).
+The host CLI executes the block while fetching additional data necessary for offline execution. The same execution and verification logic is then run inside the zkVM. No actual proof is generated from this command, but it will print out a detailed execution report. If you want to generate proofs, see [Generating proofs](./04-Generating-proofs.md).
