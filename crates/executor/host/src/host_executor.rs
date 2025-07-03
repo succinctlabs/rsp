@@ -1,7 +1,6 @@
 use std::{collections::BTreeSet, sync::Arc};
 
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
-use alloy_evm::EthEvmFactory;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
 use reth_chainspec::ChainSpec;
@@ -26,7 +25,7 @@ use rsp_rpc_db::RpcDb;
 
 use crate::HostError;
 
-pub type EthHostExecutor = HostExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>, ChainSpec>;
+pub type EthHostExecutor = HostExecutor<EthEvmConfig<ChainSpec, CustomEvmFactory>, ChainSpec>;
 
 pub type OpHostExecutor = HostExecutor<OpEvmConfig, OpChainSpec>;
 
@@ -42,7 +41,7 @@ impl EthHostExecutor {
         Self {
             evm_config: EthEvmConfig::new_with_evm_factory(
                 chain_spec.clone(),
-                CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
+                CustomEvmFactory::new(custom_beneficiary),
             ),
             chain_spec,
         }
@@ -261,7 +260,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             current_block: C::Primitives::into_input_block(current_block),
             ancestor_headers,
             parent_state: state,
-            state_requests,
             bytecodes: rpc_db.get_bytecodes(),
             genesis,
             custom_beneficiary,

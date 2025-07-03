@@ -5,121 +5,42 @@
 //! The [CustomEvmConfig] type implements the [ConfigureEvm] and [ConfigureEvmEnv] traits,
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
-use alloy_evm::{EthEvm, EthEvmFactory};
-use reth_evm::{Database, EvmEnv, EvmFactory};
+use alloy_evm::EthEvm;
+use reth_evm::{precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
     context::{
         result::{EVMError, HaltReason},
-        BlockEnv, Cfg, CfgEnv, ContextTr, TxEnv,
+        BlockEnv, CfgEnv, TxEnv,
     },
-    handler::{EthPrecompiles, PrecompileProvider},
+    handler::EthPrecompiles,
     inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
-        InputsImpl, InstructionResult, Interpreter, InterpreterResult, InterpreterTypes,
+        Interpreter, InterpreterTypes,
     },
-    precompile::u64_to_address,
     Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{hardfork::SpecId, Address};
-use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
-
-#[derive(Clone)]
-pub struct CustomPrecompiles {
-    pub precompiles: EthPrecompiles,
-    addresses_to_names: HashMap<Address, String>,
-}
-
-impl Debug for CustomPrecompiles {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CustomPrecompiles")
-            .field("addresses_to_names", &self.addresses_to_names)
-            .finish()
-    }
-}
-
-impl Default for CustomPrecompiles {
-    fn default() -> Self {
-        Self {
-            precompiles: EthPrecompiles::default(),
-            // Addresses from https://www.evm.codes/precompiled
-            addresses_to_names: HashMap::from([
-                (u64_to_address(1), "ecrecover".to_string()),
-                (u64_to_address(2), "sha256".to_string()),
-                (u64_to_address(3), "ripemd160".to_string()),
-                (u64_to_address(4), "identity".to_string()),
-                (u64_to_address(5), "modexp".to_string()),
-                (u64_to_address(6), "bn-add".to_string()),
-                (u64_to_address(7), "bn-mul".to_string()),
-                (u64_to_address(8), "bn-pair".to_string()),
-                (u64_to_address(9), "blake2f".to_string()),
-                (u64_to_address(10), "kzg-point-evaluation".to_string()),
-            ]),
-        }
-    }
-}
-
-impl<CTX: ContextTr> PrecompileProvider<CTX> for CustomPrecompiles {
-    type Output = InterpreterResult;
-
-    fn set_spec(&mut self, spec: <CTX::Cfg as Cfg>::Spec) -> bool {
-        <EthPrecompiles as PrecompileProvider<CTX>>::set_spec(&mut self.precompiles, spec)
-    }
-
-    fn run(
-        &mut self,
-        context: &mut CTX,
-        address: &Address,
-        inputs: &InputsImpl,
-        is_static: bool,
-        gas_limit: u64,
-    ) -> Result<Option<Self::Output>, String> {
-        if self.precompiles.contains(address) {
-            #[cfg(target_os = "zkvm")]
-            let name = self.addresses_to_names.get(address).cloned().unwrap_or(address.to_string());
-
-            #[cfg(target_os = "zkvm")]
-            println!("cycle-tracker-report-start: precompile-{name}");
-            let result = self.precompiles.run(context, address, inputs, is_static, gas_limit);
-            #[cfg(target_os = "zkvm")]
-            println!("cycle-tracker-report-end: precompile-{name}");
-
-            result
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn warm_addresses(&self) -> Box<impl Iterator<Item = Address>> {
-        self.precompiles.warm_addresses()
-    }
-
-    fn contains(&self, address: &Address) -> bool {
-        self.precompiles.contains(address)
-    }
-}
+use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
-pub struct CustomEvmFactory<F> {
+pub struct CustomEvmFactory {
     // Some chains uses Clique consensus, which is not implemented in Reth.
     // The main difference for execution is the block beneficiary: Reth will
     // credit the block reward to the beneficiary address, whereas in Clique,
     // the reward is credited to the signer.
     custom_beneficiary: Option<Address>,
-
-    phantom: PhantomData<F>,
 }
 
-impl<F> CustomEvmFactory<F> {
+impl CustomEvmFactory {
     pub fn new(custom_beneficiary: Option<Address>) -> Self {
-        Self { custom_beneficiary, phantom: PhantomData }
+        Self { custom_beneficiary }
     }
 }
 
-impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
-    type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> =
-        EthEvm<DB, I, CustomPrecompiles>;
+impl EvmFactory for CustomEvmFactory {
+    type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> = EthEvm<DB, I, PrecompilesMap>;
 
     type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
 
@@ -131,6 +52,8 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
 
     type Spec = SpecId;
 
+    type Precompiles = PrecompilesMap;
+
     fn create_evm<DB: Database>(
         &self,
         db: DB,
@@ -140,12 +63,47 @@ impl EvmFactory for CustomEvmFactory<EthEvmFactory> {
             input.block_env.beneficiary = custom_beneficiary;
         }
 
+        #[allow(unused_mut)]
+        let mut precompiles = PrecompilesMap::from(EthPrecompiles::default());
+
+        #[cfg(target_os = "zkvm")]
+        precompiles.map_precompiles(|address, p| {
+            use alloy_evm::precompiles::Precompile;
+            use reth_evm::precompiles::PrecompileInput;
+            use revm::precompile::u64_to_address;
+            use std::collections::HashMap;
+
+            let addresses_to_names = HashMap::from([
+                (u64_to_address(1), "ecrecover"),
+                (u64_to_address(2), "sha256"),
+                (u64_to_address(3), "ripemd160"),
+                (u64_to_address(4), "identity"),
+                (u64_to_address(5), "modexp"),
+                (u64_to_address(6), "bn-add"),
+                (u64_to_address(7), "bn-mul"),
+                (u64_to_address(8), "bn-pair"),
+                (u64_to_address(9), "blake2f"),
+                (u64_to_address(10), "kzg-point-evaluation"),
+            ]);
+
+            let name = addresses_to_names.get(address).cloned().unwrap_or("unknown");
+
+            let precompile = move |input: PrecompileInput<'_>| {
+                println!("cycle-tracker-report-start: precompile-{name}");
+                let result = p.call(input);
+                println!("cycle-tracker-report-end: precompile-{name}");
+
+                result
+            };
+            precompile.into()
+        });
+
         let evm = Context::mainnet()
             .with_db(db)
             .with_cfg(input.cfg_env)
             .with_block(input.block_env)
             .build_mainnet_with_inspector(NoOpInspector {})
-            .with_precompiles(CustomPrecompiles::default());
+            .with_precompiles(precompiles);
 
         EthEvm::new(evm, false)
     }
@@ -174,7 +132,7 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
     fn step(&mut self, interp: &mut Interpreter<INTR>, context: &mut CTX) {
         let _ = context;
 
-        if interp.control.instruction_result() != InstructionResult::Continue {
+        if interp.bytecode.instruction_result().is_some() {
             return;
         }
 

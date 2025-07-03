@@ -43,8 +43,6 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     pub ancestor_headers: Vec<Header>,
     /// Network state as of the parent block.
     pub parent_state: EthereumState,
-    /// Requests to account state and storage slots.
-    pub state_requests: HashMap<Address, Vec<U256>>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
@@ -77,11 +75,6 @@ impl<P: NodePrimitives> WitnessInput for ClientExecutorInput<P> {
     #[inline(always)]
     fn state_anchor(&self) -> B256 {
         self.parent_header().state_root()
-    }
-
-    #[inline(always)]
-    fn state_requests(&self) -> impl Iterator<Item = (&Address, &Vec<U256>)> {
-        self.state_requests.iter()
     }
 
     #[inline(always)]
@@ -187,11 +180,6 @@ pub trait WitnessInput {
     /// Gets the state trie root hash that the state referenced by
     /// [state()](trait.WitnessInput#tymethod.state) must conform to.
     fn state_anchor(&self) -> B256;
-
-    /// Gets an iterator over address state requests. For each request, the account info and storage
-    /// slots are loaded from the relevant tries in the state returned by
-    /// [state()](trait.WitnessInput#tymethod.state).
-    fn state_requests(&self) -> impl Iterator<Item = (&Address, &Vec<U256>)>;
 
     /// Gets an iterator over account bytecodes.
     fn bytecodes(&self) -> impl Iterator<Item = &Bytecode>;

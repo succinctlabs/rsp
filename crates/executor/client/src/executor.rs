@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use alloy_consensus::{BlockHeader, Header};
-use alloy_evm::EthEvmFactory;
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
 use reth_consensus_common::validation::validate_body_against_header;
@@ -34,8 +33,7 @@ pub const VALIDATE_HEADER: &str = "validate header";
 pub const VALIDATE_EXECUTION: &str = "validate block post-execution";
 pub const COMPUTE_STATE_ROOT: &str = "compute state root";
 
-pub type EthClientExecutor =
-    ClientExecutor<EthEvmConfig<CustomEvmFactory<EthEvmFactory>>, ChainSpec>;
+pub type EthClientExecutor = ClientExecutor<EthEvmConfig<ChainSpec, CustomEvmFactory>, ChainSpec>;
 
 #[cfg(feature = "optimism")]
 pub type OpClientExecutor =
@@ -162,7 +160,7 @@ impl EthClientExecutor {
         Self {
             evm_config: EthEvmConfig::new_with_evm_factory(
                 chain_spec.clone(),
-                CustomEvmFactory::<EthEvmFactory>::new(custom_beneficiary),
+                CustomEvmFactory::new(custom_beneficiary),
             ),
             chain_spec,
         }

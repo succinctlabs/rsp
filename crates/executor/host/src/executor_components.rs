@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use alloy_evm::EthEvmFactory;
 use alloy_network::Ethereum;
 use alloy_provider::Network;
 use eyre::{eyre, Ok};
@@ -95,7 +94,7 @@ where
 
     type Primitives = EthPrimitives;
 
-    type EvmConfig = EthEvmConfig<CustomEvmFactory<EthEvmFactory>>;
+    type EvmConfig = EthEvmConfig<ChainSpec, CustomEvmFactory>;
 
     type ChainSpec = ChainSpec;
 
