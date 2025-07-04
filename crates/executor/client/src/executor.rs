@@ -3,7 +3,6 @@ use std::sync::Arc;
 use alloy_consensus::{BlockHeader, Header};
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
-use reth_consensus_common::validation::validate_body_against_header;
 use reth_errors::BlockExecutionError;
 use reth_evm::{
     execute::{BasicBlockExecutor, Executor},
@@ -11,7 +10,7 @@ use reth_evm::{
 };
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives_traits::{Block, SealedHeader};
+use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
 use revm::database::WrapDatabaseRef;
 use revm_primitives::Address;
@@ -73,14 +72,8 @@ where
 
         // Validate the blocks.
         profile_report!(VALIDATE_HEADER, {
-            C::Primitives::validate_header(
-                &SealedHeader::seal_slow(input.current_block.header().clone()),
-                self.chain_spec.clone(),
-            )
-            .expect("The header is invalid");
-
-            validate_body_against_header(block.body(), block.header())
-                .expect("The block body is invalid against its header");
+            C::Primitives::validate_block(&block, self.chain_spec.clone())
+                .expect("The block is invalid");
 
             for (header, parent) in sealed_headers.iter().tuple_windows() {
                 C::Primitives::validate_header(parent, self.chain_spec.clone())

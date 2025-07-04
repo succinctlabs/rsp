@@ -4,6 +4,7 @@ use alloy_consensus::{Block, Header, TxEnvelope};
 use alloy_network::{Ethereum, Network};
 use reth_chainspec::{ChainSpec, EthChainSpec, NamedChain};
 use reth_consensus::HeaderValidator;
+use reth_consensus_common::validation::validate_body_against_header;
 use reth_errors::ConsensusError;
 use reth_ethereum_consensus::EthBeaconConsensus;
 use reth_ethereum_primitives::EthPrimitives;
@@ -26,6 +27,11 @@ pub trait IntoInput: NodePrimitives {
 
 pub trait BlockValidator<CS>: NodePrimitives {
     fn validate_header(header: &SealedHeader, chain_spec: Arc<CS>) -> Result<(), ConsensusError>;
+
+    fn validate_block(
+        block: &RecoveredBlock<Self::Block>,
+        chain_spec: Arc<CS>,
+    ) -> Result<(), ConsensusError>;
 
     fn validate_header_against_parent(
         header: &SealedHeader,
@@ -71,6 +77,17 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
         let validator = EthBeaconConsensus::new(chain_spec.clone());
 
         handle_custom_chains(validator.validate_header(header), chain_spec)
+    }
+
+    fn validate_block(
+        recovered: &RecoveredBlock<Self::Block>,
+        chain_spec: Arc<ChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        Self::validate_header(recovered.sealed_header(), chain_spec.clone())?;
+
+        validate_body_against_header(recovered.body(), recovered.header())?;
+
+        Ok(())
     }
 
     fn validate_header_against_parent(
@@ -138,6 +155,21 @@ impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
         let validator = reth_optimism_consensus::OpBeaconConsensus::new(chain_spec);
 
         validator.validate_header(header)
+    }
+
+    fn validate_block(
+        recovered: &RecoveredBlock<Self::Block>,
+        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
+    ) -> Result<(), ConsensusError> {
+        Self::validate_header(recovered.sealed_header(), chain_spec.clone())?;
+
+        reth_optimism_consensus::validation::validate_body_against_header_op(
+            chain_spec,
+            recovered.body(),
+            recovered.header(),
+        )?;
+
+        Ok(())
     }
 
     fn validate_header_against_parent(
