@@ -4,3 +4,4 @@ pub mod account_proof;
 pub mod chain_spec;
 pub mod error;
 pub mod genesis;
+pub mod logging;
