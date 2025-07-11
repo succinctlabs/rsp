@@ -9,10 +9,10 @@ use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, BlockExecutor,
     EthExecutorComponents, FullExecutor,
 };
+use rsp_primitives::logging::init_logger;
 use rsp_provider::create_provider;
 use sp1_sdk::{include_elf, ProverClient};
 use tracing::{error, info};
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod cli;
 
@@ -23,20 +23,8 @@ async fn main() -> eyre::Result<()> {
     // Initialize the environment variables.
     dotenv::dotenv().ok();
 
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
-    }
-
-    // Initialize the logger.
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(
-            EnvFilter::from_default_env()
-                .add_directive("sp1_core_machine=warn".parse().unwrap())
-                .add_directive("sp1_core_executor=warn".parse().unwrap())
-                .add_directive("sp1_prover=warn".parse().unwrap()),
-        )
-        .init();
+    // Initialize the logger with common configuration
+    init_logger();
 
     // Parse the command line arguments.
     let args = Args::parse();
