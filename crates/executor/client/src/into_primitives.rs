@@ -14,7 +14,7 @@ use reth_primitives_traits::{NodePrimitives, RecoveredBlock, SealedHeader};
 pub trait IntoPrimitives<N: Network>: NodePrimitives {
     fn into_primitive_block(block: N::BlockResponse) -> Self::Block;
 
-    fn into_consensus_header(block: N::BlockResponse) -> Header;
+    fn into_consensus_header(header: N::HeaderResponse) -> Header;
 }
 
 pub trait FromInput: NodePrimitives {
@@ -52,8 +52,8 @@ impl IntoPrimitives<Ethereum> for EthPrimitives {
         block.into_consensus()
     }
 
-    fn into_consensus_header(block: alloy_rpc_types::Block) -> Header {
-        block.header.into()
+    fn into_consensus_header(header: alloy_rpc_types::Header) -> Header {
+        header.into()
     }
 }
 
@@ -123,10 +123,8 @@ impl IntoPrimitives<op_alloy_network::Optimism> for reth_optimism_primitives::Op
         block.into_consensus()
     }
 
-    fn into_consensus_header(
-        block: alloy_rpc_types::Block<op_alloy_rpc_types::Transaction>,
-    ) -> Header {
-        block.header.into()
+    fn into_consensus_header(header: alloy_rpc_types::Header) -> Header {
+        header.into()
     }
 }
 

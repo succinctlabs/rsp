@@ -468,6 +468,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "alloy-rpc-types-debug"
+version = "1.0.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94a2a86ad7b7d718c15e79d0779bd255561b6b22968dc5ed2e7c0fbc43bb55fe"
+dependencies = [
+ "alloy-primitives",
+ "serde",
+]
+
+[[package]]
 name = "alloy-rpc-types-engine"
 version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5991,7 +6001,6 @@ dependencies = [
  "reth-ethereum-primitives",
  "reth-evm",
  "reth-evm-ethereum",
- "reth-execution-types",
  "reth-optimism-chainspec",
  "reth-optimism-evm",
  "reth-optimism-primitives",
@@ -6021,10 +6030,10 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types",
+ "alloy-rpc-types-debug",
  "hex-literal",
  "reth-trie",
  "rlp",
- "rsp-mpt",
  "serde",
  "thiserror 1.0.69",
 ]
@@ -6067,11 +6076,15 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
- "alloy-rpc-types",
+ "alloy-transport",
+ "async-trait",
  "reth-storage-errors",
+ "revm-database",
  "revm-database-interface",
  "revm-primitives 20.0.0",
  "revm-state",
+ "rsp-mpt",
+ "rsp-primitives",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

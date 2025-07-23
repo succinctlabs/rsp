@@ -24,7 +24,7 @@ either = "1.13.0"
 # workspace
 rsp-rpc-db.workspace = true
 rsp-client-executor = { workspace = true, features = ["optimism"] }
-rsp-mpt = { workspace = true, features = ["preimage_context"] }
+rsp-mpt = { workspace = true }
 rsp-primitives = { workspace = true, features = ["optimism"] }
 
 # sp1
@@ -40,7 +40,6 @@ reth-optimism-primitives.workspace = true
 reth-ethereum-primitives.workspace = true
 reth-primitives-traits  = { workspace = true, features = ["secp256k1"] }
 reth-trie.workspace = true
-reth-execution-types.workspace = true
 reth-errors.workspace = true
 reth-chainspec.workspace = true
 
@@ -72,3 +71,4 @@ dotenv = "0.15.0"
 
 [features]
 alerting = ["dep:reqwest"]
+execution-witness = ["rsp-mpt/execution-witness"]

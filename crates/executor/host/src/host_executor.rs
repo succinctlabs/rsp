@@ -1,6 +1,7 @@
-use std::{collections::BTreeSet, sync::Arc};
+use std::sync::Arc;
 
 use alloy_consensus::{BlockHeader, Header, TxReceipt};
+use alloy_network::BlockResponse;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
 use reth_chainspec::ChainSpec;
@@ -9,18 +10,16 @@ use reth_evm::{
     ConfigureEvm,
 };
 use reth_evm_ethereum::EthEvmConfig;
-use reth_execution_types::ExecutionOutcome;
 use reth_optimism_chainspec::OpChainSpec;
 use reth_optimism_evm::OpEvmConfig;
 use reth_primitives_traits::{Block, BlockBody, SealedHeader};
-use reth_trie::KeccakKeyHasher;
+use reth_trie::{HashedPostState, KeccakKeyHasher};
 use revm::database::CacheDB;
-use revm_primitives::{Address, B256};
+use revm_primitives::Address;
 use rsp_client_executor::{
     custom::CustomEvmFactory, io::ClientExecutorInput, BlockValidator, IntoInput, IntoPrimitives,
 };
-use rsp_mpt::EthereumState;
-use rsp_primitives::{account_proof::eip1186_proof_to_account_proof, genesis::Genesis};
+use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 
 use crate::HostError;
@@ -61,10 +60,10 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     }
 
     /// Executes the block with the given block number.
-    pub async fn execute<P, N>(
+    pub async fn execute<P, N, R>(
         &self,
         block_number: u64,
-        rpc_db: &RpcDb<P, N>,
+        rpc_db: &R,
         provider: &P,
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
@@ -74,6 +73,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
         P: Provider<N> + Clone,
         N: Network,
+        R: RpcDb<N>,
+        <R as revm::DatabaseRef>::Error: Send + Sync + 'static,
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
@@ -113,7 +114,9 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
 
         // Validate the block header.
         C::Primitives::validate_header(
-            &SealedHeader::seal_slow(C::Primitives::into_consensus_header(rpc_block)),
+            &SealedHeader::seal_slow(C::Primitives::into_consensus_header(
+                rpc_block.header().clone(),
+            )),
             self.chain_spec.clone(),
         )?;
 
@@ -134,63 +137,17 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             logs_bloom.accrue_bloom(&r.bloom());
         });
 
-        // Convert the output to an execution outcome.
-        let executor_outcome = ExecutionOutcome::new(
-            execution_output.state,
-            vec![execution_output.result.receipts],
-            current_block.header().number(),
-            vec![execution_output.result.requests],
-        );
-
-        let state_requests = rpc_db.get_state_requests();
-
-        // For every account we touched, fetch the storage proofs for all the slots we touched.
-        tracing::info!("fetching storage proofs");
-        let mut before_storage_proofs = Vec::new();
-        let mut after_storage_proofs = Vec::new();
-
-        for (address, used_keys) in state_requests.iter() {
-            let modified_keys = executor_outcome
-                .state()
-                .state
-                .get(address)
-                .map(|account| {
-                    account.storage.keys().map(|key| B256::from(*key)).collect::<BTreeSet<_>>()
-                })
-                .unwrap_or_default()
-                .into_iter()
-                .collect::<Vec<_>>();
-
-            let keys = used_keys
-                .iter()
-                .map(|key| B256::from(*key))
-                .chain(modified_keys.clone().into_iter())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>();
-
-            let storage_proof = provider
-                .get_proof(*address, keys.clone())
-                .block_id((block_number - 1).into())
-                .await?;
-            before_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
-
-            let storage_proof =
-                provider.get_proof(*address, modified_keys).block_id((block_number).into()).await?;
-            after_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
-        }
-
-        let state = EthereumState::from_transition_proofs(
-            previous_block.header().state_root(),
-            &before_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
-            &after_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
-        )?;
+        let state = rpc_db
+            .state(&execution_output.state, block_number, previous_block.header().state_root())
+            .await?;
 
         // Verify the state root.
         tracing::info!("verifying the state root");
         let state_root = {
             let mut mutated_state = state.clone();
-            mutated_state.update(&executor_outcome.hash_state_slow::<KeccakKeyHasher>());
+            mutated_state.update(&HashedPostState::from_bundle_state::<KeccakKeyHasher>(
+                &execution_output.state.state,
+            ));
             mutated_state.state_root()
         };
         if state_root != current_block.header().state_root() {
@@ -227,6 +184,13 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             requests_hash: current_block.header().requests_hash(),
         };
 
+        let ancestor_headers = rpc_db
+            .ancestor_headers()
+            .await?
+            .into_iter()
+            .map(|h| C::Primitives::into_consensus_header(h))
+            .collect();
+
         // Assert the derived header is correct.
         let constructed_header_hash = header.hash_slow();
         let target_hash = current_block.header().hash_slow();
@@ -242,25 +206,12 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             state_root
         );
 
-        // Fetch the parent headers needed to constrain the BLOCKHASH opcode.
-        let oldest_ancestor = *rpc_db.oldest_ancestor.read().unwrap();
-        let mut ancestor_headers = vec![];
-        tracing::info!("fetching {} ancestor headers", block_number - oldest_ancestor);
-        for height in (oldest_ancestor..=(block_number - 1)).rev() {
-            let block = provider
-                .get_block_by_number(height.into())
-                .await?
-                .ok_or(HostError::ExpectedBlock(height))?;
-
-            ancestor_headers.push(C::Primitives::into_consensus_header(block))
-        }
-
         // Create the client input.
         let client_input = ClientExecutorInput {
             current_block: C::Primitives::into_input_block(current_block),
             ancestor_headers,
             parent_state: state,
-            bytecodes: rpc_db.get_bytecodes(),
+            bytecodes: rpc_db.bytecodes(),
             genesis,
             custom_beneficiary,
             opcode_tracking,
