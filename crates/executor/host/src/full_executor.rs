@@ -10,7 +10,6 @@ use either::Either;
 use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
-use rsp_rpc_db::BasicRpcDb;
 use serde::de::DeserializeOwned;
 use sp1_prover::components::CpuProverComponents;
 use sp1_sdk::{ExecutionReport, Prover, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
@@ -273,14 +272,11 @@ where
                 client_input_from_cache
             }
             None => {
-                let rpc_db = BasicRpcDb::new(self.provider.clone(), block_number - 1);
-
                 // Execute the host.
                 let client_input = self
                     .host_executor
                     .execute(
                         block_number,
-                        &rpc_db,
                         &self.provider,
                         self.config.genesis.clone(),
                         self.config.custom_beneficiary,

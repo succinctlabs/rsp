@@ -3,24 +3,23 @@
 use alloy_provider::Network;
 use async_trait::async_trait;
 use revm_database::{BundleState, DatabaseRef};
-use revm_primitives::B256;
 use revm_state::Bytecode;
 use rsp_mpt::EthereumState;
 
 mod basic;
 pub use basic::BasicRpcDb;
 
+#[cfg(feature = "execution-witness")]
+mod execution_witness;
+#[cfg(feature = "execution-witness")]
+pub use execution_witness::ExecutionWitnessRpcDb;
+
 mod error;
 pub use error::RpcDbError;
 
 #[async_trait]
 pub trait RpcDb<N: Network>: DatabaseRef {
-    async fn state(
-        &self,
-        bundle_state: &BundleState,
-        block_number: u64,
-        parent_state_root: B256,
-    ) -> Result<EthereumState, RpcDbError>;
+    async fn state(&self, bundle_state: &BundleState) -> Result<EthereumState, RpcDbError>;
 
     /// Gets all account bytecodes.
     fn bytecodes(&self) -> Vec<Bytecode>;

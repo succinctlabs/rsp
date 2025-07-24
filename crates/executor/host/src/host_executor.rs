@@ -60,10 +60,9 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     }
 
     /// Executes the block with the given block number.
-    pub async fn execute<P, N, R>(
+    pub async fn execute<P, N>(
         &self,
         block_number: u64,
-        rpc_db: &R,
         provider: &P,
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
@@ -73,8 +72,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
         P: Provider<N> + Clone,
         N: Network,
-        R: RpcDb<N>,
-        <R as revm::DatabaseRef>::Error: Send + Sync + 'static,
     {
         // Fetch the current block and the previous block from the provider.
         tracing::info!("fetching the current block and the previous block");
@@ -95,7 +92,21 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
 
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
-        let cache_db = CacheDB::new(rpc_db);
+        #[cfg(not(feature = "execution-witness"))]
+        let rpc_db = rsp_rpc_db::BasicRpcDb::new(
+            provider.clone(),
+            block_number - 1,
+            previous_block.header().state_root(),
+        );
+        #[cfg(feature = "execution-witness")]
+        let rpc_db = rsp_rpc_db::ExecutionWitnessRpcDb::new(
+            provider.clone(),
+            block_number - 1,
+            previous_block.header().state_root(),
+        )
+        .await?;
+
+        let cache_db = CacheDB::new(&rpc_db);
 
         let block_executor = BasicBlockExecutor::new(self.evm_config.clone(), cache_db);
 
@@ -137,9 +148,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             logs_bloom.accrue_bloom(&r.bloom());
         });
 
-        let state = rpc_db
-            .state(&execution_output.state, block_number, previous_block.header().state_root())
-            .await?;
+        let state = rpc_db.state(&execution_output.state).await?;
 
         // Verify the state root.
         tracing::info!("verifying the state root");

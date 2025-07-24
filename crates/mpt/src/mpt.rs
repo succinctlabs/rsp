@@ -358,6 +358,22 @@ impl MptNode {
         self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()).clone()
     }
 
+    pub fn for_each_leaves<F: FnMut(&[u8], &[u8])>(&self, mut f: F) {
+        let mut stack = vec![self];
+        while let Some(node) = stack.pop() {
+            match node.as_data() {
+                MptNodeData::Null | MptNodeData::Digest(_) => (),
+                MptNodeData::Branch(branch) => {
+                    for n in branch.iter().filter_map(|n| n.as_ref()) {
+                        stack.push(n);
+                    }
+                }
+                MptNodeData::Leaf(key, value) => f(key, value),
+                MptNodeData::Extension(_, node) => stack.push(node),
+            }
+        }
+    }
+
     /// Computes and returns the 256-bit hash of the node.
     ///
     /// This method provides a unique identifier for the node based on its content.

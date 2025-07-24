@@ -27,7 +27,9 @@ pub struct BasicRpcDb<P, N> {
     /// The provider which fetches data.
     pub provider: P,
     /// The block to fetch data from.
-    pub block: u64,
+    pub block_number: u64,
+    ///The state root to fetch data from.
+    pub state_root: B256,
     /// The cached accounts.
     pub accounts: Arc<RwLock<HashMap<Address, AccountInfo>>>,
     /// The cached storage values.
@@ -35,18 +37,19 @@ pub struct BasicRpcDb<P, N> {
     /// The oldest block whose header/hash has been requested.
     pub oldest_ancestor: Arc<RwLock<u64>>,
 
-    phantom: std::marker::PhantomData<N>,
+    phantom: PhantomData<N>,
 }
 
 impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
     /// Create a new [`BasicRpcDb`].
-    pub fn new(provider: P, block: u64) -> Self {
+    pub fn new(provider: P, block_number: u64, state_root: B256) -> Self {
         Self {
             provider,
-            block,
+            block_number,
+            state_root,
             accounts: Arc::new(RwLock::new(HashMap::with_hasher(Default::default()))),
             storage: Arc::new(RwLock::new(HashMap::with_hasher(Default::default()))),
-            oldest_ancestor: Arc::new(RwLock::new(block)),
+            oldest_ancestor: Arc::new(RwLock::new(block_number)),
             phantom: PhantomData,
         }
     }
@@ -59,7 +62,7 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
         let proof = self
             .provider
             .get_proof(address, vec![])
-            .number(self.block)
+            .number(self.block_number)
             .await
             .map_err(|e| RpcDbError::GetProofError(address, e.to_string()))?;
 
@@ -67,7 +70,7 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
         let code = self
             .provider
             .get_code_at(address)
-            .number(self.block)
+            .number(self.block_number)
             .await
             .map_err(|e| RpcDbError::GetCodeError(address, e.to_string()))?;
 
@@ -101,7 +104,7 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
         let value = self
             .provider
             .get_storage_at(address, index)
-            .number(self.block)
+            .number(self.block_number)
             .await
             .map_err(|e| RpcDbError::GetStorageError(address, index, e.to_string()))?;
 
@@ -200,12 +203,7 @@ where
     P: Provider<N> + Clone,
     N: Network,
 {
-    async fn state(
-        &self,
-        bundle_state: &BundleState,
-        block_number: u64,
-        parent_state_root: B256,
-    ) -> Result<EthereumState, RpcDbError> {
+    async fn state(&self, bundle_state: &BundleState) -> Result<EthereumState, RpcDbError> {
         let state_requests = self.get_state_requests();
 
         // For every account we touched, fetch the storage proofs for all the slots we touched.
@@ -232,23 +230,20 @@ where
                 .into_iter()
                 .collect::<Vec<_>>();
 
-            let storage_proof = self
-                .provider
-                .get_proof(*address, keys.clone())
-                .block_id((block_number - 1).into())
-                .await?;
+            let storage_proof =
+                self.provider.get_proof(*address, keys.clone()).number(self.block_number).await?;
             before_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
 
             let storage_proof = self
                 .provider
                 .get_proof(*address, modified_keys)
-                .block_id((block_number).into())
+                .number(self.block_number + 1)
                 .await?;
             after_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
         }
 
         let state = EthereumState::from_transition_proofs(
-            parent_state_root,
+            self.state_root,
             &before_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
             &after_storage_proofs.iter().map(|item| (item.address, item.clone())).collect(),
         )?;
@@ -271,8 +266,8 @@ where
     async fn ancestor_headers(&self) -> Result<Vec<N::HeaderResponse>, RpcDbError> {
         let oldest_ancestor = *self.oldest_ancestor.read().unwrap();
         let mut ancestor_headers = vec![];
-        tracing::info!("fetching {} ancestor headers", (self.block + 1) - oldest_ancestor);
-        for height in (oldest_ancestor..=(self.block)).rev() {
+        tracing::info!("fetching {} ancestor headers", (self.block_number + 1) - oldest_ancestor);
+        for height in (oldest_ancestor..=(self.block_number)).rev() {
             let block = self
                 .provider
                 .get_block_by_number(height.into())

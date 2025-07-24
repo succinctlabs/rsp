@@ -71,4 +71,7 @@ dotenv = "0.15.0"
 
 [features]
 alerting = ["dep:reqwest"]
-execution-witness = ["rsp-mpt/execution-witness"]
+execution-witness = [
+    "rsp-mpt/execution-witness",
+    "rsp-rpc-db/execution-witness",
+]
