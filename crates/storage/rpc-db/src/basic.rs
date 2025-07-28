@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
+use alloy_consensus::{BlockHeader, Header};
 use alloy_primitives::{map::HashMap, U256};
 use alloy_provider::{
     network::{primitives::HeaderResponse, BlockResponse},
@@ -263,7 +264,7 @@ where
             .collect::<Vec<_>>()
     }
 
-    async fn ancestor_headers(&self) -> Result<Vec<N::HeaderResponse>, RpcDbError> {
+    async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError> {
         let oldest_ancestor = *self.oldest_ancestor.read().unwrap();
         let mut ancestor_headers = vec![];
         tracing::info!("fetching {} ancestor headers", (self.block_number + 1) - oldest_ancestor);
@@ -274,7 +275,29 @@ where
                 .await?
                 .ok_or(RpcDbError::BlockNotFound(height))?;
 
-            ancestor_headers.push(block.header().clone())
+            ancestor_headers.push(Header {
+                parent_hash: block.header().parent_hash(),
+                ommers_hash: block.header().ommers_hash(),
+                beneficiary: block.header().beneficiary(),
+                state_root: block.header().state_root(),
+                transactions_root: block.header().transactions_root(),
+                receipts_root: block.header().receipts_root(),
+                logs_bloom: block.header().logs_bloom(),
+                difficulty: block.header().difficulty(),
+                number: block.header().number(),
+                gas_limit: block.header().gas_limit(),
+                gas_used: block.header().gas_used(),
+                timestamp: block.header().timestamp(),
+                extra_data: block.header().extra_data().clone(),
+                mix_hash: block.header().mix_hash().unwrap_or_default(),
+                nonce: block.header().nonce().unwrap_or_default(),
+                base_fee_per_gas: block.header().base_fee_per_gas(),
+                withdrawals_root: block.header().withdrawals_root(),
+                blob_gas_used: block.header().blob_gas_used(),
+                excess_blob_gas: block.header().excess_blob_gas(),
+                parent_beacon_block_root: block.header().parent_beacon_block_root(),
+                requests_hash: block.header().requests_hash(),
+            });
         }
 
         Ok(ancestor_headers)

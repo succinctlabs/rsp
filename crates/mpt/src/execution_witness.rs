@@ -1,7 +1,7 @@
 use alloy_primitives::{keccak256, map::HashMap, B256};
 use alloy_rlp::Decodable;
 use alloy_rpc_types_debug::ExecutionWitness;
-use reth_trie::{TrieAccount, EMPTY_ROOT_HASH};
+use reth_trie::TrieAccount;
 
 use crate::mpt::{resolve_nodes, MptNode, MptNodeData, MptNodeReference};
 
@@ -38,10 +38,8 @@ pub(crate) fn build_validated_tries(
 
     state_trie.for_each_leaves(|key, mut value| {
         let account = TrieAccount::decode(&mut value).unwrap();
-        if account.storage_root != EMPTY_ROOT_HASH {
-            let hashed_address = B256::from_slice(key);
-            raw_storage_tries.push((hashed_address, account.storage_root));
-        }
+        let hashed_address = B256::from_slice(key);
+        raw_storage_tries.push((hashed_address, account.storage_root));
     });
 
     // Step 3: Build storage tries per account efficiently

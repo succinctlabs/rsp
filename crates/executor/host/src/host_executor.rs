@@ -193,12 +193,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             requests_hash: current_block.header().requests_hash(),
         };
 
-        let ancestor_headers = rpc_db
-            .ancestor_headers()
-            .await?
-            .into_iter()
-            .map(|h| C::Primitives::into_consensus_header(h))
-            .collect();
+        let ancestor_headers = rpc_db.ancestor_headers().await?;
 
         // Assert the derived header is correct.
         let constructed_header_hash = header.hash_slow();

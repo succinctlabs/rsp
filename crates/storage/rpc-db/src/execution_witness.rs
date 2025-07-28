@@ -18,8 +18,6 @@ use crate::{RpcDb, RpcDbError};
 pub struct ExecutionWitnessRpcDb<P, N> {
     /// The provider which fetches data.
     pub provider: P,
-    /// The block to fetch data from.
-    pub block_number: u64,
     /// The cached state.
     pub state: EthereumState,
     /// The cached bytecodes.
@@ -50,8 +48,7 @@ impl<P: Provider<N> + Clone, N: Network> ExecutionWitnessRpcDb<P, N> {
             .map(|h| (h.number, h))
             .collect();
 
-        let db =
-            Self { provider, block_number, state, codes, ancestor_headers, phantom: PhantomData };
+        let db = Self { provider, state, codes, ancestor_headers, phantom: PhantomData };
 
         Ok(db)
     }
@@ -131,10 +128,10 @@ where
     }
 
     fn bytecodes(&self) -> Vec<Bytecode> {
-        todo!()
+        self.codes.values().cloned().collect()
     }
 
-    async fn ancestor_headers(&self) -> Result<Vec<N::HeaderResponse>, RpcDbError> {
-        todo!()
+    async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError> {
+        Ok(self.ancestor_headers.values().cloned().collect())
     }
 }

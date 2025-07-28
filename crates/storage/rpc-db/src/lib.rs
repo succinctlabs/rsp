@@ -1,5 +1,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
+use alloy_consensus::Header;
 use alloy_provider::Network;
 use async_trait::async_trait;
 use revm_database::{BundleState, DatabaseRef};
@@ -25,5 +26,5 @@ pub trait RpcDb<N: Network>: DatabaseRef {
     fn bytecodes(&self) -> Vec<Bytecode>;
 
     // Fetches the parent headers needed to constrain the BLOCKHASH opcode.
-    async fn ancestor_headers(&self) -> Result<Vec<N::HeaderResponse>, RpcDbError>;
+    async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError>;
 }
