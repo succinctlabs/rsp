@@ -4182,9 +4182,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-lib"
-version = "5.0.5"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0fd8bc101e5603ccf2dc1836ea06410f25ce2298755b2dac626add9be2424b4"
+checksum = "0b40a70ba0e385efc08ad88e289589d818f1e0c72525eee424e230e4e72565e5"
 dependencies = [
  "bincode",
  "elliptic-curve",
@@ -4194,9 +4194,9 @@ dependencies = [
 
 [[package]]
 name = "sp1-primitives"
-version = "5.0.5"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "699935774a5131c1a8b371108d0666c0c80c43611045fb77fae43f2f242676d5"
+checksum = "5504d5a422be065fa8f1fc49ff5208017d6e3fe7e392a7761e73178581f5f35d"
 dependencies = [
  "bincode",
  "blake3",
@@ -4214,12 +4214,13 @@ dependencies = [
 
 [[package]]
 name = "sp1-zkvm"
-version = "5.0.5"
+version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3aae088b8816da83224f4eec9bb08d81b62c02c6e74b1a8c7076fe8d45cd438"
+checksum = "e1d5c3822ddde97f32b6c1ad997579977d96a9f5d712b9fd493ea93ea95b43df"
 dependencies = [
  "cfg-if",
  "getrandom 0.2.16",
+ "getrandom 0.3.3",
  "lazy_static",
  "libm",
  "rand 0.8.5",
