@@ -10,7 +10,7 @@ use rsp_host_executor::{
     EthExecutorComponents, ExecutorComponents, FullExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, EnvProver};
+use sp1_sdk::{env::EnvProver, include_elf};
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -52,7 +52,7 @@ async fn main() -> eyre::Result<()> {
     let http_provider = create_provider(args.http_rpc_url);
     let alerting_client =
         args.pager_duty_integration_key.map(|key| Arc::new(AlertingClient::new(key)));
-    let prover_client = Arc::new(EnvProver::new());
+    let prover_client = Arc::new(EnvProver::new().await);
 
     let executor = Arc::new(
         FullExecutor::<EthExecutorComponents<_>, _>::try_new(
@@ -84,7 +84,7 @@ async fn main() -> eyre::Result<()> {
             match process_block(block_number, executor, args.execution_retries).await {
                 Ok(_) => info!("Successfully processed block {}", block_number),
                 Err(err) => {
-                    let error_message = format!("Error executing block {}: {}", block_number, err);
+                    let error_message = format!("Error executing block {block_number}: {err}");
                     error!("{error_message}");
 
                     if let Some(alerting_client) = &alerting_client {
@@ -97,8 +97,7 @@ async fn main() -> eyre::Result<()> {
                         db::update_block_status_as_failed(&db_pool, block_number).await
                     {
                         let error_message = format!(
-                            "Database error while updating block {} status: {}",
-                            block_number, err
+                            "Database error while updating block {block_number} status: {err}"
                         );
 
                         error!("{error_message}",);

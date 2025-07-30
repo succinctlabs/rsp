@@ -11,6 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+async-trait.workspace = true
 tokio = { workspace = true, features = ["time", "rt"] }
 thiserror.workspace = true
 tracing.workspace = true
@@ -30,6 +31,7 @@ rsp-primitives = { workspace = true, features = ["optimism"] }
 # sp1
 sp1-sdk.workspace = true
 sp1-prover.workspace = true
+sp1-cuda.workspace = true
 
 # reth
 reth-evm.workspace = true
