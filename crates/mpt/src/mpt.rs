@@ -27,7 +27,7 @@ use core::{
     fmt::{Debug, Write},
     iter, mem,
 };
-use reth_trie::AccountProof;
+use reth_trie::{AccountProof, Nibbles};
 use std::sync::Mutex;
 
 use rlp::{Decodable, DecoderError, Prototype, Rlp};
@@ -356,6 +356,35 @@ impl MptNode {
     #[inline]
     pub fn reference(&self) -> MptNodeReference {
         self.cached_reference.lock().unwrap().get_or_insert_with(|| self.calc_reference()).clone()
+    }
+
+    pub fn for_each_leaves<F: FnMut(&[u8], &[u8])>(&self, mut f: F) {
+        let mut stack = vec![(self, Nibbles::default())];
+
+        while let Some((node, path)) = stack.pop() {
+            match node.as_data() {
+                MptNodeData::Null | MptNodeData::Digest(_) => (),
+                MptNodeData::Branch(branch) => {
+                    for (i, n) in
+                        branch.iter().enumerate().filter_map(|(i, n)| n.as_ref().map(|n| (i, n)))
+                    {
+                        let mut new_path = path;
+                        new_path.push(i as u8);
+                        stack.push((n, new_path));
+                    }
+                }
+                MptNodeData::Leaf(prefix, value) => {
+                    let mut full_path = path;
+                    full_path.extend(&Nibbles::from_nibbles(prefix_nibs(prefix)));
+                    f(&full_path.pack(), value)
+                }
+                MptNodeData::Extension(prefix, node) => {
+                    let mut new_path = path;
+                    new_path.extend(&Nibbles::from_nibbles(prefix_nibs(prefix)));
+                    stack.push((node, new_path));
+                }
+            }
+        }
     }
 
     /// Computes and returns the 256-bit hash of the node.
@@ -1313,6 +1342,18 @@ mod tests {
         // lookups should fail
         trie.get(b"aa").unwrap_err();
         trie.get(b"a0").unwrap_err();
+    }
+
+    #[test]
+    pub fn test_for_each_leaves() {
+        let mut trie = MptNode::default();
+        trie.insert(b"dog", b"puppy".to_vec()).unwrap();
+        trie.insert(b"dock", b"boat".to_vec()).unwrap();
+
+        trie.for_each_leaves(|k, v| {
+            println!("key: {k:?}");
+            println!("value: {v:?}");
+        });
     }
 
     #[test]

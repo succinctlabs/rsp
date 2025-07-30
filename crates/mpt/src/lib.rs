@@ -5,6 +5,9 @@ use alloy_rpc_types::EIP1186AccountProofResponse;
 use reth_trie::{AccountProof, HashedPostState, HashedStorage, TrieAccount};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "execution-witness")]
+mod execution_witness;
+
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
 pub use mpt::Error;
@@ -69,11 +72,20 @@ impl EthereumState {
         Ok(state)
     }
 
+    #[cfg(feature = "execution-witness")]
+    pub fn from_execution_witness(
+        witness: &alloy_rpc_types_debug::ExecutionWitness,
+        pre_state_root: B256,
+    ) -> Self {
+        let (state_trie, storage_tries) =
+            execution_witness::build_validated_tries(witness, pre_state_root).unwrap();
+
+        Self { state_trie, storage_tries }
+    }
+
     /// Mutates state based on diffs provided in [`HashedPostState`].
     pub fn update(&mut self, post_state: &HashedPostState) {
         for (hashed_address, account) in post_state.accounts.iter() {
-            let hashed_address = hashed_address.as_slice();
-
             match account {
                 Some(account) => {
                     let state_storage = &post_state
@@ -82,7 +94,7 @@ impl EthereumState {
                         .cloned()
                         .unwrap_or_else(|| HashedStorage::new(false));
                     let storage_root = {
-                        let storage_trie = self.storage_tries.get_mut(hashed_address).unwrap();
+                        let storage_trie = self.storage_tries.entry(*hashed_address).or_default();
 
                         if state_storage.wiped {
                             storage_trie.clear();
@@ -106,10 +118,10 @@ impl EthereumState {
                         storage_root,
                         code_hash: account.get_bytecode_hash(),
                     };
-                    self.state_trie.insert_rlp(hashed_address, state_account).unwrap();
+                    self.state_trie.insert_rlp(hashed_address.as_slice(), state_account).unwrap();
                 }
                 None => {
-                    self.state_trie.delete(hashed_address).unwrap();
+                    self.state_trie.delete(hashed_address.as_slice()).unwrap();
                 }
             }
         }

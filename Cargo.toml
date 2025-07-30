@@ -90,6 +90,7 @@ revm-primitives = { version = "20.0.0", features = [
 ], default-features = false }
 revm-interpreter = { version = "22.0.1", default-features = false }
 revm-precompile = { version = "23.0.0", default-features = false }
+revm-database = { version = "6.0.0", default-features = false }
 revm-database-interface = { version = "6.0.0", default-features = false }
 op-revm = { version = "7.0.1", default-features = false }
 
@@ -106,6 +107,7 @@ alloy-provider = { version = "1.0.13", default-features = false, features = [
 alloy-rpc-types = { version = "1.0.13", default-features = false, features = [
     "eth",
 ] }
+alloy-rpc-types-debug = { version = "1.0.13", default-features = false }
 
 alloy-json-rpc = { version = "1.0.13", default-features = false }
 alloy-genesis = { version = "1.0.13", default-features = false }

@@ -12,7 +12,6 @@ use rsp_client_executor::{
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
 use rsp_primitives::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
-use rsp_rpc_db::RpcDb;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing_subscriber::{
     fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
@@ -140,11 +139,9 @@ async fn run_e2e<C, CS, N>(
         Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
     let provider = RootProvider::<N>::new_http(rpc_url);
 
-    let rpc_db = RpcDb::new(provider.clone(), block_number - 1);
-
     // Execute the host.
     let client_input = host_executor
-        .execute(block_number, &rpc_db, &provider, genesis.clone(), custom_beneficiary, false)
+        .execute(block_number, &provider, genesis.clone(), custom_beneficiary, false)
         .await
         .expect("failed to execute host");
 
