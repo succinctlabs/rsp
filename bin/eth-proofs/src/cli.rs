@@ -33,7 +33,7 @@ pub struct Args {
     pub eth_proofs_api_token: String,
 
     /// Optional ETH proofs cluster ID.
-    #[clap(long, default_value_t = 1)]
+    #[clap(long, env, default_value_t = 1)]
     pub eth_proofs_cluster_id: u64,
 
     /// PagerDuty integration key.

@@ -16,7 +16,7 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{include_elf, EnvProver, ExecutionReport};
+use sp1_sdk::{env::EnvProver, include_elf, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
@@ -44,7 +44,7 @@ async fn test_in_zkvm() {
         create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
-    let client = Arc::new(EnvProver::new());
+    let client = Arc::new(EnvProver::new().await);
 
     let executor = build_executor::<EthExecutorComponents<_>, _>(
         elf,
@@ -237,7 +237,7 @@ impl ExecutionHooks for Hook {
                 println!("{table}");
 
                 writeln!(output_file, "EXECUTION_REPORT<<EOF")?;
-                writeln!(output_file, "{}", table)?;
+                writeln!(output_file, "{table}")?;
                 writeln!(output_file, "EOF")?;
             }
         }

@@ -1,14 +1,16 @@
 services:
-  rsp:
+  rsp-wip:
     build:
       context: ../..
       target: rsp-eth-proofs
+      ssh:
+        - default
     env_file: .env
     depends_on:
-      - moongate
+      - moongate-wip
     restart: unless-stopped
-  moongate:
-    image: public.ecr.aws/succinct-labs/moongate:v5.0.0
+  moongate-wip:
+    image: moongate-wip
     runtime: nvidia
     deploy:
       resources:
