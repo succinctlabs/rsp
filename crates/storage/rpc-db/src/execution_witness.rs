@@ -132,6 +132,8 @@ where
     }
 
     async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError> {
-        Ok(self.ancestor_headers.values().cloned().collect())
+        let mut ancestor_headers: Vec<Header> = self.ancestor_headers.values().cloned().collect();
+        ancestor_headers.sort_by(|a, b| b.number.cmp(&a.number));
+        Ok(ancestor_headers)
     }
 }
