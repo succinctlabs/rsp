@@ -59,46 +59,42 @@ sp1-prover = "5.1.0"
 sp1-sdk = "5.1.0"
 
 # reth
-reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false, features = ["serde"] }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
-reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.0", default-features = false }
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false, features = ["serde"] }
+reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
+reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.5.1", default-features = false }
 
 # revm
-revm = { version = "26.0.1", features = [
-    "serde",
-    "kzg-rs",
-    "bn"
-], default-features = false }
-revm-bytecode = { version = "4.0.0", default-features = false }
-revm-state = { version = "6.0.0", default-features = false }
-revm-primitives = { version = "20.0.0", features = [
-    "serde",
-], default-features = false }
-revm-interpreter = { version = "22.0.1", default-features = false }
-revm-precompile = { version = "23.0.0", default-features = false }
-revm-database = { version = "6.0.0", default-features = false }
-revm-database-interface = { version = "6.0.0", default-features = false }
-op-revm = { version = "7.0.1", default-features = false }
+revm = { version = "27.0.2", default-features = false }
+revm-bytecode = { version = "6.0.1", default-features = false }
+revm-state = { version = "7.0.1", default-features = false }
+revm-primitives = { version = "20.0.0", default-features = false }
+revm-interpreter = { version = "23.0.1", default-features = false }
+revm-inspector = { version = "8.0.2", default-features = false }
+revm-context = { version = "8.0.2", default-features = false }
+revm-context-interface = { version = "8.0.1", default-features = false }
+revm-database = { version = "7.0.1", default-features = false }
+revm-database-interface = { version = "7.0.1", default-features = false }
+op-revm = { version = "8.0.2", default-features = false }
 
-revm-inspectors = "0.25.0"
+revm-inspectors = "0.26.5"
 
 # alloy
 alloy-chains = { version = "0.2.0", default-features = false }
-alloy-evm = { version = "0.12", default-features = false }
+alloy-evm = { version = "0.14", default-features = false }
 alloy-primitives = { version = "1.2.0", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
 alloy-provider = { version = "1.0.13", default-features = false, features = [
     "reqwest",
@@ -141,7 +137,6 @@ rustdoc.all = "warn"
 [patch.crates-io]
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-4.0.0", package = "sha2" }
-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-5.0.0", package = "substrate-bn" }
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-5.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-5.0.0" }
