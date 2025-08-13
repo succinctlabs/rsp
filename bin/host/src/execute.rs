@@ -190,7 +190,7 @@ impl ExecutionHooks for PersistExecutionReport {
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
-        println!("\nExecution report:\n{}", execution_report);
+        println!("\nExecution report:\n{execution_report}");
 
         // Open the file for appending or create it if it doesn't exist
         let file = OpenOptions::new().append(true).create(true).open(self.report_path.clone())?;

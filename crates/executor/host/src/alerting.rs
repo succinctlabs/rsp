@@ -27,7 +27,7 @@ impl AlertingClient {
             event_action: "trigger".to_string(),
         };
 
-        match self.client.post(format!("{}/enqueue", PAGER_DUTY_ENDPOINT)).json(&alert).send().await
+        match self.client.post(format!("{PAGER_DUTY_ENDPOINT}/enqueue")).json(&alert).send().await
         {
             Ok(response) => {
                 if let Err(err) = response.error_for_status() {

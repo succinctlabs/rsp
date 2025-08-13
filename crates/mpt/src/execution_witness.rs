@@ -97,8 +97,7 @@ fn validate_storage_tries(
 
         if storage_root != actual_hash {
             return Err(format!(
-                "Mismatched storage root for address hash {:?}: expected {:?}, got {:?}",
-                hashed_address, storage_root, actual_hash
+                "Mismatched storage root for address hash {hashed_address:?}: expected {storage_root:?}, got {actual_hash:?}"
             ));
         }
     }

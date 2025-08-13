@@ -290,7 +290,7 @@ where
                         std::fs::create_dir_all(&input_folder)?;
                     }
 
-                    let input_path = input_folder.join(format!("{}.bin", block_number));
+                    let input_path = input_folder.join(format!("{block_number}.bin"));
                     let mut cache_file = std::fs::File::create(input_path)?;
 
                     bincode::serialize_into(&mut cache_file, &client_input)?;
@@ -431,7 +431,7 @@ fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
     chain_id: u64,
     block_number: u64,
 ) -> eyre::Result<Option<ClientExecutorInput<P>>> {
-    let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, block_number));
+    let cache_path = cache_dir.join(format!("input/{chain_id}/{block_number}.bin"));
 
     if cache_path.exists() {
         // TODO: prune the cache if invalid instead
