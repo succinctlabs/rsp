@@ -33,7 +33,7 @@ pub async fn build_executor<C, P>(
 ) -> eyre::Result<EitherExecutor<C, P>>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     if let Some(provider) = provider {
         return Ok(Either::Left(
@@ -145,7 +145,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 impl<C, P> BlockExecutor<C> for EitherExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
@@ -186,7 +186,7 @@ where
 pub struct FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     provider: P,
     host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,
@@ -200,7 +200,7 @@ where
 impl<C, P> FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     pub async fn try_new(
         provider: P,
@@ -246,7 +246,7 @@ where
 impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
@@ -325,7 +325,7 @@ where
 impl<C, P> Debug for FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FullExecutor").field("config", &self.config).finish()
