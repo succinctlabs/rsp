@@ -237,7 +237,7 @@ impl ExecutionHooks for Hook {
                 println!("{table}");
 
                 writeln!(output_file, "EXECUTION_REPORT<<EOF")?;
-                writeln!(output_file, "{}", table)?;
+                writeln!(output_file, "{table}")?;
                 writeln!(output_file, "EOF")?;
             }
         }

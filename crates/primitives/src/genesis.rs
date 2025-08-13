@@ -15,6 +15,7 @@ pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesi
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
     OpMainnet,

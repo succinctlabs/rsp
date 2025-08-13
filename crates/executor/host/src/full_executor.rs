@@ -33,7 +33,7 @@ pub async fn build_executor<C, P>(
 ) -> eyre::Result<EitherExecutor<C, P>>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     if let Some(provider) = provider {
         return Ok(Either::Left(
@@ -145,7 +145,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 impl<C, P> BlockExecutor<C> for EitherExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         match self {
@@ -186,7 +186,7 @@ where
 pub struct FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     provider: P,
     host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,
@@ -200,7 +200,7 @@ where
 impl<C, P> FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     pub async fn try_new(
         provider: P,
@@ -246,7 +246,7 @@ where
 impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         self.hooks.on_execution_start(block_number).await?;
@@ -290,7 +290,7 @@ where
                         std::fs::create_dir_all(&input_folder)?;
                     }
 
-                    let input_path = input_folder.join(format!("{}.bin", block_number));
+                    let input_path = input_folder.join(format!("{block_number}.bin"));
                     let mut cache_file = std::fs::File::create(input_path)?;
 
                     bincode::serialize_into(&mut cache_file, &client_input)?;
@@ -325,7 +325,7 @@ where
 impl<C, P> Debug for FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FullExecutor").field("config", &self.config).finish()
@@ -431,7 +431,7 @@ fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
     chain_id: u64,
     block_number: u64,
 ) -> eyre::Result<Option<ClientExecutorInput<P>>> {
-    let cache_path = cache_dir.join(format!("input/{}/{}.bin", chain_id, block_number));
+    let cache_path = cache_dir.join(format!("input/{chain_id}/{block_number}.bin"));
 
     if cache_path.exists() {
         // TODO: prune the cache if invalid instead

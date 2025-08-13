@@ -70,7 +70,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
         C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
-        P: Provider<N> + Clone,
+        P: Provider<N> + Clone + std::fmt::Debug,
         N: Network,
     {
         // Fetch the current block and the previous block from the provider.
