@@ -84,7 +84,7 @@ async fn main() -> eyre::Result<()> {
             match process_block(block_number, executor, args.execution_retries).await {
                 Ok(_) => info!("Successfully processed block {}", block_number),
                 Err(err) => {
-                    let error_message = format!("Error executing block {}: {}", block_number, err);
+                    let error_message = format!("Error executing block {block_number}: {err}");
                     error!("{error_message}");
 
                     if let Some(alerting_client) = &alerting_client {
@@ -97,8 +97,7 @@ async fn main() -> eyre::Result<()> {
                         db::update_block_status_as_failed(&db_pool, block_number).await
                     {
                         let error_message = format!(
-                            "Database error while updating block {} status: {}",
-                            block_number, err
+                            "Database error while updating block {block_number} status: {err}",
                         );
 
                         error!("{error_message}",);

@@ -797,7 +797,7 @@ impl MptNode {
     pub fn debug_rlp<T: alloy_rlp::Decodable + Debug>(&self) -> Vec<String> {
         // convert the nibs to hex
         let nibs: String = self.nibs().iter().fold(String::new(), |mut output, n| {
-            let _ = write!(output, "{:x}", n);
+            let _ = write!(output, "{n:x}");
             output
         });
 
@@ -812,14 +812,14 @@ impl MptNode {
                         None => vec!["None".to_string()],
                     }
                     .into_iter()
-                    .map(move |s| format!("{:x} {}", i, s))
+                    .map(move |s| format!("{i:x} {s}"))
                 })
                 .collect(),
             MptNodeData::Leaf(_, data) => {
                 vec![format!("{} -> {:?}", nibs, T::decode(&mut &data[..]).unwrap())]
             }
             MptNodeData::Extension(_, node) => {
-                node.debug_rlp::<T>().into_iter().map(|s| format!("{} {}", nibs, s)).collect()
+                node.debug_rlp::<T>().into_iter().map(|s| format!("{nibs} {s}")).collect()
             }
             MptNodeData::Digest(digest) => vec![format!("#{:#}", digest)],
         }
