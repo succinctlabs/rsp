@@ -128,6 +128,8 @@ op-alloy-consensus = "0.22.0"
 op-alloy-network = "0.22.0"
 op-alloy-rpc-types = "0.22.0"
 
+kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs" }
+
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"

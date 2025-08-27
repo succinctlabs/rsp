@@ -155,7 +155,7 @@ pub enum FromProofError {
     NodeCannotHaveChildren(usize),
     #[error("Found mismatched storage root after reconstruction \n account {}, found {}, expected {}", .0, .1, .2)]
     MismatchedStorageRoot(Address, B256, B256),
-    #[error("Found mismatched staet root after reconstruction \n found {}, expected {}", .0, .1)]
+    #[error("Found mismatched state root after reconstruction \n found {}, expected {}", .0, .1)]
     MismatchedStateRoot(B256, B256),
     // todo: Should decode return a decoder error?
     #[error("Error decoding proofs from bytes, {}", .0)]
