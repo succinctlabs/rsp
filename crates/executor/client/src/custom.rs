@@ -6,6 +6,7 @@
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
 use alloy_evm::EthEvm;
+use kzg_rs::{Bytes32, Bytes48, KzgProof, KzgSettings};
 use reth_evm::{precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
@@ -19,6 +20,7 @@ use revm::{
         interpreter_types::{Jumps, LoopControl},
         Interpreter, InterpreterTypes,
     },
+    precompile::{Crypto, PrecompileError},
     Context, Inspector, MainBuilder, MainContext,
 };
 use revm_primitives::{hardfork::SpecId, Address};
@@ -149,5 +151,40 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
 
         #[cfg(target_os = "zkvm")]
         println!("cycle-tracker-report-end: opcode-{}", self.current);
+    }
+}
+
+#[derive(Debug)]
+pub struct CustomCrypto {
+    kzg_settings: KzgSettings,
+}
+
+impl Default for CustomCrypto {
+    fn default() -> Self {
+        Self { kzg_settings: KzgSettings::load_trusted_setup_file().unwrap() }
+    }
+}
+
+impl Crypto for CustomCrypto {
+    fn verify_kzg_proof(
+        &self,
+        z: &[u8; 32],
+        y: &[u8; 32],
+        commitment: &[u8; 48],
+        proof: &[u8; 48],
+    ) -> Result<(), PrecompileError> {
+        if !KzgProof::verify_kzg_proof(
+            &Bytes48(*commitment),
+            &Bytes32(*z),
+            &Bytes32(*y),
+            &Bytes48(*proof),
+            &self.kzg_settings,
+        )
+        .map_err(|err| PrecompileError::other(err.to_string()))?
+        {
+            return Err(PrecompileError::BlobVerifyKzgProofFailed);
+        }
+
+        Ok(())
     }
 }
