@@ -17,9 +17,10 @@ use rsp_client_executor::{custom::CustomEvmFactory, BlockValidator, IntoInput, I
 use rsp_primitives::genesis::Genesis;
 use serde::de::DeserializeOwned;
 use sp1_cuda::CudaProvingKey;
+use sp1_prover::utils::get_cycles;
 use sp1_sdk::{
     env::{EnvProver, EnvProvingKey},
-    CudaProver, ProveRequest, Prover, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
+    CudaProver, ProveRequest, Prover, ProvingKey, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin,
 };
 
 use crate::ExecutionHooks;
@@ -62,14 +63,10 @@ impl MaybeProveWithCycles<EnvProver> for EnvProver {
         stdin: SP1Stdin,
         mode: SP1ProofMode,
     ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let mut request = self.prove(pk, stdin);
-        let base = request.base();
+        let cycles = get_cycles(pk.elf(), &stdin);
+        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|_| eyre!("prove failed"))?;
 
-        base.mode(mode);
-
-        let proof = request.await.map_err(|_| eyre!("prove failed"))?;
-
-        Ok((proof, None))
+        Ok((proof, Some(cycles)))
     }
 }
 
@@ -81,19 +78,10 @@ impl MaybeProveWithCycles<CudaProver> for CudaProver {
         stdin: SP1Stdin,
         mode: SP1ProofMode,
     ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let (_, report) = self
-            .execute(pk.elf().clone(), stdin.clone())
-            .await
-            .map_err(|_| eyre!("execute failed"))?;
+        let cycles = get_cycles(pk.elf(), &stdin);
+        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
 
-        let mut request = self.prove(pk, stdin);
-        let base = request.base();
-
-        base.mode(mode);
-
-        let proof = request.await.map_err(|err| eyre!("{err}"))?;
-
-        Ok((proof, Some(report.total_instruction_count())))
+        Ok((proof, Some(cycles)))
     }
 }
 
