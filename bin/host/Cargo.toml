@@ -48,3 +48,6 @@ madato = "0.7.0"
 
 [build-dependencies]
 sp1-build.workspace = true
+
+[features]
+execution-witness = ["rsp-host-executor/execution-witness"]

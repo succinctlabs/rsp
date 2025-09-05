@@ -35,7 +35,7 @@ run-eth-proofs:
     #!/usr/bin/env bash
 
     echo "Running eth-proofs..."
-    cargo run --release --locked --bin eth-proofs
+    SP1_PROVER=cuda cargo run --release --locked --bin eth-proofs -F execution-witness
 # Usage:
 # just run-eth-proofs <cluster-id> <sleep-time>
 

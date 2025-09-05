@@ -21,7 +21,7 @@ time = "0.3.37"
 futures = "0.3"
 
 # workspace
-rsp-host-executor = { workspace = true, features = ["alerting", "execution-witness"] }
+rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
 rsp-primitives.workspace = true
 rsp-provider.workspace = true
@@ -38,3 +38,6 @@ alloy-transport-ws.workspace = true
 
 [build-dependencies]
 sp1-build.workspace = true
+
+[features]
+execution-witness = ["rsp-host-executor/execution-witness"]
