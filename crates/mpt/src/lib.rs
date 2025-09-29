@@ -17,7 +17,7 @@ use mpt::{
 };
 
 /// Ethereum state trie and account storage tries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EthereumState {
     pub state_trie: MptNode,
     pub storage_tries: HashMap<B256, MptNode>,
@@ -130,6 +130,18 @@ impl EthereumState {
     /// Computes the state root.
     pub fn state_root(&self) -> B256 {
         self.state_trie.hash()
+    }
+}
+
+impl core::fmt::Debug for EthereumState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut ds = f.debug_struct("EthereumState");
+        ds.field("state_trie", &self.state_trie);
+
+        // Use BTreeMap for stable ordering when printing
+        let ordered: std::collections::BTreeMap<_, _> = self.storage_tries.iter().collect();
+        ds.field("storage_tries", &ordered);
+        ds.finish()
     }
 }
 
