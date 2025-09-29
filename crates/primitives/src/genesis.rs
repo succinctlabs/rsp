@@ -20,6 +20,7 @@ pub enum Genesis {
     Mainnet,
     OpMainnet,
     Sepolia,
+    Holesky,
     Linea,
     Custom(#[serde_as(as = "serde_bincode_compat::ChainConfig")] ChainConfig),
 }
@@ -30,6 +31,7 @@ impl Hash for Genesis {
             Genesis::Mainnet => 1.hash(state),
             Genesis::OpMainnet => 10.hash(state),
             Genesis::Sepolia => 11155111.hash(state),
+            Genesis::Holesky => 17000.hash(state),
             Genesis::Linea => 59144.hash(state),
             Self::Custom(config) => {
                 let buf = serde_json::to_vec(config).unwrap();
@@ -60,6 +62,7 @@ impl TryFrom<u64> for Genesis {
         match value {
             1 => Ok(Genesis::Mainnet),
             10 => Ok(Genesis::OpMainnet),
+            17000 => Ok(Genesis::Holesky),
             59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
             id => Err(ChainSpecError::ChainNotSupported(id)),
@@ -100,6 +103,20 @@ impl TryFrom<&Genesis> for ChainSpec {
                     blob_params: Default::default(),
                 };
                 Ok(sepolia)
+            }
+            Genesis::Holesky => {
+                let holesky = ChainSpec {
+                    chain: Chain::holesky(),
+                    genesis: Default::default(),
+                    genesis_header: Default::default(),
+                    paris_block_and_final_difficulty: Default::default(),
+                    hardforks: EthereumHardfork::holesky().into(),
+                    deposit_contract: Default::default(),
+                    base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+                    prune_delete_limit: 10000,
+                    blob_params: Default::default(),
+                };
+                Ok(holesky)
             }
             Genesis::OpMainnet => Err(ChainSpecError::InvalidConversion),
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
