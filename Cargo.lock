@@ -6669,6 +6669,7 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-rpc-types-debug",
  "hex-literal",
+ "reth-primitives-traits",
  "reth-trie",
  "rlp",
  "serde",
