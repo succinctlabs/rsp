@@ -23,6 +23,11 @@ pub fn sepolia() -> Result<ChainSpec, ChainSpecError> {
     (&Genesis::Sepolia).try_into()
 }
 
+/// Returns the [ChainSpec] for Sepolia testnet.
+pub fn holesky() -> Result<ChainSpec, ChainSpecError> {
+    (&Genesis::Holesky).try_into()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::chain_spec::{linea_mainnet, sepolia};
