@@ -39,13 +39,14 @@ where
         block: &RecoveredBlock<<Self::Primitives as NodePrimitives>::Block>,
     ) -> Result<BlockExecutionResult<<Self::Primitives as NodePrimitives>::Receipt>, Self::Error>
     {
-        let evm_env = self.evm_config.evm_env(block.header());
+        let evm_env =
+            self.evm_config.evm_env(block.header()).map_err(BlockExecutionError::other)?;
         let evm = self.evm_config.evm_with_env_and_inspector(
             &mut self.db,
             evm_env,
             OpCodeTrackingInspector::default(),
         );
-        let ctx = self.evm_config.context_for_block(block);
+        let ctx = self.evm_config.context_for_block(block).map_err(BlockExecutionError::other)?;
         let mut strategy = self.evm_config.create_executor(evm, ctx);
 
         strategy.apply_pre_execution_changes()?;
@@ -70,6 +71,7 @@ where
         let mut strategy = self
             .evm_config
             .executor_for_block(&mut self.db, block)
+            .map_err(BlockExecutionError::other)?
             .with_state_hook(Some(Box::new(state_hook)));
 
         strategy.apply_pre_execution_changes()?;
