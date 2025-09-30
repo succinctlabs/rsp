@@ -37,6 +37,7 @@ jobs:
         run: |
           echo "RPC_1=http://localhost:9545/main/evm/1" >> $GITHUB_ENV
           echo "RPC_10=http://localhost:9545/main/evm/10" >> $GITHUB_ENV
+          echo "RPC_17000=http://localhost:9545/main/evm/17000" >> $GITHUB_ENV
           echo "RPC_59144=http://localhost:9545/main/evm/59144" >> $GITHUB_ENV
           echo "RPC_11155111=http://localhost:9545/main/evm/11155111" >> $GITHUB_ENV
 
