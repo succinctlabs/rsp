@@ -122,7 +122,7 @@ jobs:
 
       - name: "Set up test fixture"
         run: |
-          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-06-16 --depth 1 ../rsp-tests
+          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-09-30 --depth 1 ../rsp-tests
           cd ../rsp-tests/
           docker compose up -d
 
