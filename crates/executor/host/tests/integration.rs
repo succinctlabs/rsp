@@ -83,6 +83,11 @@ async fn test_e2e_sepolia() {
     run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324, None).await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_holesky() {
+    run_eth_e2e(&Genesis::Holesky, "RPC_17000", 4596000, None).await;
+}
+
 async fn run_eth_e2e(
     genesis: &Genesis,
     env_var_key: &str,

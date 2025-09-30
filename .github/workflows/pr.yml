@@ -122,7 +122,7 @@ jobs:
 
       - name: "Set up test fixture"
         run: |
-          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-06-16 --depth 1 ../rsp-tests
+          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-09-30 --depth 1 ../rsp-tests
           cd ../rsp-tests/
           docker compose up -d
 
@@ -130,6 +130,7 @@ jobs:
         run: |
           echo "RPC_1=http://localhost:9545/main/evm/1" >> $GITHUB_ENV
           echo "RPC_10=http://localhost:9545/main/evm/10" >> $GITHUB_ENV
+          echo "RPC_17000=http://localhost:9545/main/evm/17000" >> $GITHUB_ENV
           echo "RPC_59144=http://localhost:9545/main/evm/59144" >> $GITHUB_ENV
           echo "RPC_11155111=http://localhost:9545/main/evm/11155111" >> $GITHUB_ENV
           echo "RPC_11155420=http://localhost:9545/main/evm/11155420" >> $GITHUB_ENV
