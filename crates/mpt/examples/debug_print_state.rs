@@ -40,5 +40,5 @@ fn main() {
     }
 
     // Print the full state - this will show Branch, Extension, Leaf nodes with cached references
-    println!("{:#?}", state);
+    println!("{state:#?}");
 }

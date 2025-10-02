@@ -237,7 +237,7 @@ impl core::fmt::Debug for MptNodeData {
                 let mut ds = f.debug_struct("Branch");
                 for (i, child) in children.iter().enumerate() {
                     if let Some(c) = child {
-                        ds.field(&format!("child_{}", i), c);
+                        ds.field(&format!("child_{i}"), c);
                     }
                 }
                 ds.finish()
