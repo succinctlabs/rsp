@@ -26,6 +26,7 @@ alloy-rpc-types-debug = {workspace = true, optional = true }
 
 [dev-dependencies]
 hex-literal.workspace = true
+reth-primitives-traits.workspace = true
 
 [features]
 default = ["execution-witness"]
