@@ -1,0 +1,32 @@
+[package]
+name = "rsp-testing-api"
+version = "0.1.0"
+edition = "2021"
+description = "Testing API for RSP - simplified interface for fetching block stdin and program ELFs"
+
+[dependencies]
+eyre = "0.6.12"
+url.workspace = true
+
+# workspace
+rsp-host-executor.workspace = true
+rsp-provider.workspace = true
+rsp-primitives.workspace = true
+
+# alloy
+alloy-chains.workspace = true
+alloy-consensus.workspace = true
+alloy-provider.workspace = true
+
+# reth
+reth-primitives-traits.workspace = true
+
+# sp1
+sp1-sdk.workspace = true
+
+[build-dependencies]
+sp1-build = { workspace = true, optional = true }
+
+[features]
+default = []
+embedded-programs = ["sp1-build"]

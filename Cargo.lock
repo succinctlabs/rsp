@@ -6258,6 +6258,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rsp-testing-api"
+version = "0.1.0"
+dependencies = [
+ "alloy-chains",
+ "alloy-consensus",
+ "alloy-provider",
+ "eyre",
+ "reth-primitives-traits",
+ "rsp-host-executor",
+ "rsp-primitives",
+ "rsp-provider",
+ "sp1-build",
+ "sp1-sdk",
+ "url",
+]
+
+[[package]]
 name = "rsp-witness-db"
 version = "0.1.0"
 dependencies = [

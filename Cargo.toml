@@ -10,6 +10,7 @@ members = [
     "crates/provider",
     "crates/storage/rpc-db",
     "crates/storage/witness-db",
+    "crates/testing-api",
 ]
 exclude = []
 resolver = "2"
@@ -50,6 +51,7 @@ rsp-host-executor = { path = "./crates/executor/host" }
 rsp-mpt = { path = "./crates/mpt" }
 rsp-primitives = { path = "./crates/primitives" }
 rsp-provider = { path = "./crates/provider" }
+rsp-testing-api = { path = "./crates/testing-api" }
 
 
 # sp1
