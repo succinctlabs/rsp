@@ -53,11 +53,11 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301", features = ["bigint-rug"] }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301", features = ["native"] } 
+sp1-build = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784", features = ["bigint-rug"] }
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784", features = ["native"] } 
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.6.0", default-features = false }
@@ -146,4 +146,4 @@ sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
 
-sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
+sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 

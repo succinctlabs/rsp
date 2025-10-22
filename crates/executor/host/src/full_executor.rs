@@ -401,7 +401,7 @@ async fn execute_client<P: Prover + 'static>(
     pk: &P::ProvingKey,
     stdin: SP1Stdin,
 ) -> eyre::Result<(SP1PublicValues, ExecutionReport)> {
-    client.execute(pk.elf().into(), stdin).await.map_err(|err| eyre::eyre!("{err}"))
+    client.execute(pk.elf().clone(), stdin).await.map_err(|err| eyre::eyre!("{err}"))
 }
 
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(

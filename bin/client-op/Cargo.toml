@@ -11,7 +11,7 @@ bincode = "1.3.3"
 rsp-client-executor = { path = "../../crates/executor/client", features = ["optimism"]}
 
 # sp1
-sp1-zkvm = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 
 
 # Statically turns off logging
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
@@ -25,4 +25,4 @@ sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
 
-sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "37b1f99c1921365c8476b49fff6773f0fd5c1301" } 
+sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "3ca2c456194622a0ec800b18c8d2cde80a852784" } 
