@@ -91,7 +91,6 @@ impl PersistExecutionReport {
             headers.push("recover_senders_cycles_count".to_string());
             headers.push("block_execution_cycles_count".to_string());
             headers.push("block_validation_cycles_count".to_string());
-            headers.push("accrue_logs_bloom_cycles_count".to_string());
             headers.push("state_root_computation_cycles_count".to_string());
             headers.push("syscalls_count".to_string());
             headers.push("prover_gas".to_string());
