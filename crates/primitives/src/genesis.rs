@@ -3,8 +3,12 @@ use std::{
     str::FromStr,
 };
 
+use alloy_eips::{eip7840::BlobParams, BlobScheduleBlobParams};
 use alloy_genesis::ChainConfig;
-use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
+use reth_chainspec::{
+    sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
+    BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork,
+};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -100,7 +104,10 @@ impl TryFrom<&Genesis> for ChainSpec {
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                     prune_delete_limit: 10000,
-                    blob_params: Default::default(),
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (SEPOLIA_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (SEPOLIA_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
                 };
                 Ok(sepolia)
             }
