@@ -6,8 +6,11 @@ use std::{
 use alloy_eips::{eip7840::BlobParams, BlobScheduleBlobParams};
 use alloy_genesis::ChainConfig;
 use reth_chainspec::{
+    holesky::{HOLESKY_BPO1_TIMESTAMP, HOLESKY_BPO2_TIMESTAMP},
+    mainnet::{MAINNET_BPO1_TIMESTAMP, MAINNET_BPO2_TIMESTAMP},
     sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
     BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork,
+    MAINNET_PRUNE_DELETE_LIMIT,
 };
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
@@ -88,8 +91,11 @@ impl TryFrom<&Genesis> for ChainSpec {
                     hardforks: EthereumHardfork::mainnet().into(),
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
-                    prune_delete_limit: 20000,
-                    blob_params: Default::default(),
+                    prune_delete_limit: MAINNET_PRUNE_DELETE_LIMIT,
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (MAINNET_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (MAINNET_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
                 };
 
                 Ok(mainnet)
@@ -121,7 +127,10 @@ impl TryFrom<&Genesis> for ChainSpec {
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                     prune_delete_limit: 10000,
-                    blob_params: Default::default(),
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (HOLESKY_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (HOLESKY_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
                 };
                 Ok(holesky)
             }
