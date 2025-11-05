@@ -44,6 +44,8 @@ impl EvmFactory for CustomEvmFactory {
 
     type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
 
+    type BlockEnv = BlockEnv;
+
     type Tx = TxEnv;
 
     type Error<DBError: std::error::Error + Send + Sync + 'static> = EVMError<DBError>;
