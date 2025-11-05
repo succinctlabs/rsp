@@ -80,7 +80,6 @@ reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9
 # revm
 revm = { version = "31.0.0", features = [
     "serde",
-    "c-kzg",
     "bn"
 ], default-features = false }
 revm-bytecode = { version = "7.1.0", default-features = false }
