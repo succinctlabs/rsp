@@ -21,11 +21,9 @@ reth-optimism-forks = { workspace = true, optional = true }
 reth-trie.workspace = true
 
 # alloy
-alloy-primitives.workspace = true
 alloy-eips.workspace = true
 alloy-genesis.workspace = true
 alloy-rpc-types.workspace = true
-alloy-serde.workspace = true
 
 [dev-dependencies]
 bincode = "1.3.3"

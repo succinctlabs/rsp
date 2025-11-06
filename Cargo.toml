@@ -108,7 +108,7 @@ alloy-rpc-types = { version = "1.1.0", default-features = false, features = [
 alloy-rpc-types-debug = { version = "1.1.0", default-features = false }
 
 alloy-json-rpc = { version = "1.1.0", default-features = false }
-alloy-genesis = { version = "1.1.0", default-features = false }
+alloy-genesis = { version = "1.1.0", default-features = false, features = ["serde-bincode-compat"] }
 alloy-consensus = { version = "1.1.0", default-features = false, features = ["serde", "serde-bincode-compat"] }
 alloy-network = { version = "1.1.0", default-features = false }
 alloy-transport = { version = "1.1.0", default-features = false }

@@ -6685,9 +6685,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips",
  "alloy-genesis",
- "alloy-primitives",
  "alloy-rpc-types",
- "alloy-serde",
  "bincode",
  "reth-chainspec",
  "reth-optimism-chainspec",
