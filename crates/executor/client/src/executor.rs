@@ -12,11 +12,11 @@ use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
-use revm::database::WrapDatabaseRef;
+use revm::{database::WrapDatabaseRef, install_crypto};
 use revm_primitives::Address;
 
 use crate::{
-    custom::CustomEvmFactory,
+    custom::{CustomCrypto, CustomEvmFactory},
     error::ClientError,
     into_primitives::FromInput,
     io::{ClientExecutorInput, TrieDB, WitnessInput},
@@ -150,6 +150,8 @@ where
 
 impl EthClientExecutor {
     pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
+        install_crypto(CustomCrypto::default());
+
         Self {
             evm_config: EthEvmConfig::new_with_evm_factory(
                 chain_spec.clone(),
@@ -163,6 +165,8 @@ impl EthClientExecutor {
 #[cfg(feature = "optimism")]
 impl OpClientExecutor {
     pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
+        install_crypto(CustomCrypto::default());
+
         Self {
             evm_config: reth_optimism_evm::OpEvmConfig::optimism(chain_spec.clone()),
             chain_spec,
