@@ -193,11 +193,37 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
 #[cfg(test)]
 mod tests {
 
+    use alloy_eips::eip7840::BlobParams;
+
     use crate::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
 
     #[test]
     fn test_custom_genesis_bincode_roundtrip() {
-        let alloy_genesis = genesis_from_json(OP_SEPOLIA_GENESIS_JSON).unwrap();
+        let mut alloy_genesis = genesis_from_json(OP_SEPOLIA_GENESIS_JSON).unwrap();
+
+        alloy_genesis.config.blob_schedule.insert(
+            "cancun".to_string(),
+            BlobParams {
+                target_blob_count: 3,
+                max_blob_count: 6,
+                update_fraction: 3338477,
+                min_blob_fee: 1,
+                max_blobs_per_tx: 6,
+                blob_base_cost: 0,
+            },
+        );
+        alloy_genesis.config.blob_schedule.insert(
+            "prague".to_string(),
+            BlobParams {
+                target_blob_count: 6,
+                max_blob_count: 9,
+                update_fraction: 5007716,
+                min_blob_fee: 1,
+                max_blobs_per_tx: 9,
+                blob_base_cost: 0,
+            },
+        );
+
         let genesis = Genesis::Custom(alloy_genesis.config);
         let buf = bincode::serialize(&genesis).unwrap();
         let deserialized = bincode::deserialize::<Genesis>(&buf).unwrap();
