@@ -93,7 +93,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             let input_block_hash = client_input.current_block.header.hash_slow();
 
             if input_block_hash != executed_block_hash {
-                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?
+                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
             }
 
             info!(?executed_block_hash, "Execution successful");
@@ -281,8 +281,9 @@ where
 
                     let input_path = input_folder.join(format!("{block_number}.bin"));
                     let mut cache_file = std::fs::File::create(input_path)?;
-
-                    bincode::serialize_into(&mut cache_file, &client_input)?;
+                    let mut stdin = SP1Stdin::new();
+                    stdin.write_vec(bincode::serialize(&client_input).unwrap());
+                    bincode::serialize_into(&mut cache_file, &stdin)?;
                 }
 
                 client_input
