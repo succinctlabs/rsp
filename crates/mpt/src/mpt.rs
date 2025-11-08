@@ -91,7 +91,7 @@ pub fn keccak(data: impl AsRef<[u8]>) -> [u8; 32] {
 /// optimizing storage. However, operations targeting a truncated part will fail and
 /// return an error. Another distinction of this implementation is that branches cannot
 /// store values, aligning with the construction of MPTs in Ethereum.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct MptNode {
     /// The type and data of the node.
     data: MptNodeData,
@@ -160,7 +160,7 @@ pub enum Error {
 /// Each node in the trie can be of one of several types, each with its own specific data
 /// structure. This enum provides a clear and type-safe way to represent the data
 /// associated with each node type.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum MptNodeData {
     /// Represents an empty trie node.
     #[default]
@@ -183,7 +183,7 @@ pub enum MptNodeData {
 /// Nodes in the MPT can reference other nodes either directly through their byte
 /// representation or indirectly through a hash of their encoding. This enum provides a
 /// clear and type-safe way to represent these references.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum MptNodeReference {
     /// Represents a direct reference to another node using its byte encoding. Typically
     /// used for short encodings that are less than 32 bytes in length.
@@ -201,6 +201,61 @@ pub enum MptNodeReference {
 impl From<MptNodeData> for MptNode {
     fn from(value: MptNodeData) -> Self {
         Self { data: value, cached_reference: Mutex::new(None) }
+    }
+}
+
+impl core::fmt::Debug for MptNodeReference {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            MptNodeReference::Bytes(b) => {
+                write!(f, "Ref::Bytes({})", alloy_primitives::hex::encode(b))
+            }
+            MptNodeReference::Digest(h) => {
+                write!(f, "Ref::Digest({})", alloy_primitives::hex::encode(h.as_slice()))
+            }
+        }
+    }
+}
+
+impl core::fmt::Debug for MptNodeData {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            MptNodeData::Null => write!(f, "Null"),
+            MptNodeData::Leaf(k, v) => write!(
+                f,
+                "Leaf(key={}, value={})",
+                alloy_primitives::hex::encode(k),
+                alloy_primitives::hex::encode(v)
+            ),
+            MptNodeData::Extension(k, child) => f
+                .debug_struct("Extension")
+                .field("key", &alloy_primitives::hex::encode(k))
+                .field("child", child)
+                .finish(),
+            MptNodeData::Digest(h) => write!(f, "Digest({})", alloy_primitives::hex::encode(h)),
+            MptNodeData::Branch(children) => {
+                let mut ds = f.debug_struct("Branch");
+                for (i, child) in children.iter().enumerate() {
+                    if let Some(c) = child {
+                        ds.field(&format!("child_{i}"), c);
+                    }
+                }
+                ds.finish()
+            }
+        }
+    }
+}
+
+impl core::fmt::Debug for MptNode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut ds = f.debug_struct("MptNode");
+        ds.field("data", &self.data);
+        if let Ok(guard) = self.cached_reference.lock() {
+            if let Some(reference) = guard.as_ref() {
+                ds.field("cached_reference", reference);
+            }
+        }
+        ds.finish()
     }
 }
 
@@ -797,7 +852,7 @@ impl MptNode {
     pub fn debug_rlp<T: alloy_rlp::Decodable + Debug>(&self) -> Vec<String> {
         // convert the nibs to hex
         let nibs: String = self.nibs().iter().fold(String::new(), |mut output, n| {
-            let _ = write!(output, "{:x}", n);
+            let _ = write!(output, "{n:x}");
             output
         });
 
@@ -812,14 +867,14 @@ impl MptNode {
                         None => vec!["None".to_string()],
                     }
                     .into_iter()
-                    .map(move |s| format!("{:x} {}", i, s))
+                    .map(move |s| format!("{i:x} {s}"))
                 })
                 .collect(),
             MptNodeData::Leaf(_, data) => {
                 vec![format!("{} -> {:?}", nibs, T::decode(&mut &data[..]).unwrap())]
             }
             MptNodeData::Extension(_, node) => {
-                node.debug_rlp::<T>().into_iter().map(|s| format!("{} {}", nibs, s)).collect()
+                node.debug_rlp::<T>().into_iter().map(|s| format!("{nibs} {s}")).collect()
             }
             MptNodeData::Digest(digest) => vec![format!("#{:#}", digest)],
         }
