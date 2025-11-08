@@ -53,15 +53,15 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3", features = [
-    "64bit",
-] }
-sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3", features = [
+sp1-build = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25" }
+sp1-core-executor = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25", features = [
     "bigint-rug",
 ] }
-sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3" }
-sp1-sdk = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3" }
-sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3", features = [
+sp1-prover = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25" }
+sp1-sdk = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25", features = [
+    "experimental",
+] }
+sp1-cuda = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25", features = [
     "native",
 ] }
 
@@ -163,4 +163,4 @@ sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
 
-sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "1ac3cb1cf5edcdb5245ff62be05bfb0f022387b3" }
+sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", rev = "f06741216a72a1596d51204d1a9b469d33294e25" }

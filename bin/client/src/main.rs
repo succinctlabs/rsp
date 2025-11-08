@@ -1,5 +1,5 @@
 #![no_main]
-sp1_zkvm_64::entrypoint!(main);
+sp1_zkvm::entrypoint!(main);
 
 use rsp_client_executor::{
     executor::{EthClientExecutor, DESERIALZE_INPUTS},
@@ -11,7 +11,7 @@ use std::sync::Arc;
 pub fn main() {
     // Read the input.
     let input = profile_report!(DESERIALZE_INPUTS, {
-        let input = sp1_zkvm_64::io::read_vec();
+        let input = sp1_zkvm::io::read_vec();
         bincode::deserialize::<EthClientExecutorInput>(&input).unwrap()
     });
 
@@ -23,5 +23,5 @@ pub fn main() {
     let header = executor.execute(input).expect("failed to execute client");
 
     // Commit the block header.
-    sp1_zkvm_64::io::commit::<CommittedHeader>(&header.into());
+    sp1_zkvm::io::commit::<CommittedHeader>(&header.into());
 }
