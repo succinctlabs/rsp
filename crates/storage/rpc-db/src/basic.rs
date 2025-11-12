@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
 use revm_database::BundleState;
 use revm_database_interface::DatabaseRef;
-use revm_primitives::{Address, B256};
+use revm_primitives::{Address, B256, KECCAK_EMPTY};
 use revm_state::{AccountInfo, Bytecode};
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
@@ -77,10 +77,16 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
 
         // Construct the account info & write it to the log.
         let bytecode = Bytecode::new_raw(code);
+
+        // Normalize code_hash for REVM compatibility:
+        // RPC response for getProof method for non-existing (unused) EOAs may contain B256::ZERO
+        // for code_hash, but REVM expects KECCAK_EMPTY
+        let code_hash = if proof.code_hash == B256::ZERO { KECCAK_EMPTY } else { proof.code_hash };
+
         let account_info = AccountInfo {
             nonce: proof.nonce,
             balance: proof.balance,
-            code_hash: proof.code_hash,
+            code_hash,
             code: Some(bytecode.clone()),
         };
 
