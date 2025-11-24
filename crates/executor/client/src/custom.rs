@@ -88,6 +88,13 @@ impl EvmFactory for CustomEvmFactory {
                 (u64_to_address(8), "bn-pair"),
                 (u64_to_address(9), "blake2f"),
                 (u64_to_address(10), "kzg-point-evaluation"),
+                (u64_to_address(11), "bls-g1add"),
+                (u64_to_address(12), "bls-g1msm"),
+                (u64_to_address(13), "bls-g2add"),
+                (u64_to_address(14), "bls-g2msm"),
+                (u64_to_address(15), "bls-pairing"),
+                (u64_to_address(16), "bls-map-fp-to-g1"),
+                (u64_to_address(17), "bls-map-fp2-to-g2"),
             ]);
 
             let name = addresses_to_names.get(address).cloned().unwrap_or("unknown");
