@@ -14,14 +14,12 @@ use revm::{
         result::{EVMError, HaltReason},
         BlockEnv, CfgEnv, TxEnv,
     },
-    handler::EthPrecompiles,
-    inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
         Interpreter, InterpreterTypes,
     },
     precompile::{Crypto, PrecompileError, PrecompileSpecId, Precompiles},
-    Context, Inspector, MainBuilder, MainContext,
+    Context, Inspector,
 };
 use revm_primitives::{hardfork::SpecId, Address};
 use std::fmt::Debug;
