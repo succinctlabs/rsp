@@ -7,21 +7,19 @@
 
 use alloy_evm::EthEvm;
 use kzg_rs::{Bytes32, Bytes48, KzgProof, KzgSettings};
-use reth_evm::{precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
+use reth_evm::{eth::EthEvmBuilder, precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
     context::{
         result::{EVMError, HaltReason},
         BlockEnv, CfgEnv, TxEnv,
     },
-    handler::EthPrecompiles,
-    inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
         Interpreter, InterpreterTypes,
     },
-    precompile::{Crypto, PrecompileError},
-    Context, Inspector, MainBuilder, MainContext,
+    precompile::{Crypto, PrecompileError, PrecompileSpecId, Precompiles},
+    Context, Inspector,
 };
 use revm_primitives::{hardfork::SpecId, Address};
 use std::fmt::Debug;
@@ -68,7 +66,9 @@ impl EvmFactory for CustomEvmFactory {
         }
 
         #[allow(unused_mut)]
-        let mut precompiles = PrecompilesMap::from(EthPrecompiles::default());
+        let mut precompiles = PrecompilesMap::from_static(Precompiles::new(
+            PrecompileSpecId::from_spec_id(input.cfg_env.spec),
+        ));
 
         #[cfg(target_os = "zkvm")]
         precompiles.map_precompiles(|address, p| {
@@ -109,14 +109,7 @@ impl EvmFactory for CustomEvmFactory {
             precompile.into()
         });
 
-        let evm = Context::mainnet()
-            .with_db(db)
-            .with_cfg(input.cfg_env)
-            .with_block(input.block_env)
-            .build_mainnet_with_inspector(NoOpInspector {})
-            .with_precompiles(precompiles);
-
-        EthEvm::new(evm, false)
+        EthEvmBuilder::new(db, input).precompiles(precompiles).build()
     }
 
     fn create_evm_with_inspector<DB: Database, I: revm::Inspector<Self::Context<DB>>>(
