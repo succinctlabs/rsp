@@ -97,36 +97,36 @@ revm-inspectors = "0.32.0"
 # alloy
 alloy-chains = { version = "0.2.17", default-features = false }
 alloy-evm = { version = "0.23.1", default-features = false }
-alloy-primitives = { version = "1.4.1", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
-alloy-provider = { version = "1.1.0", default-features = false, features = [
+alloy-primitives = { version = "1.5.2", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
+alloy-provider = { version = "1.4.3", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
 ] }
-alloy-rpc-types = { version = "1.1.0", default-features = false, features = [
+alloy-rpc-types = { version = "1.4.3", default-features = false, features = [
     "eth",
 ] }
-alloy-rpc-types-debug = { version = "1.1.0", default-features = false }
+alloy-rpc-types-debug = { version = "1.4.3", default-features = false }
 
-alloy-json-rpc = { version = "1.1.0", default-features = false }
-alloy-genesis = { version = "1.1.0", default-features = false, features = ["serde-bincode-compat"] }
-alloy-consensus = { version = "1.1.0", default-features = false, features = ["serde", "serde-bincode-compat"] }
-alloy-network = { version = "1.1.0", default-features = false }
-alloy-transport = { version = "1.1.0", default-features = false }
-alloy-transport-http = { version = "1.1.0", features = [
+alloy-json-rpc = { version = "1.4.3", default-features = false }
+alloy-genesis = { version = "1.4.3", default-features = false, features = ["serde-bincode-compat"] }
+alloy-consensus = { version = "1.4.3", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-network = { version = "1.4.3", default-features = false }
+alloy-transport = { version = "1.4.3", default-features = false }
+alloy-transport-http = { version = "1.4.3", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
-alloy-transport-ws = { version = "1.1.0" }
-alloy-rpc-client = { version = "1.1.0", default-features = false }
-alloy-eips = { version = "1.1.0", default-features = false }
-alloy-serde = "1.1.0"
-alloy-rlp = "0.3.10"
-alloy-trie = "0.9.1"
+alloy-transport-ws = { version = "1.4.3" }
+alloy-rpc-client = { version = "1.4.3", default-features = false }
+alloy-eips = { version = "1.4.3", default-features = false }
+alloy-serde = "1.4.3"
+alloy-rlp = "0.3.12"
+alloy-trie = "0.9.3"
 
 # op
 alloy-op-evm = { version = "0.23.1", default-features = false }
-op-alloy-consensus = "0.22.0"
-op-alloy-network = "0.22.0"
-op-alloy-rpc-types = "0.22.0"
+op-alloy-consensus = "0.22.4"
+op-alloy-network = "0.22.4"
+op-alloy-rpc-types = "0.22.4"
 
 kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs" }
 
