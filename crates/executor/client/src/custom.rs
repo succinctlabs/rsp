@@ -6,20 +6,20 @@
 //! configuring the custom CustomEvmConfig precompiles and instructions.
 
 use alloy_evm::EthEvm;
-use reth_evm::{precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
+use kzg_rs::{Bytes32, Bytes48, KzgProof, KzgSettings};
+use reth_evm::{eth::EthEvmBuilder, precompiles::PrecompilesMap, Database, EvmEnv, EvmFactory};
 use revm::{
     bytecode::opcode::OpCode,
     context::{
         result::{EVMError, HaltReason},
         BlockEnv, CfgEnv, TxEnv,
     },
-    handler::EthPrecompiles,
-    inspector::NoOpInspector,
     interpreter::{
         interpreter_types::{Jumps, LoopControl},
         Interpreter, InterpreterTypes,
     },
-    Context, Inspector, MainBuilder, MainContext,
+    precompile::{Crypto, PrecompileError, PrecompileSpecId, Precompiles},
+    Context, Inspector,
 };
 use revm_primitives::{hardfork::SpecId, Address};
 use std::fmt::Debug;
@@ -44,6 +44,8 @@ impl EvmFactory for CustomEvmFactory {
 
     type Context<DB: Database> = Context<BlockEnv, TxEnv, CfgEnv, DB>;
 
+    type BlockEnv = BlockEnv;
+
     type Tx = TxEnv;
 
     type Error<DBError: std::error::Error + Send + Sync + 'static> = EVMError<DBError>;
@@ -64,7 +66,9 @@ impl EvmFactory for CustomEvmFactory {
         }
 
         #[allow(unused_mut)]
-        let mut precompiles = PrecompilesMap::from(EthPrecompiles::default());
+        let mut precompiles = PrecompilesMap::from_static(Precompiles::new(
+            PrecompileSpecId::from_spec_id(input.cfg_env.spec),
+        ));
 
         #[cfg(target_os = "zkvm")]
         precompiles.map_precompiles(|address, p| {
@@ -84,6 +88,13 @@ impl EvmFactory for CustomEvmFactory {
                 (u64_to_address(8), "bn-pair"),
                 (u64_to_address(9), "blake2f"),
                 (u64_to_address(10), "kzg-point-evaluation"),
+                (u64_to_address(11), "bls-g1add"),
+                (u64_to_address(12), "bls-g1msm"),
+                (u64_to_address(13), "bls-g2add"),
+                (u64_to_address(14), "bls-g2msm"),
+                (u64_to_address(15), "bls-pairing"),
+                (u64_to_address(16), "bls-map-fp-to-g1"),
+                (u64_to_address(17), "bls-map-fp2-to-g2"),
             ]);
 
             let name = addresses_to_names.get(address).cloned().unwrap_or("unknown");
@@ -98,14 +109,7 @@ impl EvmFactory for CustomEvmFactory {
             precompile.into()
         });
 
-        let evm = Context::mainnet()
-            .with_db(db)
-            .with_cfg(input.cfg_env)
-            .with_block(input.block_env)
-            .build_mainnet_with_inspector(NoOpInspector {})
-            .with_precompiles(precompiles);
-
-        EthEvm::new(evm, false)
+        EthEvmBuilder::new(db, input).precompiles(precompiles).build()
     }
 
     fn create_evm_with_inspector<DB: Database, I: revm::Inspector<Self::Context<DB>>>(
@@ -149,5 +153,40 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
 
         #[cfg(target_os = "zkvm")]
         println!("cycle-tracker-report-end: opcode-{}", self.current);
+    }
+}
+
+#[derive(Debug)]
+pub struct CustomCrypto {
+    kzg_settings: KzgSettings,
+}
+
+impl Default for CustomCrypto {
+    fn default() -> Self {
+        Self { kzg_settings: KzgSettings::load_trusted_setup_file().unwrap() }
+    }
+}
+
+impl Crypto for CustomCrypto {
+    fn verify_kzg_proof(
+        &self,
+        z: &[u8; 32],
+        y: &[u8; 32],
+        commitment: &[u8; 48],
+        proof: &[u8; 48],
+    ) -> Result<(), PrecompileError> {
+        if !KzgProof::verify_kzg_proof(
+            &Bytes48(*commitment),
+            &Bytes32(*z),
+            &Bytes32(*y),
+            &Bytes48(*proof),
+            &self.kzg_settings,
+        )
+        .map_err(|err| PrecompileError::other(err.to_string()))?
+        {
+            return Err(PrecompileError::BlobVerifyKzgProofFailed);
+        }
+
+        Ok(())
     }
 }

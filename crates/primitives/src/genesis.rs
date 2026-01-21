@@ -3,8 +3,15 @@ use std::{
     str::FromStr,
 };
 
+use alloy_eips::{eip7840::BlobParams, BlobScheduleBlobParams};
 use alloy_genesis::ChainConfig;
-use reth_chainspec::{BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork};
+use reth_chainspec::{
+    holesky::{HOLESKY_BPO1_TIMESTAMP, HOLESKY_BPO2_TIMESTAMP},
+    mainnet::{MAINNET_BPO1_TIMESTAMP, MAINNET_BPO2_TIMESTAMP},
+    sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
+    BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork,
+    MAINNET_PRUNE_DELETE_LIMIT,
+};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -15,12 +22,14 @@ pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesi
 
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
     OpMainnet,
     Sepolia,
+    Holesky,
     Linea,
-    Custom(#[serde_as(as = "serde_bincode_compat::ChainConfig")] ChainConfig),
+    Custom(#[serde_as(as = "alloy_genesis::serde_bincode_compat::ChainConfig")] ChainConfig),
 }
 
 impl Hash for Genesis {
@@ -29,6 +38,7 @@ impl Hash for Genesis {
             Genesis::Mainnet => 1.hash(state),
             Genesis::OpMainnet => 10.hash(state),
             Genesis::Sepolia => 11155111.hash(state),
+            Genesis::Holesky => 17000.hash(state),
             Genesis::Linea => 59144.hash(state),
             Self::Custom(config) => {
                 let buf = serde_json::to_vec(config).unwrap();
@@ -59,6 +69,7 @@ impl TryFrom<u64> for Genesis {
         match value {
             1 => Ok(Genesis::Mainnet),
             10 => Ok(Genesis::OpMainnet),
+            17000 => Ok(Genesis::Holesky),
             59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
             id => Err(ChainSpecError::ChainNotSupported(id)),
@@ -80,8 +91,11 @@ impl TryFrom<&Genesis> for ChainSpec {
                     hardforks: EthereumHardfork::mainnet().into(),
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
-                    prune_delete_limit: 20000,
-                    blob_params: Default::default(),
+                    prune_delete_limit: MAINNET_PRUNE_DELETE_LIMIT,
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (MAINNET_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (MAINNET_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
                 };
 
                 Ok(mainnet)
@@ -96,9 +110,29 @@ impl TryFrom<&Genesis> for ChainSpec {
                     deposit_contract: Default::default(),
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                     prune_delete_limit: 10000,
-                    blob_params: Default::default(),
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (SEPOLIA_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (SEPOLIA_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
                 };
                 Ok(sepolia)
+            }
+            Genesis::Holesky => {
+                let holesky = ChainSpec {
+                    chain: Chain::holesky(),
+                    genesis: Default::default(),
+                    genesis_header: Default::default(),
+                    paris_block_and_final_difficulty: Default::default(),
+                    hardforks: EthereumHardfork::holesky().into(),
+                    deposit_contract: Default::default(),
+                    base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
+                    prune_delete_limit: 10000,
+                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
+                        (HOLESKY_BPO1_TIMESTAMP, BlobParams::bpo1()),
+                        (HOLESKY_BPO2_TIMESTAMP, BlobParams::bpo2()),
+                    ]),
+                };
+                Ok(holesky)
             }
             Genesis::OpMainnet => Err(ChainSpecError::InvalidConversion),
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
@@ -156,176 +190,40 @@ impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
     }
 }
 
-pub(crate) mod serde_bincode_compat {
-    use std::collections::BTreeMap;
-
-    use alloy_eips::eip7840::BlobParams;
-    use alloy_genesis::{CliqueConfig, EthashConfig, ParliaConfig};
-    use alloy_primitives::{Address, U256};
-    use alloy_serde::OtherFields;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use serde_with::{DeserializeAs, SerializeAs};
-
-    #[derive(Debug, Serialize, Deserialize)]
-    pub struct ChainConfig {
-        chain_id: u64,
-        homestead_block: Option<u64>,
-        dao_fork_block: Option<u64>,
-        dao_fork_support: bool,
-        eip150_block: Option<u64>,
-        eip155_block: Option<u64>,
-        eip158_block: Option<u64>,
-        byzantium_block: Option<u64>,
-        constantinople_block: Option<u64>,
-        petersburg_block: Option<u64>,
-        istanbul_block: Option<u64>,
-        muir_glacier_block: Option<u64>,
-        berlin_block: Option<u64>,
-        london_block: Option<u64>,
-        arrow_glacier_block: Option<u64>,
-        gray_glacier_block: Option<u64>,
-        merge_netsplit_block: Option<u64>,
-        shanghai_time: Option<u64>,
-        cancun_time: Option<u64>,
-        prague_time: Option<u64>,
-        osaka_time: Option<u64>,
-        terminal_total_difficulty: Option<U256>,
-        terminal_total_difficulty_passed: bool,
-        ethash: Option<EthashConfig>,
-        clique: Option<CliqueConfig>,
-        parlia: Option<ParliaConfig>,
-        extra_fields: BTreeMap<String, String>,
-        deposit_contract_address: Option<Address>,
-        blob_schedule: BTreeMap<String, BlobParams>,
-        bpo1_time: Option<u64>,
-        bpo2_time: Option<u64>,
-        bpo3_time: Option<u64>,
-        bpo4_time: Option<u64>,
-        bpo5_time: Option<u64>,
-    }
-
-    impl From<&super::ChainConfig> for ChainConfig {
-        fn from(value: &super::ChainConfig) -> Self {
-            let mut extra_fields = BTreeMap::new();
-
-            for (k, v) in value.extra_fields.clone().into_iter() {
-                // We have to do this because bincode don't support serialize `serde_json::Value`
-                extra_fields.insert(k, v.to_string());
-            }
-
-            Self {
-                chain_id: value.chain_id,
-                homestead_block: value.homestead_block,
-                dao_fork_block: value.dao_fork_block,
-                dao_fork_support: value.dao_fork_support,
-                eip150_block: value.eip150_block,
-                eip155_block: value.eip155_block,
-                eip158_block: value.eip158_block,
-                byzantium_block: value.byzantium_block,
-                constantinople_block: value.constantinople_block,
-                petersburg_block: value.petersburg_block,
-                istanbul_block: value.istanbul_block,
-                muir_glacier_block: value.muir_glacier_block,
-                berlin_block: value.berlin_block,
-                london_block: value.london_block,
-                arrow_glacier_block: value.arrow_glacier_block,
-                gray_glacier_block: value.gray_glacier_block,
-                merge_netsplit_block: value.merge_netsplit_block,
-                shanghai_time: value.shanghai_time,
-                cancun_time: value.cancun_time,
-                prague_time: value.prague_time,
-                osaka_time: value.osaka_time,
-                terminal_total_difficulty: value.terminal_total_difficulty,
-                terminal_total_difficulty_passed: value.terminal_total_difficulty_passed,
-                ethash: value.ethash,
-                clique: value.clique,
-                parlia: value.parlia,
-                extra_fields,
-                deposit_contract_address: value.deposit_contract_address,
-                blob_schedule: value.blob_schedule.clone(),
-                bpo1_time: value.bpo1_time,
-                bpo2_time: value.bpo2_time,
-                bpo3_time: value.bpo3_time,
-                bpo4_time: value.bpo4_time,
-                bpo5_time: value.bpo5_time,
-            }
-        }
-    }
-
-    impl From<ChainConfig> for super::ChainConfig {
-        fn from(value: ChainConfig) -> Self {
-            let mut extra_fields = OtherFields::default();
-
-            for (k, v) in value.extra_fields {
-                extra_fields.insert(k, v.parse().unwrap());
-            }
-
-            Self {
-                chain_id: value.chain_id,
-                homestead_block: value.homestead_block,
-                dao_fork_block: value.dao_fork_block,
-                dao_fork_support: value.dao_fork_support,
-                eip150_block: value.eip150_block,
-                eip155_block: value.eip155_block,
-                eip158_block: value.eip158_block,
-                byzantium_block: value.byzantium_block,
-                constantinople_block: value.constantinople_block,
-                petersburg_block: value.petersburg_block,
-                istanbul_block: value.istanbul_block,
-                muir_glacier_block: value.muir_glacier_block,
-                berlin_block: value.berlin_block,
-                london_block: value.london_block,
-                arrow_glacier_block: value.arrow_glacier_block,
-                gray_glacier_block: value.gray_glacier_block,
-                merge_netsplit_block: value.merge_netsplit_block,
-                shanghai_time: value.shanghai_time,
-                cancun_time: value.cancun_time,
-                prague_time: value.prague_time,
-                osaka_time: value.osaka_time,
-                terminal_total_difficulty: value.terminal_total_difficulty,
-                terminal_total_difficulty_passed: value.terminal_total_difficulty_passed,
-                ethash: value.ethash,
-                clique: value.clique,
-                parlia: value.parlia,
-                extra_fields,
-                deposit_contract_address: value.deposit_contract_address,
-                blob_schedule: value.blob_schedule,
-                bpo1_time: value.bpo1_time,
-                bpo2_time: value.bpo2_time,
-                bpo3_time: value.bpo3_time,
-                bpo4_time: value.bpo4_time,
-                bpo5_time: value.bpo5_time,
-            }
-        }
-    }
-
-    impl SerializeAs<super::ChainConfig> for ChainConfig {
-        fn serialize_as<S>(source: &super::ChainConfig, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
-        {
-            ChainConfig::from(source).serialize(serializer)
-        }
-    }
-
-    impl<'de> DeserializeAs<'de, super::ChainConfig> for ChainConfig {
-        fn deserialize_as<D>(deserializer: D) -> Result<super::ChainConfig, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            ChainConfig::deserialize(deserializer).map(Into::into)
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
+
+    use alloy_eips::eip7840::BlobParams;
 
     use crate::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
 
     #[test]
     fn test_custom_genesis_bincode_roundtrip() {
-        let alloy_genesis = genesis_from_json(OP_SEPOLIA_GENESIS_JSON).unwrap();
+        let mut alloy_genesis = genesis_from_json(OP_SEPOLIA_GENESIS_JSON).unwrap();
+
+        alloy_genesis.config.blob_schedule.insert(
+            "cancun".to_string(),
+            BlobParams {
+                target_blob_count: 3,
+                max_blob_count: 6,
+                update_fraction: 3338477,
+                min_blob_fee: 1,
+                max_blobs_per_tx: 6,
+                blob_base_cost: 0,
+            },
+        );
+        alloy_genesis.config.blob_schedule.insert(
+            "prague".to_string(),
+            BlobParams {
+                target_blob_count: 6,
+                max_blob_count: 9,
+                update_fraction: 5007716,
+                min_blob_fee: 1,
+                max_blobs_per_tx: 9,
+                blob_base_cost: 0,
+            },
+        );
+
         let genesis = Genesis::Custom(alloy_genesis.config);
         let buf = bincode::serialize(&genesis).unwrap();
         let deserialized = bincode::deserialize::<Genesis>(&buf).unwrap();

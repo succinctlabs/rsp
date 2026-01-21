@@ -97,7 +97,7 @@ async fn main() -> eyre::Result<()> {
                         db::update_block_status_as_failed(&db_pool, block_number).await
                     {
                         let error_message = format!(
-                            "Database error while updating block {block_number} status: {err}"
+                            "Database error while updating block {block_number} status: {err}",
                         );
 
                         error!("{error_message}",);

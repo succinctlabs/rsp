@@ -180,7 +180,7 @@ where
 pub struct FullExecutor<C, P>
 where
     C: ExecutorComponents,
-    P: Provider<C::Network> + Clone,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
     provider: P,
     host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,

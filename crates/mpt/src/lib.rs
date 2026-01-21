@@ -17,7 +17,7 @@ use mpt::{
 };
 
 /// Ethereum state trie and account storage tries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EthereumState {
     pub state_trie: MptNode,
     pub storage_tries: HashMap<B256, MptNode>,
@@ -133,6 +133,18 @@ impl EthereumState {
     }
 }
 
+impl core::fmt::Debug for EthereumState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut ds = f.debug_struct("EthereumState");
+        ds.field("state_trie", &self.state_trie);
+
+        // Use BTreeMap for stable ordering when printing
+        let ordered: std::collections::BTreeMap<_, _> = self.storage_tries.iter().collect();
+        ds.field("storage_tries", &ordered);
+        ds.finish()
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum FromProofError {
     #[error("Node {} is not found by hash", .0)]
@@ -143,7 +155,7 @@ pub enum FromProofError {
     NodeCannotHaveChildren(usize),
     #[error("Found mismatched storage root after reconstruction \n account {}, found {}, expected {}", .0, .1, .2)]
     MismatchedStorageRoot(Address, B256, B256),
-    #[error("Found mismatched staet root after reconstruction \n found {}, expected {}", .0, .1)]
+    #[error("Found mismatched state root after reconstruction \n found {}, expected {}", .0, .1)]
     MismatchedStateRoot(B256, B256),
     // todo: Should decode return a decoder error?
     #[error("Error decoding proofs from bytes, {}", .0)]

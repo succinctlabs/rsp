@@ -27,3 +27,7 @@ sp1-sdk.workspace = true
 
 [build-dependencies]
 sp1-build.workspace = true
+
+[features]
+default = ["execution-witness"]
+execution-witness = ["rsp-host-executor/execution-witness"]

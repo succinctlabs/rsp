@@ -188,7 +188,7 @@ impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
         reth_optimism_consensus::validate_block_post_execution(
             block.header(),
             &chain_spec,
-            &execution_output.result.receipts,
+            &execution_output.result,
         )
     }
 }

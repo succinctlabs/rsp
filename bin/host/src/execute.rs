@@ -91,7 +91,6 @@ impl PersistExecutionReport {
             headers.push("recover_senders_cycles_count".to_string());
             headers.push("block_execution_cycles_count".to_string());
             headers.push("block_validation_cycles_count".to_string());
-            headers.push("accrue_logs_bloom_cycles_count".to_string());
             headers.push("state_root_computation_cycles_count".to_string());
             headers.push("syscalls_count".to_string());
             headers.push("prover_gas".to_string());
@@ -190,7 +189,7 @@ impl ExecutionHooks for PersistExecutionReport {
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
-        println!("\nExecution report:\n{}", execution_report);
+        println!("\nExecution report:\n{execution_report}");
 
         // Open the file for appending or create it if it doesn't exist
         let file = OpenOptions::new().append(true).create(true).open(self.report_path.clone())?;
