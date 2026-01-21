@@ -2158,6 +2158,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "collect-stdin"
+version = "0.1.0"
+dependencies = [
+ "alloy-chains",
+ "alloy-provider",
+ "bincode",
+ "clap",
+ "dotenv",
+ "eyre",
+ "rsp-host-executor",
+ "rsp-primitives",
+ "rsp-provider",
+ "sp1-build",
+ "sp1-sdk",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
