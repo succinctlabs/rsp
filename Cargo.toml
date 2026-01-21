@@ -59,26 +59,26 @@ sp1-prover = "5.1.0"
 sp1-sdk = "5.1.0"
 
 # reth
-reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false, features = ["serde"] }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
-reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.1", default-features = false }
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false, features = ["serde"] }
+reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
 
 # revm
-revm = { version = "31.0.1", features = [
+revm = { version = "31.0.2", features = [
     "serde",
     "bn"
 ], default-features = false }
@@ -90,7 +90,7 @@ revm-primitives = { version = "21.0.2", features = [
 revm-interpreter = { version = "29.0.1", default-features = false }
 revm-database = { version = "9.0.4", default-features = false }
 revm-database-interface = { version = "8.0.5", default-features = false }
-op-revm = { version = "12.0.1", default-features = false }
+op-revm = { version = "12.0.2", default-features = false }
 
 revm-inspectors = "0.32.0"
 
