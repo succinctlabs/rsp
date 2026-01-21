@@ -93,7 +93,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             let input_block_hash = client_input.current_block.header.hash_slow();
 
             if input_block_hash != executed_block_hash {
-                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?
+                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
             }
 
             info!(?executed_block_hash, "Execution successful");
