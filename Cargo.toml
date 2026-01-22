@@ -97,7 +97,7 @@ revm-inspectors = "0.32.0"
 # alloy
 alloy-chains = { version = "0.2.17", default-features = false }
 alloy-evm = { version = "0.23.1", default-features = false }
-alloy-primitives = { version = "1.5.2", default-features = false, features = ["sha3-keccak", "map-foldhash"] }
+alloy-primitives = { version = "1.5.2", default-features = false, features = ["map-foldhash"] }
 alloy-provider = { version = "1.4.3", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
