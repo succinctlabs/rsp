@@ -56,6 +56,9 @@ op-alloy-rpc-types = { workspace = true, optional = true }
 
 
 [features]
+default = ["sha3-keccak"]
+sha3-keccak = ["alloy-primitives/sha3-keccak"]
+native-keccak = ["alloy-primitives/native-keccak"]
 optimism = [
     "dep:op-alloy-network",
     "dep:op-alloy-rpc-types",
