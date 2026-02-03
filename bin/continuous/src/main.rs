@@ -10,7 +10,7 @@ use rsp_host_executor::{
     EthExecutorComponents, ExecutorComponents, FullExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, EnvProver};
+use sp1_sdk::{blocking::EnvProver, include_elf};
 use tokio::{sync::Semaphore, task};
 use tracing::{error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};

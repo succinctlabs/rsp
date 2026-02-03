@@ -11,8 +11,8 @@ use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
-use sp1_prover::components::CpuProverComponents;
-use sp1_sdk::{ExecutionReport, Prover, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
+use sp1_sdk::blocking::Prover;
+use sp1_sdk::{Elf, ExecutionReport, ProvingKey, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
 use tokio::{task, time::sleep};
 use tracing::{info, info_span, warn};
 
@@ -56,9 +56,9 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
     fn client(&self) -> Arc<C::Prover>;
 
-    fn pk(&self) -> Arc<SP1ProvingKey>;
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey>;
 
-    fn vk(&self) -> Arc<SP1VerifyingKey>;
+    fn vk(&self) -> &SP1VerifyingKey;
 
     fn config(&self) -> &Config;
 
@@ -81,7 +81,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             info!("Client execution skipped");
         } else {
             // Only execute the program.
-            let execute_result = execute_client(
+            let execute_result = execute_client::<C::Prover>(
                 client_input.current_block.number,
                 self.client(),
                 self.pk(),
@@ -113,10 +113,11 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             hooks.on_proving_start(client_input.current_block.number).await?;
             let client = self.client();
             let pk = self.pk();
+            let stdin_clone = (*stdin).clone();
 
             let (proof, cycle_count) = task::spawn_blocking(move || {
                 client
-                    .prove_with_cycles(pk.as_ref(), &stdin, prove_mode)
+                    .prove_with_cycles(pk.as_ref(), stdin_clone, prove_mode)
                     .map_err(|err| eyre::eyre!("{err}"))
             })
             .await
@@ -129,7 +130,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
                 .on_proving_end(
                     client_input.current_block.number,
                     &proof_bytes,
-                    self.vk().as_ref(),
+                    self.vk(),
                     cycle_count,
                     proving_duration,
                 )
@@ -161,17 +162,17 @@ where
         }
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         match self {
             Either::Left(ref executor) => executor.pk.clone(),
             Either::Right(ref executor) => executor.pk.clone(),
         }
     }
 
-    fn vk(&self) -> Arc<SP1VerifyingKey> {
+    fn vk(&self) -> &SP1VerifyingKey {
         match self {
-            Either::Left(ref executor) => executor.vk.clone(),
-            Either::Right(ref executor) => executor.vk.clone(),
+            Either::Left(ref executor) => executor.pk.verifying_key(),
+            Either::Right(ref executor) => executor.pk.verifying_key(),
         }
     }
 
@@ -191,8 +192,7 @@ where
     provider: P,
     host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,
     client: Arc<C::Prover>,
-    pk: Arc<SP1ProvingKey>,
-    vk: Arc<SP1VerifyingKey>,
+    pk: Arc<<C::Prover as Prover>::ProvingKey>,
     hooks: C::Hooks,
     config: Config,
 }
@@ -212,12 +212,11 @@ where
     ) -> eyre::Result<Self> {
         let cloned_client = client.clone();
 
-        // Setup the proving key and verification key.
-        let (pk, vk) = task::spawn_blocking(move || {
-            let (pk, vk) = cloned_client.setup(&elf);
-            (pk, vk)
+        // Setup the proving key.
+        let pk = task::spawn_blocking(move || {
+            cloned_client.setup(Elf::Dynamic(elf.into())).map_err(|e| eyre::eyre!("{e}"))
         })
-        .await?;
+        .await??;
 
         Ok(Self {
             provider,
@@ -227,7 +226,6 @@ where
             ),
             client,
             pk: Arc::new(pk),
-            vk: Arc::new(vk),
             hooks,
             config,
         })
@@ -309,12 +307,12 @@ where
         self.client.clone()
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         self.pk.clone()
     }
 
-    fn vk(&self) -> Arc<SP1VerifyingKey> {
-        self.vk.clone()
+    fn vk(&self) -> &SP1VerifyingKey {
+        self.pk.verifying_key()
     }
 
     fn config(&self) -> &Config {
@@ -338,8 +336,7 @@ where
 {
     cache_dir: PathBuf,
     client: Arc<C::Prover>,
-    pk: Arc<SP1ProvingKey>,
-    vk: Arc<SP1VerifyingKey>,
+    pk: Arc<<C::Prover as Prover>::ProvingKey>,
     hooks: C::Hooks,
     config: Config,
 }
@@ -357,14 +354,13 @@ where
     ) -> eyre::Result<Self> {
         let cloned_client = client.clone();
 
-        // Setup the proving key and verification key.
-        let (pk, vk) = task::spawn_blocking(move || {
-            let (pk, vk) = cloned_client.setup(&elf);
-            (pk, vk)
+        // Setup the proving key.
+        let pk = task::spawn_blocking(move || {
+            cloned_client.setup(Elf::Dynamic(elf.into())).map_err(|e| eyre::eyre!("{e}"))
         })
-        .await?;
+        .await??;
 
-        Ok(Self { cache_dir, client, pk: Arc::new(pk), vk: Arc::new(vk), hooks, config })
+        Ok(Self { cache_dir, client, pk: Arc::new(pk), hooks, config })
     }
 }
 
@@ -387,12 +383,12 @@ where
         self.client.clone()
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         self.pk.clone()
     }
 
-    fn vk(&self) -> Arc<SP1VerifyingKey> {
-        self.vk.clone()
+    fn vk(&self) -> &SP1VerifyingKey {
+        self.pk.verifying_key()
     }
 
     fn config(&self) -> &Config {
@@ -410,15 +406,16 @@ where
 }
 
 // Block execution in SP1 is a long-running, blocking task, so run it in a separate thread.
-async fn execute_client<P: Prover<CpuProverComponents> + 'static>(
+async fn execute_client<P: Prover + 'static>(
     number: u64,
     client: Arc<P>,
-    pk: Arc<SP1ProvingKey>,
+    pk: Arc<P::ProvingKey>,
     stdin: Arc<SP1Stdin>,
 ) -> eyre::Result<eyre::Result<(SP1PublicValues, ExecutionReport)>> {
     task::spawn_blocking(move || {
         info_span!("execute_client", number).in_scope(|| {
-            let result = client.execute(&pk.elf, &stdin);
+            let elf = pk.elf().clone();
+            let result = client.execute(elf, (*stdin).clone()).run();
             result.map_err(|err| eyre::eyre!("{err}"))
         })
     })

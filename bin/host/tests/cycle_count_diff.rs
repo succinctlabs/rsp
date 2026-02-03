@@ -16,7 +16,7 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{include_elf, EnvProver, ExecutionReport};
+use sp1_sdk::{blocking::EnvProver, include_elf, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
@@ -121,7 +121,7 @@ impl ExecutionHooks for Hook {
                         .copied()
                         .unwrap_or(0),
                     syscall_count: execution_report.total_syscall_count(),
-                    prover_gas: execution_report.gas.unwrap_or_default(),
+                    prover_gas: execution_report.gas(),
                 };
 
                 serde_json::to_writer(File::create("cycle_stats.json")?, &stats)?;
@@ -227,7 +227,7 @@ impl ExecutionHooks for Hook {
                         ),
                         row(
                             "Prover Gas",
-                            execution_report.gas.unwrap_or_default(),
+                            execution_report.gas(),
                             current_dev_stats.prover_gas,
                         ),
                     ],

@@ -10,7 +10,7 @@ use rsp_host_executor::{
     OpExecutorComponents,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, EnvProver};
+use sp1_sdk::{blocking::EnvProver, include_elf};
 use tracing_subscriber::{
     filter::EnvFilter, fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt,
 };

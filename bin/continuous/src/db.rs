@@ -38,7 +38,7 @@ impl ExecutionHooks for PersistToPostgres {
             executed_block.header.gas_used(),
             executed_block.body.transactions.len(),
             execution_report.total_instruction_count(),
-            execution_report.gas.unwrap_or_default(),
+            execution_report.gas().unwrap_or_default(),
         )
         .await?;
 

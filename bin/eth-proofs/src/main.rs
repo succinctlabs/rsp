@@ -10,7 +10,7 @@ use rsp_host_executor::{
     EthExecutorComponents, FullExecutor,
 };
 use rsp_provider::create_provider;
-use sp1_sdk::{include_elf, ProverClient};
+use sp1_sdk::{blocking::ProverClient, include_elf};
 use tracing::{error, info};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -62,12 +62,15 @@ async fn main() -> eyre::Result<()> {
     let mut stream =
         subscription.into_stream().filter(|h| ready(h.number % args.block_interval == 0));
 
-    let builder = ProverClient::builder().cuda();
-    let client = if let Some(endpoint) = &args.moongate_endpoint {
-        builder.server(endpoint).build()
-    } else {
-        builder.build()
-    };
+    // Note: In SP1 v6, remote CUDA server via moongate_endpoint is not supported
+    // in the blocking API. Use the local CUDA prover instead.
+    if args.moongate_endpoint.is_some() {
+        return Err(eyre::eyre!(
+            "moongate_endpoint is not supported in SP1 v6 blocking API. \
+            Use SP1_PROVER=cuda environment variable for local CUDA proving."
+        ));
+    }
+    let client = ProverClient::builder().cuda().build();
 
     let client = Arc::new(client);
 
