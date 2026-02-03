@@ -20,6 +20,10 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
+      - name: "Configure git for private repos"
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: "Update lock files"
         run: |
           cargo tree
@@ -39,6 +43,10 @@ jobs:
     steps:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
+
+      - name: "Configure git for private repos"
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: "Install protoc"
         run: |
@@ -89,6 +97,10 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
+      - name: "Configure git for private repos"
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: "Install protoc"
         run: |
           sudo apt-get update
@@ -122,6 +134,10 @@ jobs:
         uses: "actions/checkout@v4"
         with:
           fetch-depth: 0
+
+      - name: "Configure git for private repos"
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - name: "Install protoc"
         run: |

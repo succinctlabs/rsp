@@ -18,6 +18,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "Configure git for private repos"
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/".insteadOf "https://github.com/"
+
       - name: "Install protoc"
         run: |
           sudo apt-get update
