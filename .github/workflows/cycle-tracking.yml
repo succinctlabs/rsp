@@ -28,9 +28,10 @@ jobs:
           curl -L https://sp1.succinct.xyz | bash
           echo "$HOME/.sp1/bin" >> $GITHUB_PATH
 
-      - name: "Install SP1 toolchain"
+      - name: "Install SP1 v6 toolchain"
         run: |
           sp1up
+          cargo install --git https://github.com/succinctlabs/sp1-wip.git --branch multilinear_v6 sp1-cli --locked --force
 
       - name: "Set up test fixture"
         run: |
