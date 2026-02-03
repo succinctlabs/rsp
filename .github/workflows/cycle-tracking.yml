@@ -44,6 +44,7 @@ jobs:
           sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
         env:
           RUSTUP_TOOLCHAIN: nightly
+          RUSTFLAGS: "-C link-args=-Wl,--allow-shlib-undefined"
 
       - name: "Set up test fixture"
         run: |
