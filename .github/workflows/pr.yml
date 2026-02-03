@@ -62,8 +62,7 @@ jobs:
 
       - name: "Install SP1 v6 toolchain"
         run: |
-          sp1up
-          cargo install --git https://github.com/succinctlabs/sp1-wip.git --branch multilinear_v6 sp1-cli --locked --force
+          sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
 
       - name: "Remove lock files"
         run: |
@@ -117,8 +116,7 @@ jobs:
 
       - name: "Install SP1 v6 toolchain"
         run: |
-          sp1up
-          cargo install --git https://github.com/succinctlabs/sp1-wip.git --branch multilinear_v6 sp1-cli --locked --force
+          sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -157,8 +155,7 @@ jobs:
 
       - name: "Install SP1 v6 toolchain"
         run: |
-          sp1up
-          cargo install --git https://github.com/succinctlabs/sp1-wip.git --branch multilinear_v6 sp1-cli --locked --force
+          sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
 
       - name: "Set up test fixture"
         run: |
