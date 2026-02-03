@@ -18,6 +18,7 @@ use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
 use sp1_sdk::{blocking::EnvProver, include_elf, ExecutionReport};
 use thousands::Separable;
+use tokio::task;
 use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -44,7 +45,8 @@ async fn test_in_zkvm() {
         create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
-    let client = Arc::new(EnvProver::new());
+    // Create EnvProver in spawn_blocking to avoid runtime-within-runtime conflict
+    let client = Arc::new(task::spawn_blocking(EnvProver::new).await.unwrap());
 
     let executor = build_executor::<EthExecutorComponents<_>, _>(
         elf,
