@@ -12,6 +12,8 @@ jobs:
     name: "Run client in SP1 and verify if cycle count hasn't increased"
     runs-on:
       ["runs-on", "runner=64cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    env:
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
