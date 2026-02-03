@@ -12,7 +12,7 @@ use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
 use sp1_sdk::blocking::Prover;
-use sp1_sdk::{Elf, ExecutionReport, ProvingKey, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
+use sp1_sdk::{Elf, ExecutionReport, ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
 use tokio::{task, time::sleep};
 use tracing::{info, info_span, warn};
 

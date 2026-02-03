@@ -1,5 +1,8 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 
+// sp1_prover is needed as a transitive dependency but not directly used
+use sp1_prover as _;
+
 use alloy_chains::Chain;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;

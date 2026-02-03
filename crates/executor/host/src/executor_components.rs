@@ -16,7 +16,7 @@ use rsp_client_executor::{custom::CustomEvmFactory, BlockValidator, IntoInput, I
 use rsp_primitives::genesis::Genesis;
 use serde::de::DeserializeOwned;
 use sp1_sdk::blocking::{CudaProver, EnvProver, ProveRequest, Prover};
-use sp1_sdk::{ProvingKey, SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin};
+use sp1_sdk::{SP1ProofMode, SP1ProofWithPublicValues, SP1Stdin};
 
 use crate::ExecutionHooks;
 
