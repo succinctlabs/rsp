@@ -53,10 +53,10 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "5.1.0"
-sp1-core-executor = { version = "5.1.0", features = ["bigint-rug"] }
-sp1-prover = "5.1.0"
-sp1-sdk = "5.1.0"
+sp1-build = "6.0.0-beta.1"
+sp1-core-executor = { version = "6.0.0-beta.1", features = ["bigint-rug"] }
+sp1-prover = "6.0.0-beta.1"
+sp1-sdk = { version = "6.0.0-beta.1", features = ["blocking"] }
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
@@ -128,7 +128,7 @@ op-alloy-consensus = "0.22.4"
 op-alloy-network = "0.22.4"
 op-alloy-rpc-types = "0.22.4"
 
-kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs" }
+kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs", branch = "fakedev9999/patch-6.0.0-beta.1" }
 
 
 [workspace.lints]
@@ -139,9 +139,13 @@ rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [patch.crates-io]
-# Precompile patches
-sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-4.0.0", package = "sha2" }
-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-5.0.0", package = "substrate-bn" }
-sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
-k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-5.0.0" }
-p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-5.0.0" }
+# Precompile patches for SP1 v6.0.0-beta.1
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.9-sp1-6.0.0-beta.1" }
+substrate-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.0.0-beta.1" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", tag = "patch-sha3-0.10.8-sp1-6.0.0-beta.1" }
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0-beta.1" }
+p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0-beta.1" }
+tiny-keccak = { git = "https://github.com/sp1-patches/tiny-keccak", tag = "patch-2.0.2-sp1-6.0.0-beta.1" }
+kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs", branch = "fakedev9999/patch-6.0.0-beta.1" }
+sp1-lib = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "multilinear_v6" }
+sp1-zkvm = { git = "https://github.com/succinctlabs/sp1-wip.git", branch = "multilinear_v6" }
