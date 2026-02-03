@@ -29,6 +29,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y protobuf-compiler
 
+      - name: "Install nightly toolchain"
+        run: |
+          rustup toolchain install nightly
+          rustup default nightly
+
       - name: "Install sp1up"
         run: |
           curl -L https://sp1.succinct.xyz | bash
