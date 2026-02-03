@@ -68,6 +68,8 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
+        env:
+          RUSTUP_TOOLCHAIN: nightly
 
       - name: "Remove lock files"
         run: |
@@ -127,6 +129,8 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
+        env:
+          RUSTUP_TOOLCHAIN: nightly
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -171,6 +175,8 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
+        env:
+          RUSTUP_TOOLCHAIN: nightly
 
       - name: "Set up test fixture"
         run: |
