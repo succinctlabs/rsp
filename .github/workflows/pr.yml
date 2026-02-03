@@ -63,13 +63,13 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           # Clone sp1-wip and build sp1-cli without CUDA (--no-default-features)
-          mkdir -p ~/.sp1
-          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git ~/.sp1/sp1-wip
-          cd ~/.sp1/sp1-wip
+          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git /tmp/sp1-wip
+          cd /tmp/sp1-wip
           # Build and install toolchain using the same approach as sp1-wip's CI
           cargo run -p sp1-cli --release --no-default-features -- prove install-toolchain
+          # Install cargo-prove to PATH
           mkdir -p ~/.sp1/bin
-          cp target/release/cargo-prove ~/.sp1/bin/
+          cp /tmp/sp1-wip/target/release/cargo-prove ~/.sp1/bin/
           echo "$HOME/.sp1/bin" >> $GITHUB_PATH
         env:
           RUSTUP_TOOLCHAIN: nightly
@@ -127,13 +127,13 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           # Clone sp1-wip and build sp1-cli without CUDA (--no-default-features)
-          mkdir -p ~/.sp1
-          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git ~/.sp1/sp1-wip
-          cd ~/.sp1/sp1-wip
+          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git /tmp/sp1-wip
+          cd /tmp/sp1-wip
           # Build and install toolchain using the same approach as sp1-wip's CI
           cargo run -p sp1-cli --release --no-default-features -- prove install-toolchain
+          # Install cargo-prove to PATH
           mkdir -p ~/.sp1/bin
-          cp target/release/cargo-prove ~/.sp1/bin/
+          cp /tmp/sp1-wip/target/release/cargo-prove ~/.sp1/bin/
           echo "$HOME/.sp1/bin" >> $GITHUB_PATH
         env:
           RUSTUP_TOOLCHAIN: nightly
@@ -176,13 +176,13 @@ jobs:
       - name: "Install SP1 v6 toolchain"
         run: |
           # Clone sp1-wip and build sp1-cli without CUDA (--no-default-features)
-          mkdir -p ~/.sp1
-          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git ~/.sp1/sp1-wip
-          cd ~/.sp1/sp1-wip
+          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git /tmp/sp1-wip
+          cd /tmp/sp1-wip
           # Build and install toolchain using the same approach as sp1-wip's CI
           cargo run -p sp1-cli --release --no-default-features -- prove install-toolchain
+          # Install cargo-prove to PATH
           mkdir -p ~/.sp1/bin
-          cp target/release/cargo-prove ~/.sp1/bin/
+          cp /tmp/sp1-wip/target/release/cargo-prove ~/.sp1/bin/
           echo "$HOME/.sp1/bin" >> $GITHUB_PATH
         env:
           RUSTUP_TOOLCHAIN: nightly
