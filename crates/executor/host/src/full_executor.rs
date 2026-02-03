@@ -11,8 +11,9 @@ use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
-use sp1_sdk::blocking::Prover;
-use sp1_sdk::{Elf, ExecutionReport, ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
+use sp1_sdk::{
+    blocking::Prover, Elf, ExecutionReport, ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey,
+};
 use tokio::{task, time::sleep};
 use tracing::{info, info_span, warn};
 
@@ -96,7 +97,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             let input_block_hash = client_input.current_block.header.hash_slow();
 
             if input_block_hash != executed_block_hash {
-                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?
+                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
             }
 
             info!(?executed_block_hash, "Execution successful");

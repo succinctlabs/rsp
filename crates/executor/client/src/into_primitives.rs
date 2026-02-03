@@ -202,7 +202,7 @@ fn handle_custom_chains(
     let chain = if let Ok(chain) = NamedChain::try_from(chain_spec.chain_id()) {
         chain
     } else {
-        return Err(err)
+        return Err(err);
     };
 
     match chain {
