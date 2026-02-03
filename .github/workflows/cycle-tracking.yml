@@ -34,17 +34,19 @@ jobs:
           rustup toolchain install nightly
           rustup default nightly
 
-      - name: "Install sp1up"
-        run: |
-          curl -L https://sp1.succinct.xyz | bash
-          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
-
       - name: "Install SP1 v6 toolchain"
         run: |
-          sp1up --repo succinctlabs/sp1-wip --branch multilinear_v6 --token ${{ secrets.SP1_PRIVATE_REPO_TOKEN }}
+          # Clone sp1-wip and build sp1-cli without CUDA (--no-default-features)
+          mkdir -p ~/.sp1
+          git clone --depth 1 --branch multilinear_v6 https://x-access-token:${{ secrets.SP1_PRIVATE_REPO_TOKEN }}@github.com/succinctlabs/sp1-wip.git ~/.sp1/sp1-wip
+          cd ~/.sp1/sp1-wip
+          # Build and install toolchain using the same approach as sp1-wip's CI
+          cargo run -p sp1-cli --release --no-default-features -- prove install-toolchain
+          mkdir -p ~/.sp1/bin
+          cp target/release/cargo-prove ~/.sp1/bin/
+          echo "$HOME/.sp1/bin" >> $GITHUB_PATH
         env:
           RUSTUP_TOOLCHAIN: nightly
-          RUSTFLAGS: "-C link-args=-Wl,--allow-shlib-undefined"
 
       - name: "Set up test fixture"
         run: |
