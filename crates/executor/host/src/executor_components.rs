@@ -48,8 +48,9 @@ pub trait MaybeProveWithCycles: Prover {
         pk: &Self::ProvingKey,
         stdin: SP1Stdin,
         mode: SP1ProofMode,
-    ) -> impl std::future::Future<Output = Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error>>
-           + Send;
+    ) -> impl std::future::Future<
+        Output = Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error>,
+    > + Send;
 }
 
 impl MaybeProveWithCycles for CpuProver {
@@ -59,8 +60,7 @@ impl MaybeProveWithCycles for CpuProver {
         stdin: SP1Stdin,
         mode: SP1ProofMode,
     ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof =
-            self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
+        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
 
         Ok((proof, None))
     }
@@ -73,8 +73,7 @@ impl MaybeProveWithCycles for CudaProver {
         stdin: SP1Stdin,
         mode: SP1ProofMode,
     ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof =
-            self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
+        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
 
         // CudaProver in SP1 v6 no longer returns cycles directly
         Ok((proof, None))
@@ -88,8 +87,7 @@ impl MaybeProveWithCycles for EnvProver {
         stdin: SP1Stdin,
         mode: SP1ProofMode,
     ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof =
-            self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
+        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
 
         Ok((proof, None))
     }

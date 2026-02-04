@@ -16,7 +16,12 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
         with:
-          fetch-depth: 0  
+          fetch-depth: 0
+
+      - name: "Install protoc"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
 
       - name: "Install sp1up"
         run: |

@@ -11,8 +11,8 @@ use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
-use sp1_sdk::{Elf, Prover, ProvingKey, SP1Stdin};
 use sp1_prover::SP1VerifyingKey;
+use sp1_sdk::{Elf, Prover, ProvingKey, SP1Stdin};
 use tokio::time::sleep;
 use tracing::{info, warn};
 
@@ -204,10 +204,8 @@ where
         config: Config,
     ) -> eyre::Result<Self> {
         // Setup the proving key.
-        let pk = client
-            .setup(Elf::from(elf.as_slice()))
-            .await
-            .map_err(|err| eyre::eyre!("{err}"))?;
+        let pk =
+            client.setup(Elf::from(elf.as_slice())).await.map_err(|err| eyre::eyre!("{err}"))?;
         let vk = pk.verifying_key().clone();
 
         Ok(Self {
@@ -347,10 +345,8 @@ where
         config: Config,
     ) -> eyre::Result<Self> {
         // Setup the proving key.
-        let pk = client
-            .setup(Elf::from(elf.as_slice()))
-            .await
-            .map_err(|err| eyre::eyre!("{err}"))?;
+        let pk =
+            client.setup(Elf::from(elf.as_slice())).await.map_err(|err| eyre::eyre!("{err}"))?;
         let vk = pk.verifying_key().clone();
 
         Ok(Self { cache_dir, client, pk: Arc::new(pk), vk: Arc::new(vk), hooks, config })
