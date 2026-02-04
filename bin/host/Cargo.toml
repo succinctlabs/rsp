@@ -36,6 +36,8 @@ revm-bytecode.workspace = true
 
 # sp1
 sp1-sdk.workspace = true
+sp1-core-executor.workspace = true
+strum = "0.27"
 
 [dev-dependencies]
 alloy-network.workspace = true
