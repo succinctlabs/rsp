@@ -23,7 +23,7 @@ use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_in_zkvm() {
-    // Intialize the environment variables.
+    // Initialize the environment variables.
     dotenv::dotenv().ok();
 
     let is_base_branch = env::var("BASE_BRANCH").is_ok();
@@ -83,45 +83,19 @@ impl ExecutionHooks for Hook {
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
     ) -> eyre::Result<()> {
+        let cycles = |key: &str| execution_report.cycle_tracker.get(key).copied().unwrap_or(0);
+
         match self {
             Hook::WithCurrentDev => {
                 let stats = Stats {
                     total_cycle_count: execution_report.total_instruction_count(),
-                    deserialize_inputs: execution_report
-                        .cycle_tracker
-                        .get(DESERIALZE_INPUTS)
-                        .copied()
-                        .unwrap_or(0),
-                    initialize_witness_db_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(INIT_WITNESS_DB)
-                        .copied()
-                        .unwrap_or(0),
-                    recover_senders_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(RECOVER_SENDERS)
-                        .copied()
-                        .unwrap_or(0),
-                    header_validation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(VALIDATE_HEADER)
-                        .copied()
-                        .unwrap_or(0),
-                    block_execution_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(BLOCK_EXECUTION)
-                        .copied()
-                        .unwrap_or(0),
-                    block_validation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(VALIDATE_EXECUTION)
-                        .copied()
-                        .unwrap_or(0),
-                    state_root_computation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(COMPUTE_STATE_ROOT)
-                        .copied()
-                        .unwrap_or(0),
+                    deserialize_inputs: cycles(DESERIALZE_INPUTS),
+                    initialize_witness_db_cycles_count: cycles(INIT_WITNESS_DB),
+                    recover_senders_cycles_count: cycles(RECOVER_SENDERS),
+                    header_validation_cycles_count: cycles(VALIDATE_HEADER),
+                    block_execution_cycles_count: cycles(BLOCK_EXECUTION),
+                    block_validation_cycles_count: cycles(VALIDATE_EXECUTION),
+                    state_root_computation_cycles_count: cycles(COMPUTE_STATE_ROOT),
                     syscall_count: execution_report.total_syscall_count(),
                     prover_gas: execution_report.gas().unwrap_or_default(),
                 };
@@ -161,65 +135,37 @@ impl ExecutionHooks for Hook {
                         ),
                         row(
                             "Inputs deserialization",
-                            execution_report
-                                .cycle_tracker
-                                .get(DESERIALZE_INPUTS)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(DESERIALZE_INPUTS),
                             current_dev_stats.deserialize_inputs,
                         ),
                         row(
                             "Initialize Witness DB",
-                            execution_report
-                                .cycle_tracker
-                                .get(INIT_WITNESS_DB)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(INIT_WITNESS_DB),
                             current_dev_stats.initialize_witness_db_cycles_count,
                         ),
                         row(
                             "Recover Senders",
-                            execution_report
-                                .cycle_tracker
-                                .get(RECOVER_SENDERS)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(RECOVER_SENDERS),
                             current_dev_stats.recover_senders_cycles_count,
                         ),
                         row(
                             "Header Validation",
-                            execution_report
-                                .cycle_tracker
-                                .get(VALIDATE_HEADER)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(VALIDATE_HEADER),
                             current_dev_stats.header_validation_cycles_count,
                         ),
                         row(
                             "Block Execution",
-                            execution_report
-                                .cycle_tracker
-                                .get(BLOCK_EXECUTION)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(BLOCK_EXECUTION),
                             current_dev_stats.block_execution_cycles_count,
                         ),
                         row(
                             "Block Validation",
-                            execution_report
-                                .cycle_tracker
-                                .get(VALIDATE_EXECUTION)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(VALIDATE_EXECUTION),
                             current_dev_stats.block_validation_cycles_count,
                         ),
                         row(
                             "State Root Computation",
-                            execution_report
-                                .cycle_tracker
-                                .get(COMPUTE_STATE_ROOT)
-                                .copied()
-                                .unwrap_or_default(),
+                            cycles(COMPUTE_STATE_ROOT),
                             current_dev_stats.state_root_computation_cycles_count,
                         ),
                         row(
