@@ -78,6 +78,10 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
         let stdin = Arc::new(stdin);
 
+        // Store cycle count from execution to pass to proving hook.
+        // SP1 v6 doesn't return cycle count from prove(), only from execute().
+        let mut execution_cycle_count: Option<u64> = None;
+
         if self.config().skip_client_execution {
             info!("Client execution skipped");
         } else {
@@ -90,6 +94,9 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             )
             .await?;
             let (mut public_values, execution_report) = execute_result?;
+
+            // Capture cycle count for the proving hook
+            execution_cycle_count = Some(execution_report.total_instruction_count());
 
             // Read the block header.
             let header = public_values.read::<CommittedHeader>().header;
@@ -116,10 +123,8 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             let pk = self.pk();
             let stdin_clone = (*stdin).clone();
 
-            let (proof, cycle_count) = task::spawn_blocking(move || {
-                client
-                    .prove_with_cycles(pk.as_ref(), stdin_clone, prove_mode)
-                    .map_err(|err| eyre::eyre!("{err}"))
+            let proof = task::spawn_blocking(move || {
+                client.prove_with_cycles(pk.as_ref(), stdin_clone, prove_mode)
             })
             .await
             .map_err(|err| eyre::eyre!("{err}"))??;
@@ -132,7 +137,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
                     client_input.current_block.number,
                     &proof_bytes,
                     self.vk(),
-                    cycle_count,
+                    execution_cycle_count,
                     proving_duration,
                 )
                 .await?;

@@ -42,13 +42,17 @@ pub trait ExecutorComponents {
     fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<Self::ChainSpec>;
 }
 
+/// Trait for provers that can generate proofs.
+///
+/// Note: In SP1 v6, cycle counts are no longer returned from prove().
+/// Cycle counts must be obtained from ExecutionReport via execute().
 pub trait MaybeProveWithCycles: Prover {
     fn prove_with_cycles(
         &self,
         pk: &<Self as Prover>::ProvingKey,
         stdin: SP1Stdin,
         mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error>;
+    ) -> Result<SP1ProofWithPublicValues, eyre::Error>;
 }
 
 impl MaybeProveWithCycles for EnvProver {
@@ -57,10 +61,8 @@ impl MaybeProveWithCycles for EnvProver {
         pk: &<Self as Prover>::ProvingKey,
         stdin: SP1Stdin,
         mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof = self.prove(pk, stdin).mode(mode).run().map_err(|err| eyre!("{err}"))?;
-
-        Ok((proof, None))
+    ) -> Result<SP1ProofWithPublicValues, eyre::Error> {
+        self.prove(pk, stdin).mode(mode).run().map_err(|err| eyre!("{err}"))
     }
 }
 
@@ -70,11 +72,8 @@ impl MaybeProveWithCycles for CudaProver {
         pk: &<Self as Prover>::ProvingKey,
         stdin: SP1Stdin,
         mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        // Note: prove_with_cycles no longer exists in SP1 v6, using regular prove
-        let proof = self.prove(pk, stdin).mode(mode).run().map_err(|err| eyre!("{err}"))?;
-
-        Ok((proof, None))
+    ) -> Result<SP1ProofWithPublicValues, eyre::Error> {
+        self.prove(pk, stdin).mode(mode).run().map_err(|err| eyre!("{err}"))
     }
 }
 
