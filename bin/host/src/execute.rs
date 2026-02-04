@@ -8,13 +8,11 @@ use rsp_client_executor::executor::{
 };
 use rsp_host_executor::ExecutionHooks;
 use serde::{Deserialize, Serialize};
-use sp1_core_executor::syscalls::SyscallCode;
 use sp1_sdk::ExecutionReport;
 use std::{
     fs::{File, OpenOptions},
     path::PathBuf,
 };
-use strum::IntoEnumIterator;
 
 const PRECOMPILES: [&str; 10] = [
     "ecrecover",
@@ -95,11 +93,6 @@ impl PersistExecutionReport {
             headers.push("syscalls_count".to_string());
             headers.push("prover_gas".to_string());
 
-            // Add syscall headers
-            for s in SyscallCode::iter() {
-                headers.push(s.to_string().to_lowercase());
-            }
-
             if self.precompile_tracking {
                 // Add precompile headers
                 let mut precompile_headers = PRECOMPILES
@@ -155,11 +148,7 @@ impl PersistExecutionReport {
                 execution_report.cycle_tracker.get(COMPUTE_STATE_ROOT).unwrap_or(&0).to_string(),
             );
             record.push(execution_report.total_syscall_count().to_string());
-            record.push(execution_report.gas.unwrap_or_default().to_string());
-
-            for s in SyscallCode::iter() {
-                record.push(execution_report.syscall_counts[s].to_string());
-            }
+            record.push(execution_report.gas().unwrap_or_default().to_string());
 
             if self.precompile_tracking {
                 for p in PRECOMPILES {

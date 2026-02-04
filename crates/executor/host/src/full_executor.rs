@@ -11,10 +11,10 @@ use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
-use sp1_prover::components::CpuProverComponents;
-use sp1_sdk::{ExecutionReport, Prover, SP1ProvingKey, SP1PublicValues, SP1Stdin, SP1VerifyingKey};
-use tokio::{task, time::sleep};
-use tracing::{info, info_span, warn};
+use sp1_sdk::{Elf, Prover, ProvingKey, SP1Stdin};
+use sp1_prover::SP1VerifyingKey;
+use tokio::time::sleep;
+use tracing::{info, warn};
 
 use crate::{
     executor_components::MaybeProveWithCycles, Config, ExecutionHooks, ExecutorComponents,
@@ -56,7 +56,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
     fn client(&self) -> Arc<C::Prover>;
 
-    fn pk(&self) -> Arc<SP1ProvingKey>;
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey>;
 
     fn vk(&self) -> Arc<SP1VerifyingKey>;
 
@@ -75,20 +75,16 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
         stdin.write_vec(buffer);
 
-        let stdin = Arc::new(stdin);
-
         if self.config().skip_client_execution {
             info!("Client execution skipped");
         } else {
             // Only execute the program.
-            let execute_result = execute_client(
-                client_input.current_block.number,
-                self.client(),
-                self.pk(),
-                stdin.clone(),
-            )
-            .await?;
-            let (mut public_values, execution_report) = execute_result?;
+            let elf = self.pk().elf().clone();
+            let (mut public_values, execution_report) = self
+                .client()
+                .execute(elf, stdin.clone())
+                .await
+                .map_err(|err| eyre::eyre!("{err}"))?;
 
             // Read the block header.
             let header = public_values.read::<CommittedHeader>().header;
@@ -114,13 +110,10 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             let client = self.client();
             let pk = self.pk();
 
-            let (proof, cycle_count) = task::spawn_blocking(move || {
-                client
-                    .prove_with_cycles(pk.as_ref(), &stdin, prove_mode)
-                    .map_err(|err| eyre::eyre!("{err}"))
-            })
-            .await
-            .map_err(|err| eyre::eyre!("{err}"))??;
+            let (proof, cycle_count) = client
+                .prove_with_cycles(pk.as_ref(), stdin, prove_mode)
+                .await
+                .map_err(|err| eyre::eyre!("{err}"))?;
 
             let proving_duration = proving_start.elapsed();
             let proof_bytes = bincode::serialize(&proof.proof).unwrap();
@@ -161,7 +154,7 @@ where
         }
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         match self {
             Either::Left(ref executor) => executor.pk.clone(),
             Either::Right(ref executor) => executor.pk.clone(),
@@ -191,7 +184,7 @@ where
     provider: P,
     host_executor: HostExecutor<C::EvmConfig, C::ChainSpec>,
     client: Arc<C::Prover>,
-    pk: Arc<SP1ProvingKey>,
+    pk: Arc<<C::Prover as Prover>::ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
     hooks: C::Hooks,
     config: Config,
@@ -210,14 +203,12 @@ where
         hooks: C::Hooks,
         config: Config,
     ) -> eyre::Result<Self> {
-        let cloned_client = client.clone();
-
-        // Setup the proving key and verification key.
-        let (pk, vk) = task::spawn_blocking(move || {
-            let (pk, vk) = cloned_client.setup(&elf);
-            (pk, vk)
-        })
-        .await?;
+        // Setup the proving key.
+        let pk = client
+            .setup(Elf::from(elf.as_slice()))
+            .await
+            .map_err(|err| eyre::eyre!("{err}"))?;
+        let vk = pk.verifying_key().clone();
 
         Ok(Self {
             provider,
@@ -309,7 +300,7 @@ where
         self.client.clone()
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         self.pk.clone()
     }
 
@@ -338,7 +329,7 @@ where
 {
     cache_dir: PathBuf,
     client: Arc<C::Prover>,
-    pk: Arc<SP1ProvingKey>,
+    pk: Arc<<C::Prover as Prover>::ProvingKey>,
     vk: Arc<SP1VerifyingKey>,
     hooks: C::Hooks,
     config: Config,
@@ -355,14 +346,12 @@ where
         cache_dir: PathBuf,
         config: Config,
     ) -> eyre::Result<Self> {
-        let cloned_client = client.clone();
-
-        // Setup the proving key and verification key.
-        let (pk, vk) = task::spawn_blocking(move || {
-            let (pk, vk) = cloned_client.setup(&elf);
-            (pk, vk)
-        })
-        .await?;
+        // Setup the proving key.
+        let pk = client
+            .setup(Elf::from(elf.as_slice()))
+            .await
+            .map_err(|err| eyre::eyre!("{err}"))?;
+        let vk = pk.verifying_key().clone();
 
         Ok(Self { cache_dir, client, pk: Arc::new(pk), vk: Arc::new(vk), hooks, config })
     }
@@ -387,7 +376,7 @@ where
         self.client.clone()
     }
 
-    fn pk(&self) -> Arc<SP1ProvingKey> {
+    fn pk(&self) -> Arc<<C::Prover as Prover>::ProvingKey> {
         self.pk.clone()
     }
 
@@ -407,23 +396,6 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CachedExecutor").field("cache_dir", &self.cache_dir).finish()
     }
-}
-
-// Block execution in SP1 is a long-running, blocking task, so run it in a separate thread.
-async fn execute_client<P: Prover<CpuProverComponents> + 'static>(
-    number: u64,
-    client: Arc<P>,
-    pk: Arc<SP1ProvingKey>,
-    stdin: Arc<SP1Stdin>,
-) -> eyre::Result<eyre::Result<(SP1PublicValues, ExecutionReport)>> {
-    task::spawn_blocking(move || {
-        info_span!("execute_client", number).in_scope(|| {
-            let result = client.execute(&pk.elf, &stdin);
-            result.map_err(|err| eyre::eyre!("{err}"))
-        })
-    })
-    .await
-    .map_err(|err| eyre::eyre!("{err}"))
 }
 
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(

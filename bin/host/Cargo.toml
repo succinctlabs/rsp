@@ -12,7 +12,6 @@ clap = { version = "4.5.7", features = ["derive", "env"] }
 eyre = "0.6.12"
 serde.workspace = true
 serde_json.workspace = true
-strum = "0.26"
 csv = "1.1"
 
 # workspace
@@ -37,7 +36,6 @@ revm-bytecode.workspace = true
 
 # sp1
 sp1-sdk.workspace = true
-sp1-core-executor.workspace = true
 
 [dev-dependencies]
 alloy-network.workspace = true
