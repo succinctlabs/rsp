@@ -54,7 +54,7 @@ rsp-provider = { path = "./crates/provider" }
 
 # sp1
 sp1-build = "6.0.0-beta.1"
-sp1-core-executor = { version = "6.0.0-beta.1", features = ["bigint-rug"] }
+sp1-core-executor = { version = "6.0.0-beta.1", features = ["bigint-rug", "profiling"] }
 sp1-prover = "6.0.0-beta.1"
 sp1-sdk = { version = "6.0.0-beta.1", features = ["blocking"] }
 
