@@ -52,7 +52,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.0.0-rc.1
+          sp1up -v v6.0.0
 
       - name: "Remove lock files"
         run: |
@@ -100,7 +100,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.0.0-rc.1
+          sp1up -v v6.0.0
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -133,7 +133,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.0.0-rc.1
+          sp1up -v v6.0.0
 
       - name: "Set up test fixture"
         run: |
