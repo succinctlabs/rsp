@@ -28,7 +28,6 @@ const PRECOMPILES: [&str; 10] = [
     "kzg-point-evaluation",
 ];
 
-
 #[derive(Debug)]
 pub struct PersistExecutionReport {
     chain_id: u64,
