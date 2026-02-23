@@ -40,6 +40,11 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
+      - name: "Install protoc"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
       - name: "Install sp1up"
         run: |
           curl -L https://sp1.succinct.xyz | bash
@@ -47,7 +52,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up
+          sp1up -v v6.0.0
 
       - name: "Remove lock files"
         run: |
@@ -83,6 +88,11 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
+      - name: "Install protoc"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
       - name: "Install sp1up"
         run: |
           curl -L https://sp1.succinct.xyz | bash
@@ -90,7 +100,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up
+          sp1up -v v6.0.0
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -109,7 +119,12 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
         with:
-          fetch-depth: 0  
+          fetch-depth: 0
+
+      - name: "Install protoc"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
 
       - name: "Install sp1up"
         run: |
@@ -118,7 +133,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up
+          sp1up -v v6.0.0
 
       - name: "Set up test fixture"
         run: |

@@ -53,10 +53,10 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "5.1.0"
-sp1-core-executor = { version = "5.1.0", features = ["bigint-rug"] }
-sp1-prover = "5.1.0"
-sp1-sdk = "5.1.0"
+sp1-build = "6.0.1"
+sp1-core-executor = { version = "6.0.1", features = ["bigint-rug"] }
+sp1-prover = "6.0.1"
+sp1-sdk = { version = "6.0.1", features = ["profiling"] }
 
 # reth
 reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
@@ -128,7 +128,7 @@ op-alloy-consensus = "0.22.4"
 op-alloy-network = "0.22.4"
 op-alloy-rpc-types = "0.22.4"
 
-kzg-rs = { git = "https://github.com/succinctlabs/kzg-rs" }
+kzg-rs = "0.2.8"
 
 
 [workspace.lints]
@@ -140,8 +140,8 @@ rustdoc.all = "warn"
 
 [patch.crates-io]
 # Precompile patches
-sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-4.0.0", package = "sha2" }
-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-5.0.0", package = "substrate-bn" }
-sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-4.0.0" }
-k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-5.0.0" }
-p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-5.0.0" }
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.0.0", package = "sha2" }
+bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.0.0", package = "substrate-bn-succinct-rs" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-6.0.0" }
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
+p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }

@@ -16,7 +16,7 @@ use rsp_host_executor::{
 };
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
-use sp1_sdk::{include_elf, EnvProver, ExecutionReport};
+use sp1_sdk::{include_elf, CpuProver, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
@@ -44,9 +44,9 @@ async fn test_in_zkvm() {
         create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
-    let client = Arc::new(EnvProver::new());
+    let client = Arc::new(CpuProver::new().await);
 
-    let executor = build_executor::<EthExecutorComponents<_>, _>(
+    let executor = build_executor::<EthExecutorComponents<_, CpuProver>, _>(
         elf,
         Some(provider),
         block_execution_strategy_factory,
@@ -121,7 +121,7 @@ impl ExecutionHooks for Hook {
                         .copied()
                         .unwrap_or(0),
                     syscall_count: execution_report.total_syscall_count(),
-                    prover_gas: execution_report.gas.unwrap_or_default(),
+                    prover_gas: execution_report.gas().unwrap_or_default(),
                 };
 
                 serde_json::to_writer(File::create("cycle_stats.json")?, &stats)?;
@@ -227,7 +227,7 @@ impl ExecutionHooks for Hook {
                         ),
                         row(
                             "Prover Gas",
-                            execution_report.gas.unwrap_or_default(),
+                            execution_report.gas().unwrap_or_default(),
                             current_dev_stats.prover_gas,
                         ),
                     ],
