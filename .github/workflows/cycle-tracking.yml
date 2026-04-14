@@ -30,7 +30,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.0.2
+          sp1up -v v6.1.0
 
       - name: "Set up test fixture"
         run: |

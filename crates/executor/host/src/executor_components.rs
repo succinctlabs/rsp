@@ -16,9 +16,11 @@ use rsp_client_executor::{custom::CustomEvmFactory, BlockValidator, IntoInput, I
 use rsp_primitives::genesis::Genesis;
 use serde::de::DeserializeOwned;
 use sp1_sdk::{
-    env::EnvProver, CpuProver, CudaProver, ProveRequest, Prover, SP1ProofMode,
+    env::EnvProver, CpuProver, ProveRequest, Prover, SP1ProofMode,
     SP1ProofWithPublicValues, SP1Stdin,
 };
+#[cfg(feature = "cuda")]
+use sp1_sdk::CudaProver;
 
 use crate::ExecutionHooks;
 
@@ -66,6 +68,7 @@ impl MaybeProveWithCycles for CpuProver {
     }
 }
 
+#[cfg(feature = "cuda")]
 impl MaybeProveWithCycles for CudaProver {
     async fn prove_with_cycles(
         &self,

@@ -65,7 +65,10 @@ async fn main() -> eyre::Result<()> {
     if args.moongate_endpoint.is_some() {
         tracing::warn!("moongate_endpoint is not supported in SP1 v6, using local CudaProver");
     }
+    #[cfg(feature = "cuda")]
     let client = Arc::new(ProverClient::builder().cuda().build().await);
+    #[cfg(not(feature = "cuda"))]
+    let client = Arc::new(ProverClient::builder().cpu().build().await);
 
     let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(
         http_provider.clone(),
