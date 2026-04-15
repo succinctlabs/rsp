@@ -110,7 +110,7 @@ alloy-rpc-types-debug = { version = "1.4.3", default-features = false }
 alloy-json-rpc = { version = "1.4.3", default-features = false }
 alloy-genesis = { version = "1.4.3", default-features = false, features = ["serde-bincode-compat"] }
 alloy-consensus = { version = "1.4.3", default-features = false, features = ["serde", "serde-bincode-compat"] }
-alloy-network = { version = "1.4.3", default-features = false }
+alloy-network = { version = ">=1.4.3, <1.8", default-features = false }
 alloy-transport = { version = "1.4.3", default-features = false }
 alloy-transport-http = { version = "1.4.3", features = [
     "reqwest-rustls-tls",
