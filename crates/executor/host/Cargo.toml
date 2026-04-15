@@ -70,6 +70,7 @@ bincode = "1.3.3"
 dotenv = "0.15.0"
 
 [features]
+cuda = ["sp1-sdk/cuda"]
 alerting = ["dep:reqwest"]
 execution-witness = [
     "rsp-mpt/execution-witness",
