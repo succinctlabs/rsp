@@ -6254,11 +6254,15 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types",
  "alloy-rpc-types-debug",
+ "bincode",
+ "bumpalo",
+ "bytes",
  "hex-literal",
  "reth-primitives-traits",
  "reth-trie",
  "rlp",
  "serde",
+ "smallvec",
  "thiserror 1.0.69",
 ]
 

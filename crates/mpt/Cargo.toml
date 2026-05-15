@@ -24,10 +24,22 @@ alloy-rlp.workspace = true
 alloy-rpc-types.workspace = true
 alloy-rpc-types-debug = {workspace = true, optional = true }
 
+# arena mpt (optional)
+bumpalo = { workspace = true, optional = true }
+smallvec = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+
 [dev-dependencies]
 hex-literal.workspace = true
 reth-primitives-traits.workspace = true
+bincode = "1.3"
 
 [features]
 default = ["execution-witness"]
 execution-witness = ["dep:alloy-rpc-types-debug"]
+# Experimental arena-based, zero-copy MPT implementation (ported from openvm-eth).
+arena = ["dep:bumpalo", "dep:smallvec", "dep:bytes"]
+
+[[example]]
+name = "bench_arena_mpt"
+required-features = ["arena"]

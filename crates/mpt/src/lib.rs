@@ -11,10 +11,21 @@ mod execution_witness;
 /// Module containing MPT code adapted from `zeth`.
 mod mpt;
 pub use mpt::Error;
+
+/// Experimental arena-based, zero-copy MPT (ported from `openvm-eth`).
+#[cfg(feature = "arena")]
+pub mod arena;
+
 use mpt::{
     mpt_from_proof, parse_proof, proofs_to_tries, resolve_nodes, transition_proofs_to_tries,
-    MptNode,
 };
+
+/// Legacy pointer-based MPT node. Re-exported (only with the `arena` feature) so it can be
+/// benchmarked against the arena implementation.
+#[cfg(feature = "arena")]
+pub use mpt::MptNode;
+#[cfg(not(feature = "arena"))]
+use mpt::MptNode;
 
 /// Ethereum state trie and account storage tries.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
