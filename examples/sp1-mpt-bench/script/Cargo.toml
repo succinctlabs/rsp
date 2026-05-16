@@ -1,0 +1,13 @@
+[workspace]
+
+[package]
+name = "sp1-mpt-bench-script"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sp1-sdk = "=6.2.0"
+tokio = { version = "1", features = ["full"] }
+
+[build-dependencies]
+sp1-build = "=6.2.0"
