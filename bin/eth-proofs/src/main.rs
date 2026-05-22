@@ -55,15 +55,20 @@ async fn main() -> eyre::Result<()> {
     let block_execution_strategy_factory =
         create_eth_block_execution_strategy_factory(&config.genesis, None);
 
-    // Report to eth-proofs and collect internal metrics, side by side.
-    let hooks = (
-        EthProofsClient::new(
-            args.eth_proofs_cluster_id,
-            args.eth_proofs_endpoint,
-            args.eth_proofs_api_token,
-        ),
-        MetricsHook::new(),
+    // Report to eth-proofs and collect internal metrics, side by side. eth-proofs submission is
+    // disabled unless both the endpoint and API token are configured, so the service can run
+    // (execute, prove, collect metrics) locally without credentials.
+    let eth_proofs_client = EthProofsClient::new(
+        args.eth_proofs_cluster_id,
+        args.eth_proofs_endpoint.filter(|s| !s.is_empty()),
+        args.eth_proofs_api_token.filter(|s| !s.is_empty()),
     );
+    if !eth_proofs_client.is_enabled() {
+        tracing::warn!(
+            "eth-proofs submission disabled (endpoint and/or API token not set); running locally"
+        );
+    }
+    let hooks = (eth_proofs_client, MetricsHook::new());
     let alerting_client = args.pager_duty_integration_key.map(AlertingClient::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);

@@ -9,6 +9,10 @@ To run benchmarking with [ETH proofs](https://ethproofs.org/), you'll need to:
    export RPC_URL=<your_eth_mainnet_rpc>
    ```
 
+   > To run locally without submitting (e.g. to test before you have credentials), leave
+   > `ETH_PROOFS_ENDPOINT` and `ETH_PROOFS_API_TOKEN` unset — execution, proving and metrics
+   > still run, but nothing is posted to eth-proofs.
+
 3. Run the benchmarking recipe:
    ```bash
    # Run with default cluster ID (1) and block interval (100)

@@ -11,33 +11,54 @@ use tracing::error;
 #[derive(Debug, Clone)]
 pub struct EthProofsClient {
     cluster_id: u64,
+    /// `None` disables submission entirely (no requests are sent). This lets the service run
+    /// execution, proving and metrics locally without eth-proofs credentials.
+    submit: Option<Submit>,
+}
+
+#[derive(Debug, Clone)]
+struct Submit {
     endpoint: String,
     api_token: String,
     client: ClientWithMiddleware,
 }
 
 impl EthProofsClient {
-    pub fn new(cluster_id: u64, endpoint: String, api_token: String) -> Self {
-        let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
-        let client = ClientBuilder::new(reqwest::Client::new())
-            .with(RetryTransientMiddleware::new_with_policy(retry_policy))
-            .build();
+    /// Create a client. Submission is enabled only when both `endpoint` and `api_token` are
+    /// provided; otherwise the client is a no-op (useful for local testing without credentials).
+    pub fn new(cluster_id: u64, endpoint: Option<String>, api_token: Option<String>) -> Self {
+        let submit = match (endpoint, api_token) {
+            (Some(endpoint), Some(api_token)) => {
+                let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+                let client = ClientBuilder::new(reqwest::Client::new())
+                    .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+                    .build();
+                Some(Submit { endpoint, api_token, client })
+            }
+            _ => None,
+        };
 
-        Self { cluster_id, endpoint, api_token, client }
+        Self { cluster_id, submit }
+    }
+
+    /// Whether this client will actually submit to eth-proofs.
+    pub fn is_enabled(&self) -> bool {
+        self.submit.is_some()
     }
 
     /// Fire a `POST {endpoint}/{path}` with the given JSON body in a detached task, so retries
-    /// never block block processing. Failures are logged, not propagated.
+    /// never block block processing. A no-op when submission is disabled; failures are logged,
+    /// not propagated.
     fn post(&self, path: &'static str, json: serde_json::Value) {
-        let this = self.clone();
-        let url = format!("{}/{path}", self.endpoint);
+        let Some(submit) = self.submit.clone() else { return };
+        let url = format!("{}/{path}", submit.endpoint);
 
         tokio::spawn(async move {
-            let response = this
+            let response = submit
                 .client
                 .post(url)
                 .header("Content-Type", "application/json")
-                .header("Authorization", format!("Bearer {}", this.api_token))
+                .header("Authorization", format!("Bearer {}", submit.api_token))
                 .json(&json)
                 .send()
                 .await

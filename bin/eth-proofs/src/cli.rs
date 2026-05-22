@@ -32,13 +32,15 @@ pub struct Args {
     #[clap(long, env)]
     pub metrics_addr: Option<SocketAddr>,
 
-    /// ETH proofs endpoint.
+    /// ETH proofs endpoint. Submission is disabled (run locally without reporting) unless both
+    /// this and `--eth-proofs-api-token` are set.
     #[clap(long, env)]
-    pub eth_proofs_endpoint: String,
+    pub eth_proofs_endpoint: Option<String>,
 
-    /// ETH proofs API token.
+    /// ETH proofs API token. Submission is disabled (run locally without reporting) unless both
+    /// this and `--eth-proofs-endpoint` are set.
     #[clap(long, env)]
-    pub eth_proofs_api_token: String,
+    pub eth_proofs_api_token: Option<String>,
 
     /// Optional ETH proofs cluster ID.
     #[clap(long, default_value_t = 1)]
