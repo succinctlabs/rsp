@@ -6,13 +6,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sp1-zkvm = "=6.2.0"
+sp1-zkvm = "=6.2.1"
 
 # The MPT crate under test, with the experimental arena implementation enabled.
 rsp-mpt = { path = "../../../crates/mpt", default-features = false, features = ["arena"] }
 
 bumpalo = { version = "3.19.0", features = ["collections"] }
-alloy-primitives = { version = "1.5.2", default-features = false }
+# `sha3-keccak` routes keccak256 through the SP1-patched `sha3` crate (the keccak precompile),
+# matching how the real RSP client hashes — otherwise keccak runs in software and dominates.
+# Version matches the main workspace (1.5.7) so `sha3` resolves to 0.10.8, which the patch covers.
+alloy-primitives = { version = "=1.5.7", default-features = false, features = ["sha3-keccak"] }
 
 # Statically turn off logging inside the guest.
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
