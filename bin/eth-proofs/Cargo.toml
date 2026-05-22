@@ -46,10 +46,10 @@ alloy-transport-ws.workspace = true
 sp1-build.workspace = true
 
 [features]
-# By default, fetch the execution witness in a single `debug_executionWitness` call (lowest
-# latency, requires the node's `debug` namespace). Build with `--no-default-features --features
-# cuda` to fall back to the portable `eth_getProof` path (works against any node with a state
-# proof window, but does many more round-trips).
-default = ["cuda", "execution-witness"]
+default = ["cuda"]
 cuda = ["sp1-sdk/cuda", "rsp-host-executor/cuda"]
+# Fetch the execution witness in a single `debug_executionWitness` call (lowest latency, requires
+# the node's `debug` namespace) instead of the default portable `eth_getProof` path. Enabled in
+# the production Docker build; left off by default so the workspace test build (which unifies
+# features) keeps using `eth_getProof` against RPCs without a `debug` namespace.
 execution-witness = ["rsp-host-executor/execution-witness"]

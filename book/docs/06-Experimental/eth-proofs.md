@@ -32,17 +32,17 @@ next block's witness is fetched while the current block is processed:
 
 ## State fetching
 
-By default the binary fetches each block's execution witness in a single
-`debug_executionWitness` call (the `execution-witness` feature), which is the lowest-latency
-option but requires the node's `debug` namespace to be enabled. To run against a node that only
-exposes the standard `eth` namespace, build with the `eth_getProof` fallback:
+By default the binary fetches state via `eth_getProof`, which works against any node that serves
+a state proof window but does many round-trips per block. For lowest latency, build with the
+`execution-witness` feature to fetch each block's witness in a single `debug_executionWitness`
+call (requires the node's `debug` namespace):
 
 ```bash
-cargo build --release -p eth-proofs --no-default-features --features cuda
+cargo build --release -p eth-proofs --features execution-witness
 ```
 
-The fallback works against any node that serves a state proof window (i.e. `eth_getProof` for
-recent historical blocks), but does many more round-trips per block.
+The production Docker image (`rsp-eth-proofs` target) is built with this feature enabled. It is
+left off by default so the workspace test build keeps using `eth_getProof`.
 
 ## Internal metrics
 

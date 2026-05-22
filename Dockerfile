@@ -58,9 +58,11 @@ RUN cp /app/target/release/continuous /app/continuous
 ###############################################################################
 FROM builder as eth-proofs-builder
 
-# Build eth-proofs application
+# Build eth-proofs application.
+# `execution-witness` uses the single-call `debug_executionWitness` state-fetch path (lowest
+# latency); it is not a default feature so the workspace test build keeps using `eth_getProof`.
 COPY . .
-RUN cargo build --profile release --locked --bin eth-proofs
+RUN cargo build --profile release --locked --bin eth-proofs --features execution-witness
 
 # ARG is not resolved in COPY so we have to hack around it by copying the
 # binary to a temporary location
