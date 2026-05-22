@@ -63,7 +63,10 @@ impl ExecutionHooks for MetricsHook {
         counter!("rsp_eth_proofs_blocks_executed_total").increment(1);
         histogram!("rsp_eth_proofs_cycles")
             .record(execution_report.total_instruction_count() as f64);
-        histogram!("rsp_eth_proofs_gas_used")
+        // EVM gas used by the block.
+        histogram!("rsp_eth_proofs_gas_used").record(executed_block.header.gas_used() as f64);
+        // SP1 gas (the prover's gas estimate), which tracks proving cost rather than EVM gas.
+        histogram!("rsp_eth_proofs_sp1_gas")
             .record(execution_report.gas().unwrap_or_default() as f64);
         histogram!("rsp_eth_proofs_tx_count").record(executed_block.body.transactions.len() as f64);
         gauge!("rsp_eth_proofs_last_executed_block").set(block_number as f64);
