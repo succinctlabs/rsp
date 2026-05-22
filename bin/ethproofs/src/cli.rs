@@ -34,12 +34,14 @@ pub struct Args {
 
     /// ETH proofs endpoint. Submission is disabled (run locally without reporting) unless both
     /// this and `--ethproofs-api-token` are set.
-    #[clap(long, env)]
+    // Env var kept as ETH_PROOFS_ENDPOINT so existing deployment secrets don't need renaming.
+    #[clap(long, env = "ETH_PROOFS_ENDPOINT")]
     pub ethproofs_endpoint: Option<String>,
 
     /// ETH proofs API token. Submission is disabled (run locally without reporting) unless both
     /// this and `--ethproofs-endpoint` are set.
-    #[clap(long, env)]
+    // Env var kept as ETH_PROOFS_API_TOKEN so existing deployment secrets don't need renaming.
+    #[clap(long, env = "ETH_PROOFS_API_TOKEN")]
     pub ethproofs_api_token: Option<String>,
 
     /// Optional ETH proofs cluster ID.

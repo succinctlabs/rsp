@@ -4,13 +4,13 @@ To run benchmarking with [ETH proofs](https://ethproofs.org/), you'll need to:
 
 1. Set the following environment variables:
    ```bash
-   export ETHPROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
-   export ETHPROOFS_API_TOKEN=<your_api_token>
+   export ETH_PROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
+   export ETH_PROOFS_API_TOKEN=<your_api_token>
    export RPC_URL=<your_eth_mainnet_rpc>
    ```
 
    > To run locally without submitting (e.g. to test before you have credentials), leave
-   > `ETHPROOFS_ENDPOINT` and `ETHPROOFS_API_TOKEN` unset — execution, proving and metrics
+   > `ETH_PROOFS_ENDPOINT` and `ETH_PROOFS_API_TOKEN` unset — execution, proving and metrics
    > still run, but nothing is posted to ethproofs.
 
 3. Run the benchmarking recipe:
