@@ -34,6 +34,10 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    # Only deploy on pushes to main (i.e. after merge). On pull requests the build job above
+    # still validates the docs, but deploying to the `github-pages` environment is restricted to
+    # the default branch and would otherwise fail and show a misleading red check.
+    if: github.event_name == 'push'
 
     # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
     permissions:
