@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy_provider::{Provider, ProviderBuilder, WsConnect};
 use clap::Parser;
 use cli::Args;
-use eth_proofs::EthProofsClient;
+use ethproofs::EthproofsClient;
 use futures::{future::ready, StreamExt};
 use metrics::{install_prometheus_exporter, MetricsHook};
 use pipeline::run_pipeline;
@@ -17,7 +17,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod cli;
-mod eth_proofs;
+mod ethproofs;
 mod metrics;
 mod pipeline;
 
@@ -55,20 +55,20 @@ async fn main() -> eyre::Result<()> {
     let block_execution_strategy_factory =
         create_eth_block_execution_strategy_factory(&config.genesis, None);
 
-    // Report to eth-proofs and collect internal metrics, side by side. eth-proofs submission is
+    // Report to ethproofs and collect internal metrics, side by side. ethproofs submission is
     // disabled unless both the endpoint and API token are configured, so the service can run
     // (execute, prove, collect metrics) locally without credentials.
-    let eth_proofs_client = EthProofsClient::new(
-        args.eth_proofs_cluster_id,
-        args.eth_proofs_endpoint.filter(|s| !s.is_empty()),
-        args.eth_proofs_api_token.filter(|s| !s.is_empty()),
+    let ethproofs_client = EthproofsClient::new(
+        args.ethproofs_cluster_id,
+        args.ethproofs_endpoint.filter(|s| !s.is_empty()),
+        args.ethproofs_api_token.filter(|s| !s.is_empty()),
     );
-    if !eth_proofs_client.is_enabled() {
+    if !ethproofs_client.is_enabled() {
         tracing::warn!(
-            "eth-proofs submission disabled (endpoint and/or API token not set); running locally"
+            "ethproofs submission disabled (endpoint and/or API token not set); running locally"
         );
     }
-    let hooks = (eth_proofs_client, MetricsHook::new());
+    let hooks = (ethproofs_client, MetricsHook::new());
     let alerting_client = args.pager_duty_integration_key.map(AlertingClient::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);

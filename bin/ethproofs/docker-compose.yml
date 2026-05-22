@@ -2,7 +2,7 @@ services:
   rsp:
     build:
       context: ../..
-      target: rsp-eth-proofs
+      target: rsp-ethproofs
     env_file: .env
     # Proving runs in-process on the GPU (managed by the SP1 SDK), so the service needs GPU access.
     runtime: nvidia

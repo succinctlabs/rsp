@@ -9,10 +9,10 @@ use sp1_sdk::{HashableKey, SP1VerifyingKey};
 use tracing::error;
 
 #[derive(Debug, Clone)]
-pub struct EthProofsClient {
+pub struct EthproofsClient {
     cluster_id: u64,
     /// `None` disables submission entirely (no requests are sent). This lets the service run
-    /// execution, proving and metrics locally without eth-proofs credentials.
+    /// execution, proving and metrics locally without ethproofs credentials.
     submit: Option<Submit>,
 }
 
@@ -23,7 +23,7 @@ struct Submit {
     client: ClientWithMiddleware,
 }
 
-impl EthProofsClient {
+impl EthproofsClient {
     /// Create a client. Submission is enabled only when both `endpoint` and `api_token` are
     /// provided; otherwise the client is a no-op (useful for local testing without credentials).
     pub fn new(cluster_id: u64, endpoint: Option<String>, api_token: Option<String>) -> Self {
@@ -41,7 +41,7 @@ impl EthProofsClient {
         Self { cluster_id, submit }
     }
 
-    /// Whether this client will actually submit to eth-proofs.
+    /// Whether this client will actually submit to ethproofs.
     pub fn is_enabled(&self) -> bool {
         self.submit.is_some()
     }
@@ -66,7 +66,7 @@ impl EthProofsClient {
                 .and_then(|r| r.error_for_status().map_err(|e| eyre!(e)));
 
             if let Err(err) = response {
-                error!("Failed to POST to eth-proofs {path}: {err}");
+                error!("Failed to POST to ethproofs {path}: {err}");
             }
         });
     }
@@ -113,7 +113,7 @@ impl EthProofsClient {
     }
 }
 
-impl ExecutionHooks for EthProofsClient {
+impl ExecutionHooks for EthproofsClient {
     async fn on_execution_start(&self, block_number: u64) -> eyre::Result<()> {
         self.queued(block_number);
 

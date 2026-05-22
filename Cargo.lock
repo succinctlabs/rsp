@@ -2466,7 +2466,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "eth-proofs"
+name = "ethproofs"
 version = "0.1.0"
 dependencies = [
  "alloy-chains",

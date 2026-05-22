@@ -40,7 +40,7 @@ impl ExecutionHooks for () {}
 
 /// Fans out every hook callback to a pair of hooks, in order.
 ///
-/// This lets a binary run several independent hooks at once (e.g. an eth-proofs reporter
+/// This lets a binary run several independent hooks at once (e.g. an ethproofs reporter
 /// alongside a metrics collector). Nest tuples to compose more than two.
 impl<A, B> ExecutionHooks for (A, B)
 where

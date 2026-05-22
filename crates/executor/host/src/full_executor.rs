@@ -75,7 +75,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
     /// count: the local prover does not expose it from `prove` in SP1 v6.
     ///
     /// The CPU-bound execution runs on a dedicated task, so when the caller drives this
-    /// concurrently with proving (see the eth-proofs pipeline) the execution genuinely runs in
+    /// concurrently with proving (see the ethproofs pipeline) the execution genuinely runs in
     /// parallel on another thread rather than blocking the task that is also polling the prover.
     #[allow(async_fn_in_trait)]
     async fn execute_input(

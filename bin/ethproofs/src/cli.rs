@@ -33,18 +33,18 @@ pub struct Args {
     pub metrics_addr: Option<SocketAddr>,
 
     /// ETH proofs endpoint. Submission is disabled (run locally without reporting) unless both
-    /// this and `--eth-proofs-api-token` are set.
+    /// this and `--ethproofs-api-token` are set.
     #[clap(long, env)]
-    pub eth_proofs_endpoint: Option<String>,
+    pub ethproofs_endpoint: Option<String>,
 
     /// ETH proofs API token. Submission is disabled (run locally without reporting) unless both
-    /// this and `--eth-proofs-endpoint` are set.
+    /// this and `--ethproofs-endpoint` are set.
     #[clap(long, env)]
-    pub eth_proofs_api_token: Option<String>,
+    pub ethproofs_api_token: Option<String>,
 
     /// Optional ETH proofs cluster ID.
     #[clap(long, default_value_t = 1)]
-    pub eth_proofs_cluster_id: u64,
+    pub ethproofs_cluster_id: u64,
 
     /// PagerDuty integration key.
     #[clap(long, env)]
@@ -60,7 +60,7 @@ impl Args {
             cache_dir: None,
             custom_beneficiary: None,
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
-            // Execution must run so we can capture the cycle count to report to eth-proofs;
+            // Execution must run so we can capture the cycle count to report to ethproofs;
             // the local prover does not expose cycles from `prove` in SP1 v6.
             skip_client_execution: false,
             opcode_tracking: false,

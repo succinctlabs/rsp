@@ -56,17 +56,17 @@ RUN cp /app/target/release/continuous /app/continuous
 #                             Ethproofs Builder                               #
 #                                                                             #
 ###############################################################################
-FROM builder as eth-proofs-builder
+FROM builder as ethproofs-builder
 
-# Build eth-proofs application.
+# Build ethproofs application.
 # `execution-witness` uses the single-call `debug_executionWitness` state-fetch path (lowest
 # latency); it is not a default feature so the workspace test build keeps using `eth_getProof`.
 COPY . .
-RUN cargo build --profile release --locked --bin eth-proofs --features execution-witness
+RUN cargo build --profile release --locked --bin ethproofs --features execution-witness
 
 # ARG is not resolved in COPY so we have to hack around it by copying the
 # binary to a temporary location
-RUN cp /app/target/release/eth-proofs /app/eth-proofs
+RUN cp /app/target/release/ethproofs /app/ethproofs
 
 ###############################################################################
 #                                                                             #
@@ -111,8 +111,8 @@ ENTRYPOINT ["/usr/local/bin/continuous"]
 #                            Ethproofs Runtime                                #
 #                                                                             #
 ###############################################################################
-FROM runtime as rsp-eth-proofs
+FROM runtime as rsp-ethproofs
 
-COPY --from=eth-proofs-builder /app/eth-proofs /usr/local/bin
+COPY --from=ethproofs-builder /app/ethproofs /usr/local/bin
 
-ENTRYPOINT ["/usr/local/bin/eth-proofs"]
+ENTRYPOINT ["/usr/local/bin/ethproofs"]

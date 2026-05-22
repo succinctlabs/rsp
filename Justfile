@@ -31,17 +31,17 @@ trace-block block chain_id:
     cargo prove --trace 
 
 # Recipe to run the rsp CLI on the latest block in a loop at the given interval and submit proving times to ETH proofs.
-run-eth-proofs cluster_id="1" block_interval="100":
+run-ethproofs cluster_id="1" block_interval="100":
     #!/usr/bin/env bash
 
     echo "Running rsp..."
-    SP1_PROVER=cuda rsp --eth-proofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
+    SP1_PROVER=cuda rsp --ethproofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
 
 # Usage:
-# just run-eth-proofs <cluster-id> <sleep-time>
+# just run-ethproofs <cluster-id> <sleep-time>
 
 # Example:
-# just run-eth-proofs 5 600
+# just run-ethproofs 5 600
 
 bench-precompiles from to chain_id="1":
     #!/usr/bin/env bash
