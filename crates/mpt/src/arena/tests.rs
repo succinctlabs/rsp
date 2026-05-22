@@ -2,6 +2,35 @@ use alloy_primitives::{b256, keccak256, B256};
 
 use super::{node::NodeData, Error, Mpt};
 
+/// The legacy `MptNode` and the arena `Mpt` must agree on the root hash after a structural
+/// conversion, and the encode -> decode round-trip (the host->guest witness path) must preserve
+/// it. This is the correctness foundation for the arena witness integration.
+#[test]
+fn test_from_mpt_node_roundtrip() {
+    use bumpalo::Bump;
+
+    use crate::mpt::MptNode;
+
+    let mut legacy = MptNode::default();
+    for i in 0..2000u64 {
+        legacy.insert_rlp(keccak256(i.to_be_bytes()).as_slice(), i).unwrap();
+    }
+    let legacy_root = legacy.hash();
+
+    // Structural conversion must reproduce the exact root.
+    let bump = Bump::new();
+    let arena = Mpt::from_mpt_node(&bump, &legacy);
+    assert_eq!(arena.hash(), legacy_root, "arena conversion root mismatch");
+
+    // encode_trie (host) -> decode_trie (guest, zero-copy + hash-verifying) must round-trip.
+    let encoded = arena.encode_trie();
+    let num_nodes = arena.num_nodes();
+    let decode_bump = Bump::new();
+    let mut slice = encoded.as_slice();
+    let decoded = Mpt::decode_trie(&decode_bump, &mut slice, num_nodes).unwrap();
+    assert_eq!(decoded.hash(), legacy_root, "decoded arena root mismatch");
+}
+
 trait RlpBytes {
     /// Returns the RLP-encoding.
     fn to_rlp(&self) -> Vec<u8>;

@@ -97,6 +97,51 @@ impl<'a> Mpt<'a> {
             root_id: 0,
         }
     }
+
+    /// Builds an arena trie from a legacy pointer-based [`MptNode`] (host-side construction).
+    ///
+    /// The two representations map 1:1 — leaf/extension paths and values are the same
+    /// hp-encoded byte slices — so this is a faithful structural copy that preserves unresolved
+    /// `Digest` nodes (unlike re-inserting leaves, which would drop the sparse digests of a
+    /// witness trie). Paths and values are copied into the bump arena. Pair with
+    /// [`Mpt::encode_trie`] to produce the bytes the guest decodes zero-copy via
+    /// [`Mpt::decode_trie`].
+    pub fn from_mpt_node(bump: &'a Bump, node: &crate::mpt::MptNode) -> Self {
+        let mut trie = Self::new(bump);
+        trie.root_id = trie.add_mpt_node(node);
+        trie
+    }
+
+    fn add_mpt_node(&mut self, node: &crate::mpt::MptNode) -> NodeId {
+        use crate::mpt::MptNodeData;
+        let data = match node.as_data() {
+            MptNodeData::Null => NodeData::Null,
+            MptNodeData::Leaf(prefix, value) => {
+                let prefix = self.bump.alloc_slice_copy(prefix.as_slice());
+                let value = self.bump.alloc_slice_copy(value.as_slice());
+                NodeData::Leaf(prefix, value)
+            }
+            MptNodeData::Extension(prefix, child) => {
+                let child_id = self.add_mpt_node(child);
+                let prefix = self.bump.alloc_slice_copy(prefix.as_slice());
+                NodeData::Extension(prefix, child_id)
+            }
+            MptNodeData::Branch(children) => {
+                let mut ids: [Option<NodeId>; 16] = [None; 16];
+                for (i, child) in children.iter().enumerate() {
+                    if let Some(child) = child {
+                        ids[i] = Some(self.add_mpt_node(child));
+                    }
+                }
+                NodeData::Branch(ids)
+            }
+            MptNodeData::Digest(digest) => {
+                let digest = self.bump.alloc_slice_copy(digest.as_slice());
+                NodeData::Digest(digest)
+            }
+        };
+        self.add_node(data, None)
+    }
 }
 
 /// Same as `let (bytes, rest) = buf.split_at(cnt); *buf = rest; bytes`.
