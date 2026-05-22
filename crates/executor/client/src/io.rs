@@ -42,7 +42,12 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     #[serde_as(as = "Vec<alloy_consensus::serde_bincode_compat::Header>")]
     pub ancestor_headers: Vec<Header>,
     /// Network state as of the parent block.
+    #[cfg(not(feature = "arena"))]
     pub parent_state: EthereumState,
+    /// Network state as of the parent block, arena-encoded so the guest decodes it zero-copy
+    /// (with hash verification folded in) instead of bincode-deserializing a pointer trie.
+    #[cfg(feature = "arena")]
+    pub parent_state: rsp_mpt::ArenaStateWitness,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
@@ -60,12 +65,21 @@ impl<P: NodePrimitives> ClientExecutorInput<P> {
         &self.ancestor_headers[0]
     }
 
+    /// Reverse-chronological sealed headers starting from the current block. Inherent (not on
+    /// [`WitnessInput`]) so it's available on both the legacy and arena witness paths.
+    pub fn sealed_headers(&self) -> impl Iterator<Item = SealedHeader> + '_ {
+        once(SealedHeader::seal_slow(self.current_block.header.clone()))
+            .chain(self.ancestor_headers.iter().map(|h| SealedHeader::seal_slow(h.clone())))
+    }
+
     /// Creates a [`WitnessDb`].
+    #[cfg(not(feature = "arena"))]
     pub fn witness_db(&self, sealed_headers: &[SealedHeader]) -> Result<TrieDB<'_>, ClientError> {
         <Self as WitnessInput>::witness_db(self, sealed_headers)
     }
 }
 
+#[cfg(not(feature = "arena"))]
 impl<P: NodePrimitives> WitnessInput for ClientExecutorInput<P> {
     #[inline(always)]
     fn state(&self) -> &EthereumState {
@@ -237,5 +251,135 @@ pub trait WitnessInput {
         }
 
         Ok(TrieDB::new(state, block_hashes, bytecodes_by_hash))
+    }
+}
+
+/// Arena-backed witness path (the zero-copy alternative to [`TrieDB`]/[`WitnessInput`]).
+#[cfg(feature = "arena")]
+mod arena_db {
+    use alloy_consensus::BlockHeader;
+    use bumpalo::Bump;
+    use itertools::Itertools;
+    use reth_errors::ProviderError;
+    use reth_primitives_traits::{NodePrimitives, SealedHeader};
+    use reth_trie::{TrieAccount, EMPTY_ROOT_HASH};
+    use revm::{
+        state::{AccountInfo, Bytecode},
+        DatabaseRef,
+    };
+    use revm_primitives::{keccak256, map::HashMap, Address, B256, U256};
+    use rsp_mpt::ArenaTries;
+
+    use crate::{error::ClientError, io::ClientExecutorInput};
+
+    /// Arena-backed equivalent of [`super::TrieDB`]: serves revm reads from decoded arena tries.
+    ///
+    /// Two lifetimes: `'a` is the (short) borrow of the decoded tries / input, while `'b` is the
+    /// invariant lifetime of the arena data itself (the bump + witness buffers). Keeping them
+    /// separate lets the borrow be released after execution so the tries can be mutated for the
+    /// post-execution state-root update.
+    #[derive(Debug)]
+    pub struct ArenaTrieDB<'a, 'b> {
+        tries: &'a ArenaTries<'b>,
+        block_hashes: HashMap<u64, B256>,
+        bytecode_by_hash: HashMap<B256, &'a Bytecode>,
+    }
+
+    impl DatabaseRef for ArenaTrieDB<'_, '_> {
+        type Error = ProviderError;
+
+        fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+            let hashed_address = keccak256(address);
+            let account = self
+                .tries
+                .state_trie
+                .get_rlp::<TrieAccount>(hashed_address.as_slice())
+                .unwrap()
+                .map(|a| AccountInfo {
+                    balance: a.balance,
+                    nonce: a.nonce,
+                    code_hash: a.code_hash,
+                    code: None,
+                });
+            Ok(account)
+        }
+
+        fn code_by_hash_ref(&self, hash: B256) -> Result<Bytecode, Self::Error> {
+            Ok(self.bytecode_by_hash.get(&hash).map(|code| (*code).clone()).unwrap())
+        }
+
+        fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+            let hashed_address = keccak256(address);
+            let storage_trie = self
+                .tries
+                .storage_tries
+                .get(&hashed_address)
+                .expect("A storage trie must be provided for each account");
+            Ok(storage_trie
+                .get_rlp::<U256>(keccak256(index.to_be_bytes::<32>()).as_slice())
+                .expect("Can get from MPT")
+                .unwrap_or_default())
+        }
+
+        fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+            Ok(*self
+                .block_hashes
+                .get(&number)
+                .expect("A block hash must be provided for each block number"))
+        }
+    }
+
+    impl<P: NodePrimitives> ClientExecutorInput<P> {
+        /// Decodes the arena witness into bump-scoped tries (zero-copy, hash-verifying).
+        pub fn arena_tries<'a>(&'a self, bump: &'a Bump) -> Result<ArenaTries<'a>, ClientError> {
+            self.parent_state.decode(bump).map_err(|_| ClientError::MismatchedStateRoot)
+        }
+
+        /// Builds an [`ArenaTrieDB`] from decoded tries, verifying the state/storage roots,
+        /// ancestor headers and bytecodes (mirrors [`super::WitnessInput::witness_db`]).
+        pub fn arena_witness_db<'a, 'b>(
+            &'a self,
+            tries: &'a ArenaTries<'b>,
+            sealed_headers: &[SealedHeader],
+        ) -> Result<ArenaTrieDB<'a, 'b>, ClientError> {
+            if self.parent_header().state_root() != tries.state_root() {
+                return Err(ClientError::MismatchedStateRoot);
+            }
+
+            for (hashed_address, storage_trie) in tries.storage_tries.iter() {
+                let account =
+                    tries.state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice()).unwrap();
+                let storage_root = account.map_or(EMPTY_ROOT_HASH, |a| a.storage_root);
+                if storage_root != storage_trie.hash() {
+                    return Err(ClientError::MismatchedStorageRoot);
+                }
+            }
+
+            let bytecode_by_hash = self
+                .bytecodes
+                .iter()
+                .map(|code| (code.hash_slow(), code))
+                .collect::<HashMap<_, _>>();
+
+            let mut block_hashes: HashMap<u64, B256> = HashMap::with_hasher(Default::default());
+            for (child_header, parent_header) in sealed_headers.iter().tuple_windows() {
+                if parent_header.number() != child_header.number() - 1 {
+                    return Err(ClientError::InvalidHeaderBlockNumber(
+                        parent_header.number() + 1,
+                        child_header.number(),
+                    ));
+                }
+                let parent_header_hash = parent_header.hash();
+                if parent_header_hash != child_header.parent_hash() {
+                    return Err(ClientError::InvalidHeaderParentHash(
+                        parent_header_hash,
+                        child_header.parent_hash(),
+                    ));
+                }
+                block_hashes.insert(parent_header.number(), child_header.parent_hash());
+            }
+
+            Ok(ArenaTrieDB { tries, block_hashes, bytecode_by_hash })
+        }
     }
 }

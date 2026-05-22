@@ -43,6 +43,9 @@ strum = "0.27"
 # path. Requires the node's `debug` namespace. Opt-in (non-default) so the workspace test build
 # keeps using `eth_getProof`.
 execution-witness = ["rsp-host-executor/execution-witness"]
+# Use the arena MPT witness path end-to-end (host builds it, guest decodes zero-copy). Also
+# builds the rsp-client guest with the arena feature (see build.rs).
+arena = ["rsp-host-executor/arena"]
 
 [dev-dependencies]
 serde.workspace = true
