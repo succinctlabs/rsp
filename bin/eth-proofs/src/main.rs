@@ -75,9 +75,6 @@ async fn main() -> eyre::Result<()> {
     let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
     let http_provider = create_provider(args.http_rpc_url);
 
-    if args.moongate_endpoint.is_some() {
-        tracing::warn!("moongate_endpoint is not supported in SP1 v6, using local CudaProver");
-    }
     let client = Arc::new(ProverClient::builder().cuda().build().await);
 
     let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(

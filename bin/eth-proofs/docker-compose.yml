@@ -4,16 +4,12 @@ services:
       context: ../..
       target: rsp-eth-proofs
     env_file: .env
-    depends_on:
-      - moongate
-    restart: unless-stopped
-  moongate:
-    image: public.ecr.aws/succinct-labs/moongate:v5.0.0
+    # Proving runs in-process on the GPU (managed by the SP1 SDK), so the service needs GPU access.
     runtime: nvidia
     deploy:
       resources:
-          reservations:
-            devices:
-              - driver: nvidia
-                capabilities: [gpu]
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
     restart: unless-stopped

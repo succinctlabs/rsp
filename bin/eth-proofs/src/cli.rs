@@ -49,10 +49,6 @@ pub struct Args {
     /// PagerDuty integration key.
     #[clap(long, env)]
     pub pager_duty_integration_key: Option<String>,
-
-    /// Moongate server endpoint.
-    #[clap(long, env)]
-    pub moongate_endpoint: Option<String>,
 }
 
 impl Args {
