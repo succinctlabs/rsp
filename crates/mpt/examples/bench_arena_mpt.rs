@@ -256,7 +256,13 @@ fn main() {
     };
 
     // --- report ---
-    print_phase("BUILD  (insert N + hash)", legacy_build, legacy_build_t, arena_build, arena_build_t);
+    print_phase(
+        "BUILD  (insert N + hash)",
+        legacy_build,
+        legacy_build_t,
+        arena_build,
+        arena_build_t,
+    );
     print_phase("GET    (lookup N)", legacy_get, legacy_get_t, arena_get, arena_get_t);
     print_phase_no_time("DELETE (remove N)", legacy_del, arena_del);
 
@@ -273,14 +279,8 @@ fn main() {
 
 fn print_phase(name: &str, l: Stats, lt: u128, a: Stats, at: u128) {
     println!("{name}");
-    println!(
-        "  legacy : {:>9} allocs   {:>11} B allocated   {:>8} us",
-        l.allocs, l.bytes, lt
-    );
-    println!(
-        "  arena  : {:>9} allocs   {:>11} B allocated   {:>8} us",
-        a.allocs, a.bytes, at
-    );
+    println!("  legacy : {:>9} allocs   {:>11} B allocated   {:>8} us", l.allocs, l.bytes, lt);
+    println!("  arena  : {:>9} allocs   {:>11} B allocated   {:>8} us", a.allocs, a.bytes, at);
     println!(
         "  ratio  : {:>8.1}x fewer allocs   {:>8.1}x fewer bytes   {:>7.1}x faster\n",
         ratio(l.allocs, a.allocs),
