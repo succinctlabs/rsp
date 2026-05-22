@@ -12,14 +12,11 @@ use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
 use sp1_prover::SP1VerifyingKey;
-use sp1_sdk::{Elf, Prover, ProvingKey, SP1Stdin};
+use sp1_sdk::{Elf, ProveRequest, Prover, ProvingKey, SP1ProofMode, SP1Stdin};
 use tokio::time::sleep;
 use tracing::{info, warn};
 
-use crate::{
-    executor_components::MaybeProveWithCycles, Config, ExecutionHooks, ExecutorComponents,
-    HostError, HostExecutor,
-};
+use crate::{Config, ExecutionHooks, ExecutorComponents, HostError, HostExecutor};
 
 pub type EitherExecutor<C, P> = Either<FullExecutor<C, P>, CachedExecutor<C>>;
 
@@ -62,73 +59,145 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
     fn config(&self) -> &Config;
 
+    /// Serialize a client input into zkVM stdin.
+    fn build_stdin(
+        &self,
+        client_input: &ClientExecutorInput<C::Primitives>,
+    ) -> eyre::Result<SP1Stdin> {
+        let mut stdin = SP1Stdin::new();
+        stdin.write_vec(bincode::serialize(client_input)?);
+        Ok(stdin)
+    }
+
+    /// Execute the program in the zkVM to validate it, firing `on_execution_end`.
+    ///
+    /// Returns the cycle count from the execution report. This is the only source of the cycle
+    /// count: the local prover does not expose it from `prove` in SP1 v6.
+    ///
+    /// The CPU-bound execution runs on a dedicated task, so when the caller drives this
+    /// concurrently with proving (see the eth-proofs pipeline) the execution genuinely runs in
+    /// parallel on another thread rather than blocking the task that is also polling the prover.
+    #[allow(async_fn_in_trait)]
+    async fn execute_input(
+        &self,
+        client_input: &ClientExecutorInput<C::Primitives>,
+        stdin: &SP1Stdin,
+        hooks: &C::Hooks,
+    ) -> eyre::Result<Option<u64>> {
+        let elf = self.pk().elf().clone();
+        let client = self.client();
+        let stdin = stdin.clone();
+        let (mut public_values, execution_report) =
+            tokio::spawn(async move { client.execute(elf, stdin).await })
+                .await
+                .map_err(|err| eyre::eyre!("execution task failed: {err}"))?
+                .map_err(|err| eyre::eyre!("{err}"))?;
+
+        // Read the block header and check it matches the input.
+        let header = public_values.read::<CommittedHeader>().header;
+        let executed_block_hash = header.hash_slow();
+        let input_block_hash = client_input.current_block.header.hash_slow();
+
+        if input_block_hash != executed_block_hash {
+            return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
+        }
+
+        info!(?executed_block_hash, "Execution successful");
+
+        hooks
+            .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
+            .await?;
+
+        Ok(Some(execution_report.total_instruction_count()))
+    }
+
+    /// Generate a proof for a prepared stdin, firing `on_proving_start` and returning the
+    /// serialized proof together with how long proving took.
+    ///
+    /// This does not fire `on_proving_end` — the caller does, once it also has the cycle count
+    /// (which comes from execution). Splitting it out lets execution and proving run
+    /// concurrently: proving does not depend on the validation-execute, and they use different
+    /// resources (GPU vs CPU).
+    #[allow(async_fn_in_trait)]
+    async fn prove_only(
+        &self,
+        block_number: u64,
+        stdin: SP1Stdin,
+        prove_mode: SP1ProofMode,
+        hooks: &C::Hooks,
+    ) -> eyre::Result<(Vec<u8>, Duration)> {
+        info!("Starting proof generation");
+
+        let proving_start = Instant::now();
+        hooks.on_proving_start(block_number).await?;
+        let client = self.client();
+        let pk = self.pk();
+
+        let proof = client
+            .prove(pk.as_ref(), stdin)
+            .mode(prove_mode)
+            .await
+            .map_err(|err| eyre::eyre!("{err}"))?;
+
+        let proving_duration = proving_start.elapsed();
+        let proof_bytes = bincode::serialize(&proof.proof)?;
+
+        info!("Proof successfully generated!");
+
+        Ok((proof_bytes, proving_duration))
+    }
+
+    /// Prove a prepared stdin in the given mode, firing the proving hooks (including
+    /// `on_proving_end` with the given cycle count).
+    #[allow(async_fn_in_trait)]
+    async fn prove_input(
+        &self,
+        block_number: u64,
+        stdin: SP1Stdin,
+        prove_mode: SP1ProofMode,
+        cycle_count: Option<u64>,
+        hooks: &C::Hooks,
+    ) -> eyre::Result<()> {
+        let (proof_bytes, proving_duration) =
+            self.prove_only(block_number, stdin, prove_mode, hooks).await?;
+
+        hooks
+            .on_proving_end(
+                block_number,
+                &proof_bytes,
+                self.vk().as_ref(),
+                cycle_count,
+                proving_duration,
+            )
+            .await?;
+
+        Ok(())
+    }
+
     #[allow(async_fn_in_trait)]
     async fn process_client(
         &self,
         client_input: ClientExecutorInput<C::Primitives>,
         hooks: &C::Hooks,
     ) -> eyre::Result<()> {
-        // Generate the proof.
-        // Execute the block inside the zkVM.
-        let mut stdin = SP1Stdin::new();
-        let buffer = bincode::serialize(&client_input).unwrap();
+        let stdin = self.build_stdin(&client_input)?;
 
-        stdin.write_vec(buffer);
-
-        if self.config().skip_client_execution {
+        let cycle_count = if self.config().skip_client_execution {
             info!("Client execution skipped");
+            None
         } else {
-            // Only execute the program.
-            let elf = self.pk().elf().clone();
-            let (mut public_values, execution_report) = self
-                .client()
-                .execute(elf, stdin.clone())
-                .await
-                .map_err(|err| eyre::eyre!("{err}"))?;
-
-            // Read the block header.
-            let header = public_values.read::<CommittedHeader>().header;
-            let executed_block_hash = header.hash_slow();
-            let input_block_hash = client_input.current_block.header.hash_slow();
-
-            if input_block_hash != executed_block_hash {
-                return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
-            }
-
-            info!(?executed_block_hash, "Execution successful");
-
-            hooks
-                .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
-                .await?;
-        }
+            self.execute_input(&client_input, &stdin, hooks).await?
+        };
 
         if let Some(prove_mode) = self.config().prove_mode {
-            info!("Starting proof generation");
-
-            let proving_start = Instant::now();
-            hooks.on_proving_start(client_input.current_block.number).await?;
-            let client = self.client();
-            let pk = self.pk();
-
-            let (proof, cycle_count) = client
-                .prove_with_cycles(pk.as_ref(), stdin, prove_mode)
-                .await
-                .map_err(|err| eyre::eyre!("{err}"))?;
-
-            let proving_duration = proving_start.elapsed();
-            let proof_bytes = bincode::serialize(&proof.proof).unwrap();
-
-            hooks
-                .on_proving_end(
-                    client_input.current_block.number,
-                    &proof_bytes,
-                    self.vk().as_ref(),
-                    cycle_count,
-                    proving_duration,
-                )
-                .await?;
-
-            info!("Proof successfully generated!");
+            self.prove_input(
+                client_input.current_block.number,
+                stdin,
+                prove_mode,
+                cycle_count,
+                hooks,
+            )
+            .await?;
         }
 
         Ok(())
@@ -230,16 +299,18 @@ where
         }
         Ok(())
     }
-}
 
-impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
-where
-    C: ExecutorComponents,
-    P: Provider<C::Network> + Clone + std::fmt::Debug,
-{
-    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
-        self.hooks.on_execution_start(block_number).await?;
+    /// The hooks attached to this executor.
+    pub fn hooks(&self) -> &C::Hooks {
+        &self.hooks
+    }
 
+    /// Fetch the client input for a block, either from the on-disk cache or by executing the
+    /// block on the host against the RPC provider (caching the result when a cache dir is set).
+    pub async fn fetch_client_input(
+        &self,
+        block_number: u64,
+    ) -> eyre::Result<ClientExecutorInput<C::Primitives>> {
         let client_input_from_cache = self.config.cache_dir.as_ref().and_then(|cache_dir| {
             match try_load_input_from_cache::<C::Primitives>(
                 cache_dir,
@@ -288,6 +359,20 @@ where
                 client_input
             }
         };
+
+        Ok(client_input)
+    }
+}
+
+impl<C, P> BlockExecutor<C> for FullExecutor<C, P>
+where
+    C: ExecutorComponents,
+    P: Provider<C::Network> + Clone + std::fmt::Debug,
+{
+    async fn execute(&self, block_number: u64) -> eyre::Result<()> {
+        self.hooks.on_execution_start(block_number).await?;
+
+        let client_input = self.fetch_client_input(block_number).await?;
 
         self.process_client(client_input, &self.hooks).await?;
 

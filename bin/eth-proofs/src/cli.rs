@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use alloy_chains::Chain;
 use clap::Parser;
 use rsp_host_executor::Config;
@@ -20,9 +22,15 @@ pub struct Args {
     #[clap(long)]
     pub execute_only: bool,
 
-    /// The interval at which to execute blocks.
+    /// The interval at which to sample blocks: a block is processed (executed and proved) when
+    /// `block_number % block_interval == 0`.
     #[clap(long, default_value_t = 100)]
     pub block_interval: u64,
+
+    /// Address to serve internal Prometheus metrics on (e.g. `0.0.0.0:9000`). Metrics are
+    /// disabled when unset.
+    #[clap(long, env)]
+    pub metrics_addr: Option<SocketAddr>,
 
     /// ETH proofs endpoint.
     #[clap(long, env)]
@@ -54,7 +62,9 @@ impl Args {
             cache_dir: None,
             custom_beneficiary: None,
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
-            skip_client_execution: true,
+            // Execution must run so we can capture the cycle count to report to eth-proofs;
+            // the local prover does not expose cycles from `prove` in SP1 v6.
+            skip_client_execution: false,
             opcode_tracking: false,
         };
 
