@@ -1,6 +1,7 @@
 use std::iter::once;
 
 use alloy_consensus::{Block, BlockHeader, Header};
+use alloy_rlp::{Decodable, Encodable};
 use bumpalo::Bump;
 use itertools::Itertools;
 use reth_errors::ProviderError;
@@ -14,12 +15,35 @@ use revm::{
 use revm_primitives::{keccak256, map::HashMap, Address, B256, U256};
 use rsp_mpt::ArenaTries;
 use rsp_primitives::genesis::Genesis;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_with::serde_as;
 
 use crate::error::ClientError;
 
 pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
+
+/// Serialize `Block<T, H>` through its RLP encoding so the wire/cache format stays
+/// bincode-1.x compatible.
+fn serialize_block_rlp<T, H, S>(block: &Block<T, H>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    T: Encodable,
+    H: Encodable,
+    S: Serializer,
+{
+    let mut buf = Vec::with_capacity(block.length());
+    block.encode(&mut buf);
+    buf.serialize(serializer)
+}
+
+fn deserialize_block_rlp<'de, T, H, D>(deserializer: D) -> Result<Block<T, H>, D::Error>
+where
+    T: Decodable,
+    H: Decodable,
+    D: Deserializer<'de>,
+{
+    let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
+    Block::<T, H>::decode(&mut bytes.as_slice()).map_err(serde::de::Error::custom)
+}
 
 /// The input for the client to execute a block and fully verify the STF (state transition
 /// function).
@@ -31,11 +55,19 @@ pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
 /// in-place (see [`ArenaTries::decode`]).
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ClientExecutorInput<P: NodePrimitives> {
-    /// The current block (which will be executed inside the client). In the v2.x alloy stack
-    /// `alloy_consensus::Block<T>` is itself `Serialize + Deserialize` when its tx-envelope type
-    /// is — `reth_primitives_traits::serde_bincode_compat::Block` was removed when the workspace
-    /// moved to crates.io's `reth-primitives-traits 0.3.1`, so we rely on Block's native impl.
+pub struct ClientExecutorInput<P: NodePrimitives>
+where
+    P::SignedTx: Encodable + Decodable,
+{
+    /// The current block (which will be executed inside the client). Round-trips through RLP
+    /// for bincode purposes: the v2.x `EthereumTxEnvelope` enum uses a serde repr that bincode
+    /// 1.x cannot serialize (sequences without an a-priori-known length). `alloy_consensus`
+    /// ships a `serde_bincode_compat::EthereumTxEnvelope` wrapper but no `Block` wrapper, and
+    /// the v1.9.3 `reth_primitives_traits::serde_bincode_compat::Block` was removed when reth-
+    /// primitives-traits moved into `paradigmxyz/reth-core` at 0.3.1 — so we serialize the
+    /// block via its native RLP encoding (which is the canonical block format anyway) and
+    /// store the resulting bytes inside whatever outer envelope (bincode, JSON, …) is in use.
+    #[serde(serialize_with = "serialize_block_rlp", deserialize_with = "deserialize_block_rlp")]
     pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.

@@ -3724,6 +3724,7 @@ dependencies = [
  "alloy-evm",
  "alloy-network",
  "alloy-primitives",
+ "alloy-rlp",
  "alloy-rpc-types",
  "bumpalo",
  "itertools 0.13.0",
