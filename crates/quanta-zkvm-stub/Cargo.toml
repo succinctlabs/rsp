@@ -1,0 +1,12 @@
+[package]
+name = "quanta"
+description = "A no-op stub of the upstream `quanta` crate, used as a `[patch.crates-io]` override so reth's `FastInstant` re-export compiles inside the SP1 zkVM guest (whose `libc` does not expose `timespec`/`clock_gettime`). Wall-clock timing is meaningless inside the zkVM anyway."
+# Version must match the upstream `quanta` version cargo resolves to (`reth-primitives-traits`
+# transitively pulls in `quanta ^0.12`). Bump this in lockstep if reth bumps its quanta dep.
+version = "0.12.6"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+path = "src/lib.rs"

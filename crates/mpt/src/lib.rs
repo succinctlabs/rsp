@@ -190,7 +190,7 @@ impl<'a> ArenaTries<'a> {
         }
 
         let mut pos = 0usize;
-        let mut decode_trie = |pos: &mut usize| -> Result<arena::Mpt<'a>, arena::Error> {
+        let decode_trie = |pos: &mut usize| -> Result<arena::Mpt<'a>, arena::Error> {
             let num_nodes = read_u32(blob, pos);
             let len = read_u32(blob, pos);
             let mut bytes: &'a [u8] = &blob[*pos..*pos + len];

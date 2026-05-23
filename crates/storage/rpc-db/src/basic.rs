@@ -87,6 +87,8 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
             nonce: proof.nonce,
             balance: proof.balance,
             code_hash,
+            // revm 38 runtime-only optimization hint; populated by the journal on lookup.
+            account_id: None,
             code: Some(bytecode.clone()),
         };
 
@@ -303,6 +305,9 @@ where
                 excess_blob_gas: block.header().excess_blob_gas(),
                 parent_beacon_block_root: block.header().parent_beacon_block_root(),
                 requests_hash: block.header().requests_hash(),
+                // EIP-7928 BAL + EIP-7912 slot-number — None pre-fork, copied through verbatim.
+                block_access_list_hash: block.header().block_access_list_hash(),
+                slot_number: block.header().slot_number(),
             });
         }
 

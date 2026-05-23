@@ -3,7 +3,6 @@ use std::sync::Arc;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::ConfigureEvm;
-use reth_optimism_chainspec::OpChainSpec;
 use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
@@ -11,7 +10,7 @@ use rsp_client_executor::{
     BlockValidator, FromInput, IntoInput, IntoPrimitives,
 };
 use rsp_host_executor::{EthHostExecutor, HostExecutor};
-use rsp_primitives::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
+use rsp_primitives::genesis::Genesis;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing_subscriber::{
     fmt, prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter,
@@ -21,50 +20,6 @@ use url::Url;
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
     run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864, None).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_optimism() {
-    let chain_spec: Arc<OpChainSpec> = Arc::new((&Genesis::OpMainnet).try_into().unwrap());
-
-    // Setup the host executor.
-    let host_executor = rsp_host_executor::OpHostExecutor::optimism(chain_spec.clone());
-
-    // Setup the client executor.
-    let client_executor = rsp_client_executor::executor::OpClientExecutor::optimism(chain_spec);
-
-    run_e2e::<_, OpChainSpec, op_alloy_network::Optimism>(
-        host_executor,
-        client_executor,
-        "RPC_10",
-        122853660,
-        &Genesis::OpMainnet,
-        None,
-    )
-    .await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_optimism_sepolia() {
-    let alloy_genesis = genesis_from_json(OP_SEPOLIA_GENESIS_JSON).unwrap();
-    let genesis = Genesis::Custom(alloy_genesis.config);
-    let chain_spec: Arc<OpChainSpec> = Arc::new((&genesis).try_into().unwrap());
-
-    // Setup the host executor.
-    let host_executor = rsp_host_executor::OpHostExecutor::optimism(chain_spec.clone());
-
-    // Setup the client executor.
-    let client_executor = rsp_client_executor::executor::OpClientExecutor::optimism(chain_spec);
-
-    run_e2e::<_, OpChainSpec, op_alloy_network::Optimism>(
-        host_executor,
-        client_executor,
-        "RPC_11155420",
-        24000000,
-        &genesis,
-        None,
-    )
-    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]

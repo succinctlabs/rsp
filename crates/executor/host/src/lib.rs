@@ -4,8 +4,6 @@ use alloy_chains::Chain;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;
 use reth_evm_ethereum::EthEvmConfig;
-use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_evm::OpEvmConfig;
 use revm_primitives::Address;
 use rsp_client_executor::custom::CustomEvmFactory;
 use rsp_primitives::genesis::Genesis;
@@ -19,7 +17,7 @@ pub mod alerting;
 mod error;
 
 mod executor_components;
-pub use executor_components::{EthExecutorComponents, ExecutorComponents, OpExecutorComponents};
+pub use executor_components::{EthExecutorComponents, ExecutorComponents};
 
 mod full_executor;
 pub use full_executor::{build_executor, BlockExecutor, EitherExecutor, FullExecutor};
@@ -28,7 +26,7 @@ mod hooks;
 pub use hooks::ExecutionHooks;
 
 mod host_executor;
-pub use host_executor::{EthHostExecutor, HostExecutor, OpHostExecutor};
+pub use host_executor::{EthHostExecutor, HostExecutor};
 
 pub fn create_eth_block_execution_strategy_factory(
     genesis: &Genesis,
@@ -37,12 +35,6 @@ pub fn create_eth_block_execution_strategy_factory(
     let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     EthEvmConfig::new_with_evm_factory(chain_spec, CustomEvmFactory::new(custom_beneficiary))
-}
-
-pub fn create_op_block_execution_strategy_factory(genesis: &Genesis) -> OpEvmConfig {
-    let chain_spec: Arc<OpChainSpec> = Arc::new(genesis.try_into().unwrap());
-
-    OpEvmConfig::optimism(chain_spec)
 }
 #[derive(Debug)]
 pub struct Config {

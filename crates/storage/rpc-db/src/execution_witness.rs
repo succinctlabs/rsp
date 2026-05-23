@@ -70,6 +70,8 @@ impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P
                 balance: account.balance,
                 nonce: account.nonce,
                 code_hash: account.code_hash,
+                // revm 38 runtime-only optimization hint; populated by the journal on lookup.
+                account_id: None,
                 code: None,
             };
 

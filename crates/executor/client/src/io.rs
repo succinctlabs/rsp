@@ -21,9 +21,6 @@ use crate::error::ClientError;
 
 pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
 
-#[cfg(feature = "optimism")]
-pub type OpClientExecutorInput = ClientExecutorInput<reth_optimism_primitives::OpPrimitives>;
-
 /// The input for the client to execute a block and fully verify the STF (state transition
 /// function).
 ///
@@ -35,10 +32,10 @@ pub type OpClientExecutorInput = ClientExecutorInput<reth_optimism_primitives::O
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientExecutorInput<P: NodePrimitives> {
-    /// The current block (which will be executed inside the client).
-    #[serde_as(
-        as = "reth_primitives_traits::serde_bincode_compat::Block<'_, P::SignedTx, Header>"
-    )]
+    /// The current block (which will be executed inside the client). In the v2.x alloy stack
+    /// `alloy_consensus::Block<T>` is itself `Serialize + Deserialize` when its tx-envelope type
+    /// is — `reth_primitives_traits::serde_bincode_compat::Block` was removed when the workspace
+    /// moved to crates.io's `reth-primitives-traits 0.3.1`, so we rely on Block's native impl.
     pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.
@@ -160,6 +157,9 @@ impl DatabaseRef for TrieDB<'_, '_> {
                     balance: a.balance,
                     nonce: a.nonce,
                     code_hash: a.code_hash,
+                    // `account_id` is a runtime-only optimization hint introduced in revm 38;
+                    // the guest never replays it across blocks, so leaving it `None` is fine.
+                    account_id: None,
                     code: None,
                 },
             );

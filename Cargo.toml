@@ -8,9 +8,14 @@ members = [
     "crates/mpt",
     "crates/primitives",
     "crates/provider",
+    "crates/quanta-zkvm-stub",
     "crates/storage/rpc-db",
     "crates/storage/witness-db",
 ]
+# Note: `bin/client-op` and all `reth-optimism-*`/`op-alloy-*` deps were removed
+# when bumping to revm 38 + reth v2.2.0, since paradigmxyz/reth dropped optimism
+# crates in v1.11.0 and there is no maintained crate set pairing optimism reth
+# with revm >= 35.
 exclude = []
 resolver = "2"
 
@@ -61,75 +66,72 @@ sp1-core-executor = { version = "=6.2.1", features = ["bigint-rug"] }
 sp1-prover = "=6.2.1"
 sp1-sdk = { version = "=6.2.1", features = ["profiling"] }
 
-# reth
-reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-optimism-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-optimism-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-optimism-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false, features = ["serde"] }
-reth-optimism-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
-reth-optimism-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
+# reth. `reth-primitives-traits` now lives in `paradigmxyz/reth-core` and is consumed from
+# crates.io; everything else still comes from the `paradigmxyz/reth` monorepo.
+reth-primitives-traits = { version = "0.3.1", default-features = false }
+reth-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-evm = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-evm-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-storage-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-trie = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false, features = ["serde"] }
 
-# revm
-revm = { version = "31.0.2", features = [
+# revm. Pinning matches reth v2.2.0; alloy-primitives held at =1.5.7 to keep
+# alloy-primitives on sha3 0.10.x (1.6.x would bump alloy to sha3 0.11 and silently
+# disable our keccak SP1 patch).
+revm = { version = "38.0.0", features = [
     "serde",
     "bn"
 ], default-features = false }
-revm-bytecode = { version = "7.1.1", default-features = false }
-revm-state = { version = "8.1.1", default-features = false }
-revm-primitives = { version = "21.0.2", features = [
+revm-bytecode = { version = "10.0.0", default-features = false }
+revm-state = { version = "11.0.0", default-features = false }
+revm-primitives = { version = "23.0.0", features = [
     "serde",
 ], default-features = false }
-revm-interpreter = { version = "29.0.1", default-features = false }
-revm-database = { version = "9.0.4", default-features = false }
-revm-database-interface = { version = "8.0.5", default-features = false }
-op-revm = { version = "12.0.2", default-features = false }
+revm-interpreter = { version = "35.0.0", default-features = false }
+revm-database = { version = "13.0.0", default-features = false }
+revm-database-interface = { version = "11.0.0", default-features = false }
 
-revm-inspectors = "0.32.0"
+revm-inspectors = "0.39.0"
 
 # alloy
-alloy-chains = { version = "0.2.17", default-features = false }
-alloy-evm = { version = "0.23.1", default-features = false }
-alloy-primitives = { version = "1.5.2", default-features = false, features = ["map-foldhash"] }
-alloy-provider = { version = "1.4.3", default-features = false, features = [
+alloy-chains = { version = "0.2.33", default-features = false }
+alloy-evm = { version = "0.34.0", default-features = false }
+alloy-primitives = { version = "=1.5.7", default-features = false, features = ["map-foldhash"] }
+alloy-provider = { version = "2.0.4", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
 ] }
-alloy-rpc-types = { version = "1.4.3", default-features = false, features = [
+alloy-rpc-types = { version = "2.0.4", default-features = false, features = [
     "eth",
 ] }
-alloy-rpc-types-debug = { version = "1.4.3", default-features = false }
+alloy-rpc-types-debug = { version = "2.0.4", default-features = false }
 
-alloy-json-rpc = { version = "1.4.3", default-features = false }
-alloy-genesis = { version = "1.4.3", default-features = false, features = ["serde-bincode-compat"] }
-alloy-consensus = { version = "1.4.3", default-features = false, features = ["serde", "serde-bincode-compat"] }
-alloy-network = { version = "1.4.3", default-features = false }
-alloy-transport = { version = "1.4.3", default-features = false }
-alloy-transport-http = { version = "1.4.3", features = [
+alloy-json-rpc = { version = "2.0.4", default-features = false }
+alloy-genesis = { version = "2.0.4", default-features = false, features = ["serde-bincode-compat"] }
+alloy-consensus = { version = "2.0.4", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-network = { version = "2.0.4", default-features = false }
+alloy-transport = { version = "2.0.4", default-features = false }
+alloy-transport-http = { version = "2.0.4", features = [
     "reqwest-rustls-tls",
 ], default-features = false }
-alloy-transport-ws = { version = "1.4.3" }
-alloy-rpc-client = { version = "1.4.3", default-features = false }
-alloy-eips = { version = "1.4.3", default-features = false }
-alloy-serde = "1.4.3"
-alloy-rlp = "0.3.12"
-alloy-trie = "0.9.3"
+alloy-transport-ws = { version = "2.0.4" }
+alloy-rpc-client = { version = "2.0.4", default-features = false }
+alloy-eips = { version = "2.0.4", default-features = false }
+alloy-serde = "2.0.4"
+alloy-rlp = "0.3.13"
+alloy-trie = "0.9.4"
 
-# op
-alloy-op-evm = { version = "0.23.1", default-features = false }
-op-alloy-consensus = "0.22.4"
-op-alloy-network = "0.22.4"
-op-alloy-rpc-types = "0.22.4"
+# sp1 BLS12-381 precompile-backed curve crate. Already published & consumed by
+# kzg-rs; we route the EIP-2537 precompiles through it via the new revm `Crypto`
+# trait BLS methods. The `experimental` feature gates the `hash_to_curve::MapToCurve`
+# trait that backs `bls12_381_fp_to_g1` / `bls12_381_fp2_to_g2`.
+sp1-bls12-381 = { version = "0.8.0-sp1-6.0.0", package = "sp1_bls12_381", features = ["groups", "pairings", "experimental"], default-features = false }
 
 kzg-rs = "0.2.8"
 
@@ -142,9 +144,15 @@ rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [patch.crates-io]
-# Precompile patches
-sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.0.0", package = "sha2" }
-substrate-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.0.0-substrate-bn" }
-sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-6.0.0" }
-k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
-p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
+# SP1 precompile patches. Tags align with sp1-6.2.0 (matches sp1-sdk =6.2.1).
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.2.0", package = "sha2" }
+substrate-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.2.0-substrate-bn" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-6.2.0" }
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.2.0" }
+p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.2.0" }
+
+# Stub for `quanta` so reth's FastInstant compiles in the SP1 zkVM guest (the upstream
+# crate routes to `libc::clock_gettime`, which the SP1 libc doesn't expose). The stub is a
+# no-op `Instant` — see `crates/quanta-zkvm-stub/src/lib.rs` for the full rationale. The
+# `bin/client` SP1 manifest applies the same patch so the zkVM build picks it up.
+quanta = { path = "crates/quanta-zkvm-stub" }
