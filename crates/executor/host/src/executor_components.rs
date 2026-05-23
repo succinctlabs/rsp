@@ -4,7 +4,7 @@ use alloy_network::Ethereum;
 use alloy_provider::Network;
 use eyre::Ok;
 use reth_chainspec::ChainSpec;
-use reth_ethereum_primitives::EthPrimitives;
+use reth_ethereum_primitives::{EthPrimitives, TransactionSigned};
 use reth_evm::ConfigureEvm;
 use reth_evm_ethereum::EthEvmConfig;
 use reth_primitives_traits::NodePrimitives;
@@ -20,7 +20,9 @@ pub trait ExecutorComponents {
 
     type Network: Network;
 
-    type Primitives: NodePrimitives
+    // The `SignedTx = TransactionSigned` constraint matches `ClientExecutorInput`'s bincode-
+    // compat wrapper specialization — see the comment on `ClientExecutor::execute`.
+    type Primitives: NodePrimitives<SignedTx = TransactionSigned>
         + DeserializeOwned
         + IntoPrimitives<Self::Network>
         + IntoInput

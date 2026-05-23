@@ -41,11 +41,11 @@ revm-primitives.workspace = true
 kzg-rs.workspace = true
 
 # alloy
+alloy-eips.workspace = true
 alloy-evm.workspace = true
 alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-network.workspace = true
-alloy-rlp.workspace = true
 alloy-rpc-types.workspace = true
 
 # sp1 BLS12-381 precompile-backed curve crate (Tier 3: EIP-2537 BLS overrides).

@@ -3721,10 +3721,10 @@ name = "rsp-client-executor"
 version = "0.1.0"
 dependencies = [
  "alloy-consensus",
+ "alloy-eips 2.0.4",
  "alloy-evm",
  "alloy-network",
  "alloy-primitives",
- "alloy-rlp",
  "alloy-rpc-types",
  "bumpalo",
  "itertools 0.13.0",

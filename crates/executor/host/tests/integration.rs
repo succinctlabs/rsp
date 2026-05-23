@@ -77,7 +77,9 @@ async fn run_e2e<C, CS, N>(
     custom_beneficiary: Option<Address>,
 ) where
     C: ConfigureEvm,
-    C::Primitives: FromInput
+    C::Primitives: reth_primitives_traits::NodePrimitives<
+            SignedTx = reth_ethereum_primitives::TransactionSigned,
+        > + FromInput
         + IntoPrimitives<N>
         + IntoInput
         + BlockValidator<CS>

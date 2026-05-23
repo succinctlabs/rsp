@@ -11,6 +11,8 @@ use reth_evm::{
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
+use reth_ethereum_primitives::TransactionSigned;
+use reth_primitives_traits::NodePrimitives;
 use reth_trie::KeccakKeyHasher;
 use revm::{database::WrapDatabaseRef, install_crypto};
 use revm_primitives::Address;
@@ -44,7 +46,12 @@ pub struct ClientExecutor<C: ConfigureEvm, CS> {
 impl<C, CS> ClientExecutor<C, CS>
 where
     C: ConfigureEvm,
-    C::Primitives: FromInput + BlockValidator<CS>,
+    // The `SignedTx = TransactionSigned` constraint is enforced because
+    // `ClientExecutorInput`'s bincode-compat wrapper is specialized for the Ethereum
+    // transaction enum (see `io::serialize_block_bincode_compat`). The OP transaction
+    // type doesn't satisfy this, which is intentional — OP support was dropped when
+    // upgrading to revm 38 + reth v2.2 (the optimism reth crates were removed upstream).
+    C::Primitives: NodePrimitives<SignedTx = TransactionSigned> + FromInput + BlockValidator<CS>,
 {
     pub fn execute(
         &self,

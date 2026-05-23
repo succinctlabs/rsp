@@ -1,11 +1,14 @@
 use std::iter::once;
 
-use alloy_consensus::{Block, BlockHeader, Header};
-use alloy_rlp::{Decodable, Encodable};
+use alloy_consensus::{
+    serde_bincode_compat::{EthereumTxEnvelope as TxEnvelopeBincode, Header as HeaderBincode},
+    Block, BlockBody, BlockHeader, Header, TxEip4844,
+};
+use alloy_eips::eip4895::Withdrawals;
 use bumpalo::Bump;
 use itertools::Itertools;
 use reth_errors::ProviderError;
-use reth_ethereum_primitives::EthPrimitives;
+use reth_ethereum_primitives::{EthPrimitives, TransactionSigned};
 use reth_primitives_traits::{NodePrimitives, SealedHeader};
 use reth_trie::{TrieAccount, EMPTY_ROOT_HASH};
 use revm::{
@@ -22,27 +25,71 @@ use crate::error::ClientError;
 
 pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
 
-/// Serialize `Block<T, H>` through its RLP encoding so the wire/cache format stays
-/// bincode-1.x compatible.
-fn serialize_block_rlp<T, H, S>(block: &Block<T, H>, serializer: S) -> Result<S::Ok, S::Error>
+/// Bincode-compatible serialization for `Block<TransactionSigned>`.
+///
+/// Why this is needed: alloy v2's `Signed<T, Sig>` (the wrapper underneath every transaction
+/// variant) has a manual `Serialize` impl that uses `#[serde(flatten)]` on the signature
+/// field. `flatten` resolves to `Serializer::collect_map(None, ..)`, which bincode 1.x
+/// rejects with "sequences and maps that have a knowable size ahead of time" — bincode 1's
+/// binary format requires length prefixes.
+///
+/// `alloy_consensus` ships explicit `serde_bincode_compat::EthereumTxEnvelope` and `::Header`
+/// wrappers that unflatten the offending fields into named struct fields; we just stitch
+/// them together at the Block level (which alloy itself no longer ships, since reth's own
+/// bincode paths don't serialize `Block` — only `ExecutionOutcome`, `Chain`, `TrieUpdates`,
+/// etc., each of which has its own compat wrapper in reth).
+///
+/// This restores the pre-revm-38 deserialize-inputs cycle cost; the prior RLP-encode-then-
+/// bincode-as-bytes workaround paid ~2M extra cycles for the guest-side RLP decode of every
+/// transaction in the block.
+fn serialize_block_bincode_compat<S>(
+    block: &Block<TransactionSigned>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
-    T: Encodable,
-    H: Encodable,
     S: Serializer,
 {
-    let mut buf = Vec::with_capacity(block.length());
-    block.encode(&mut buf);
-    buf.serialize(serializer)
+    #[serde_as]
+    #[derive(Serialize)]
+    struct Helper<'a> {
+        #[serde_as(as = "HeaderBincode")]
+        header: &'a Header,
+        #[serde_as(as = "Vec<TxEnvelopeBincode<'_, TxEip4844>>")]
+        transactions: &'a Vec<TransactionSigned>,
+        #[serde_as(as = "Vec<HeaderBincode>")]
+        ommers: &'a Vec<Header>,
+        withdrawals: &'a Option<Withdrawals>,
+    }
+
+    Helper {
+        header: &block.header,
+        transactions: &block.body.transactions,
+        ommers: &block.body.ommers,
+        withdrawals: &block.body.withdrawals,
+    }
+    .serialize(serializer)
 }
 
-fn deserialize_block_rlp<'de, T, H, D>(deserializer: D) -> Result<Block<T, H>, D::Error>
+fn deserialize_block_bincode_compat<'de, D>(
+    deserializer: D,
+) -> Result<Block<TransactionSigned>, D::Error>
 where
-    T: Decodable,
-    H: Decodable,
     D: Deserializer<'de>,
 {
-    let bytes: Vec<u8> = Vec::deserialize(deserializer)?;
-    Block::<T, H>::decode(&mut bytes.as_slice()).map_err(serde::de::Error::custom)
+    #[serde_as]
+    #[derive(Deserialize)]
+    struct Helper {
+        #[serde_as(as = "HeaderBincode")]
+        header: Header,
+        #[serde_as(as = "Vec<TxEnvelopeBincode<'_, TxEip4844>>")]
+        transactions: Vec<TransactionSigned>,
+        #[serde_as(as = "Vec<HeaderBincode>")]
+        ommers: Vec<Header>,
+        withdrawals: Option<Withdrawals>,
+    }
+
+    let Helper { header, transactions, ommers, withdrawals } = Helper::deserialize(deserializer)?;
+    Ok(Block::new(header, BlockBody { transactions, ommers, withdrawals }))
 }
 
 /// The input for the client to execute a block and fully verify the STF (state transition
@@ -55,19 +102,17 @@ where
 /// in-place (see [`ArenaTries::decode`]).
 #[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ClientExecutorInput<P: NodePrimitives>
-where
-    P::SignedTx: Encodable + Decodable,
-{
-    /// The current block (which will be executed inside the client). Round-trips through RLP
-    /// for bincode purposes: the v2.x `EthereumTxEnvelope` enum uses a serde repr that bincode
-    /// 1.x cannot serialize (sequences without an a-priori-known length). `alloy_consensus`
-    /// ships a `serde_bincode_compat::EthereumTxEnvelope` wrapper but no `Block` wrapper, and
-    /// the v1.9.3 `reth_primitives_traits::serde_bincode_compat::Block` was removed when reth-
-    /// primitives-traits moved into `paradigmxyz/reth-core` at 0.3.1 — so we serialize the
-    /// block via its native RLP encoding (which is the canonical block format anyway) and
-    /// store the resulting bytes inside whatever outer envelope (bincode, JSON, …) is in use.
-    #[serde(serialize_with = "serialize_block_rlp", deserialize_with = "deserialize_block_rlp")]
+pub struct ClientExecutorInput<P: NodePrimitives<SignedTx = TransactionSigned>> {
+    /// The current block (which will be executed inside the client). Routed through a hand-
+    /// rolled bincode-compatible wrapper because alloy v2's `Signed<T>` uses `#[serde(flatten)]`
+    /// on the signature field — see [`serialize_block_bincode_compat`] for the full story.
+    /// The wrapper is specialized for `Block<TransactionSigned>`, so this struct only derives
+    /// `Serialize`/`Deserialize` when `P::SignedTx = TransactionSigned`
+    /// (i.e., `P = EthPrimitives`).
+    #[serde(
+        serialize_with = "serialize_block_bincode_compat",
+        deserialize_with = "deserialize_block_bincode_compat"
+    )]
     pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.
@@ -87,7 +132,7 @@ where
     pub opcode_tracking: bool,
 }
 
-impl<P: NodePrimitives> ClientExecutorInput<P> {
+impl<P: NodePrimitives<SignedTx = TransactionSigned>> ClientExecutorInput<P> {
     /// Gets the immediate parent block's header.
     #[inline(always)]
     pub fn parent_header(&self) -> &Header {

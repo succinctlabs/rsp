@@ -59,7 +59,13 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         opcode_tracking: bool,
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
-        C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
+        // The `SignedTx = TransactionSigned` bound is required by
+        // `ClientExecutorInput`'s bincode-compat wrapper (see io::serialize_block_bincode_compat).
+        C::Primitives: reth_primitives_traits::NodePrimitives<
+                SignedTx = reth_ethereum_primitives::TransactionSigned,
+            > + IntoPrimitives<N>
+            + IntoInput
+            + BlockValidator<CS>,
         P: Provider<N> + Clone + std::fmt::Debug,
         N: Network,
     {

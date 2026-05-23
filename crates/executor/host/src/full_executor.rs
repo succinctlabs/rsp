@@ -482,7 +482,9 @@ where
     }
 }
 
-fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
+fn try_load_input_from_cache<
+    P: NodePrimitives<SignedTx = reth_ethereum_primitives::TransactionSigned> + DeserializeOwned,
+>(
     cache_dir: &Path,
     chain_id: u64,
     block_number: u64,
