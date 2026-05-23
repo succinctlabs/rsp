@@ -12,20 +12,17 @@ mod execution_witness;
 mod mpt;
 pub use mpt::Error;
 
-/// Experimental arena-based, zero-copy MPT (ported from `openvm-eth`).
-#[cfg(feature = "arena")]
+/// Arena-based, zero-copy MPT used as the witness format on the host->guest boundary
+/// (ported from `openvm-eth`).
 pub mod arena;
 
 use mpt::{
     mpt_from_proof, parse_proof, proofs_to_tries, resolve_nodes, transition_proofs_to_tries,
 };
 
-/// Legacy pointer-based MPT node. Re-exported (only with the `arena` feature) so it can be
-/// benchmarked against the arena implementation.
-#[cfg(feature = "arena")]
+/// Legacy pointer-based MPT node — used host-side to build the witness from RPC proofs before
+/// re-encoding into the arena codec. Not used in the guest (which only sees the arena form).
 pub use mpt::MptNode;
-#[cfg(not(feature = "arena"))]
-use mpt::MptNode;
 
 /// Ethereum state trie and account storage tries.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,14 +140,11 @@ impl EthereumState {
         self.state_trie.hash()
     }
 
-    /// Encodes the state into a single flat byte blob in the arena codec — the zero-copy witness.
-    ///
-    /// All tries are `encode_trie`d and concatenated with framing (num_nodes/length/key), so the
-    /// blob (de)serializes as one `Vec<u8>` (a single bincode memcpy, no per-trie allocation or
-    /// `HashMap` rebuild). The guest parses the framing into *borrowed* slices and
-    /// [`arena::Mpt::decode_trie`]s each in place — see [`ArenaStateWitness::decode`].
-    #[cfg(feature = "arena")]
-    pub fn to_arena_witness(&self) -> ArenaStateWitness {
+    /// Encodes the state into a single flat byte blob in the arena codec — the zero-copy
+    /// witness. All tries are `encode_trie`d and concatenated with framing
+    /// (num_nodes/length/key), and the guest reconstructs them zero-copy by borrowing the blob
+    /// directly with [`ArenaTries::decode`].
+    pub fn to_arena_witness(&self) -> Vec<u8> {
         fn put_u32(blob: &mut Vec<u8>, v: usize) {
             blob.extend_from_slice(&(v as u32).to_le_bytes());
         }
@@ -170,33 +164,32 @@ impl EthereumState {
             blob.extend_from_slice(key.as_slice());
             put_trie(&mut blob, node);
         }
-
-        ArenaStateWitness(blob)
+        blob
     }
 }
 
-/// The serialized witness state: a single flat byte blob in the arena codec. This crosses the
-/// host->guest boundary instead of the pointer-based [`EthereumState`] and (de)serializes as one
-/// `Vec<u8>` — a single bincode memcpy. The guest reconstructs the tries zero-copy (borrowing the
-/// blob) with hash verification folded into the decode pass.
-#[cfg(feature = "arena")]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ArenaStateWitness(#[serde(with = "serde_bytes")] pub Vec<u8>);
+/// Decoded arena tries — the guest-side equivalent of [`EthereumState`]. Borrows the bump and
+/// the witness blob for the duration of block execution; provides account/storage lookups,
+/// `update`, and `state_root`.
+#[derive(Debug)]
+pub struct ArenaTries<'a> {
+    bump: &'a bumpalo::Bump,
+    pub state_trie: arena::Mpt<'a>,
+    pub storage_tries: HashMap<B256, arena::Mpt<'a>>,
+}
 
-#[cfg(feature = "arena")]
-impl ArenaStateWitness {
-    /// Decodes the witness into arena tries that borrow `bump` and the blob (`self`) directly —
-    /// no copy of the witness, one bump allocation, each node's hash verified inline.
-    pub fn decode<'a>(&'a self, bump: &'a bumpalo::Bump) -> Result<ArenaTries<'a>, arena::Error> {
+impl<'a> ArenaTries<'a> {
+    /// Decodes the witness blob into arena tries that borrow `bump` and `blob` directly — no
+    /// copy of the witness, one bump allocation, each node's hash verified inline by
+    /// [`arena::Mpt::decode_trie`].
+    pub fn decode(bump: &'a bumpalo::Bump, blob: &'a [u8]) -> Result<Self, arena::Error> {
         fn read_u32(blob: &[u8], pos: &mut usize) -> usize {
             let v = u32::from_le_bytes(blob[*pos..*pos + 4].try_into().unwrap()) as usize;
             *pos += 4;
             v
         }
 
-        let blob: &'a [u8] = &self.0;
         let mut pos = 0usize;
-
         let mut decode_trie = |pos: &mut usize| -> Result<arena::Mpt<'a>, arena::Error> {
             let num_nodes = read_u32(blob, pos);
             let len = read_u32(blob, pos);
@@ -219,18 +212,6 @@ impl ArenaStateWitness {
     }
 }
 
-/// Decoded arena tries, the guest-side equivalent of [`EthereumState`]. Borrows the bump arena
-/// and the witness bytes for the duration of block execution; provides the same lookups,
-/// `update` and `state_root` operations the executor needs.
-#[cfg(feature = "arena")]
-#[derive(Debug)]
-pub struct ArenaTries<'a> {
-    bump: &'a bumpalo::Bump,
-    pub state_trie: arena::Mpt<'a>,
-    pub storage_tries: HashMap<B256, arena::Mpt<'a>>,
-}
-
-#[cfg(feature = "arena")]
 impl ArenaTries<'_> {
     /// Mutates state based on diffs provided in [`HashedPostState`] (mirrors
     /// [`EthereumState::update`] on the arena tries).
@@ -298,7 +279,7 @@ impl core::fmt::Debug for EthereumState {
     }
 }
 
-#[cfg(all(test, feature = "arena"))]
+#[cfg(test)]
 mod arena_integration_tests {
     use alloy_primitives::{keccak256, U256};
     use bumpalo::Bump;
@@ -339,7 +320,7 @@ mod arena_integration_tests {
         // Round-trip through the arena codec.
         let witness = state.to_arena_witness();
         let bump = Bump::new();
-        let tries = witness.decode(&bump).unwrap();
+        let tries = ArenaTries::decode(&bump, &witness).unwrap();
 
         assert_eq!(tries.state_root(), state_root, "arena state root mismatch");
         assert_eq!(tries.storage_tries[&addr_hash].hash(), storage_root, "storage root mismatch");

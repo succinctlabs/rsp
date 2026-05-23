@@ -45,9 +45,6 @@ strum = "0.27"
 execution-witness = ["rsp-host-executor/execution-witness"]
 # Enable the local CUDA prover (SP1_PROVER=cuda) for GPU proving.
 cuda = ["sp1-sdk/cuda", "rsp-host-executor/cuda"]
-# Use the arena MPT witness path end-to-end (host builds it, guest decodes zero-copy). Also
-# builds the rsp-client guest with the arena feature (see build.rs).
-arena = ["rsp-host-executor/arena"]
 
 [dev-dependencies]
 serde.workspace = true

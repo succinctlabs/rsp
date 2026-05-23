@@ -52,24 +52,19 @@ where
 {
     pub fn execute(
         &self,
-        mut input: ClientExecutorInput<C::Primitives>,
+        input: ClientExecutorInput<C::Primitives>,
     ) -> Result<Header, ClientError> {
         let sealed_headers = input.sealed_headers().collect::<Vec<_>>();
 
-        // Arena path: decode the witness into bump-scoped tries (zero-copy, hash-verifying). The
-        // bump and the decoded tries live for the whole function so the witness DB can borrow
-        // them; `arena_tries` is mutated by the post-execution state update.
-        #[cfg(feature = "arena")]
+        // Decode the arena witness into bump-scoped tries (zero-copy, hash-verifying). The bump
+        // and the decoded tries live for the whole function so the witness DB can borrow them;
+        // `tries` is mutated by the post-execution state update.
         let bump = bumpalo::Bump::new();
-        #[cfg(feature = "arena")]
-        let mut arena_tries = input.arena_tries(&bump).unwrap();
+        let mut tries = input.tries(&bump).unwrap();
 
         // Initialize the witnessed database with verified storage proofs.
         let db = profile_report!(INIT_WITNESS_DB, {
-            #[cfg(not(feature = "arena"))]
-            let trie_db = input.witness_db(&sealed_headers).unwrap();
-            #[cfg(feature = "arena")]
-            let trie_db = input.arena_witness_db(&arena_tries, &sealed_headers).unwrap();
+            let trie_db = input.witness_db(&tries, &sealed_headers).unwrap();
             WrapDatabaseRef(trie_db)
         });
 
@@ -122,16 +117,8 @@ where
         // Verify the state root.
         let state_root = profile_report!(COMPUTE_STATE_ROOT, {
             let post_state = executor_outcome.hash_state_slow::<KeccakKeyHasher>();
-            #[cfg(not(feature = "arena"))]
-            {
-                input.parent_state.update(&post_state);
-                input.parent_state.state_root()
-            }
-            #[cfg(feature = "arena")]
-            {
-                arena_tries.update(&post_state);
-                arena_tries.state_root()
-            }
+            tries.update(&post_state);
+            tries.state_root()
         });
 
         if state_root != input.current_block.header().state_root() {

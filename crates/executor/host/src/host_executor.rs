@@ -210,13 +210,9 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             state_root
         );
 
-        // Create the client input. With the arena feature, the state is re-encoded into the
-        // arena codec so the guest decodes it zero-copy instead of bincode-deserializing a
-        // pointer trie.
-        #[cfg(feature = "arena")]
+        // Re-encode the state into the arena witness blob so the guest can decode it
+        // zero-copy (borrowing the input bytes directly).
         let parent_state = state.to_arena_witness();
-        #[cfg(not(feature = "arena"))]
-        let parent_state = state;
 
         let client_input = ClientExecutorInput {
             current_block: C::Primitives::into_input_block(current_block),

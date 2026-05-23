@@ -76,4 +76,3 @@ execution-witness = [
     "rsp-mpt/execution-witness",
     "rsp-rpc-db/execution-witness",
 ]
-arena = ["rsp-mpt/arena", "rsp-client-executor/arena"]

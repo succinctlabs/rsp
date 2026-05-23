@@ -9,7 +9,7 @@ edition = "2021"
 sp1-zkvm = "=6.2.1"
 
 # The MPT crate under test, with the experimental arena implementation enabled.
-rsp-mpt = { path = "../../../crates/mpt", default-features = false, features = ["arena"] }
+rsp-mpt = { path = "../../../crates/mpt", default-features = false }
 
 bumpalo = { version = "3.19.0", features = ["collections"] }
 # `sha3-keccak` routes keccak256 through the SP1-patched `sha3` crate (the keccak precompile),
