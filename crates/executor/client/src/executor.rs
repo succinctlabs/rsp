@@ -118,6 +118,16 @@ where
         );
 
         // Verify the state root.
+        //
+        // SOUNDNESS: this final state_root check is load-bearing for every host-controlled
+        // value that flows into the arena tries — not just the trie nodes (which are
+        // hash-verified at decode time) but also the **pre_state_storage_roots** cache section
+        // of the witness (which is not separately hash-committed; see
+        // `EthereumState::to_arena_witness` and `ArenaTries::update`). A tampered psr entry
+        // propagates into the state-trie leaf via `state_account.storage_root` and shows up
+        // here as a `MismatchedStateRoot`, so the cache is sound as long as this check
+        // remains in place. If a future change relaxes or removes this check, the psr cache
+        // (and the rest of the witness) becomes unsound — re-evaluate before changing.
         let state_root = profile_report!(COMPUTE_STATE_ROOT, {
             let post_state = executor_outcome.hash_state_slow::<KeccakKeyHasher>();
             tries.update(&post_state);

@@ -249,11 +249,17 @@ impl DatabaseRef for TrieDB<'_, '_> {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         let hashed_address = keccak256(address);
-        let storage_trie = self
-            .tries
-            .storage_tries
-            .get(&hashed_address)
-            .expect("A storage trie must be provided for each account");
+        // Two valid cases when the witness has no entry for this account's storage trie:
+        //   1. Canonical witness mode dropped it because the account's pre-state storage_root
+        //      is `EMPTY_ROOT_HASH` (every slot is zero).
+        //   2. The account is being newly created during this block — its `WitnessDatabase`
+        //      hasn't seen a pre-state trie because there wasn't one.
+        // Both yield zero for any slot read. If the witness is genuinely missing a non-empty
+        // storage trie that revm needs, the post-state-root check at the block header level
+        // catches it.
+        let Some(storage_trie) = self.tries.storage_tries.get(&hashed_address) else {
+            return Ok(U256::ZERO);
+        };
         Ok(storage_trie
             .get_rlp::<U256>(keccak256(index.to_be_bytes::<32>()).as_slice())
             .expect("Can get from MPT")

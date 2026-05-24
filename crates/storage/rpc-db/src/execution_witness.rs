@@ -1,9 +1,11 @@
 use std::marker::PhantomData;
 
 use alloy_consensus::Header;
+use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{map::HashMap, Address, B256};
-use alloy_provider::{ext::DebugApi, Network, Provider};
+use alloy_provider::{Network, Provider};
 use alloy_rlp::Decodable;
+use alloy_rpc_types_debug::ExecutionWitness;
 use alloy_trie::TrieAccount;
 use async_trait::async_trait;
 use reth_storage_errors::ProviderError;
@@ -31,7 +33,17 @@ pub struct ExecutionWitnessRpcDb<P, N> {
 impl<P: Provider<N> + Clone, N: Network> ExecutionWitnessRpcDb<P, N> {
     /// Create a new [`ExecutionWitnessRpcDb`].
     pub async fn new(provider: P, block_number: u64, state_root: B256) -> Result<Self, RpcDbError> {
-        let execution_witness = provider.debug_execution_witness((block_number + 1).into()).await?;
+        // Request the `canonical` witness shape (`ethereum/execution-specs@projects/zkevm`):
+        // drops empty nodes, omits storage-trie roots when no storage is accessed, sorts
+        // lexicographically, and ships only the minimum siblings needed for the canonical
+        // post-state-root recompute order (sorted, inserts-before-deletes). `ArenaTries::update`
+        // / `EthereumState::update` were restructured to match that order — see `crates/mpt/src/lib.rs`.
+        //
+        // alloy-provider's `DebugApi::debug_execution_witness` doesn't expose the mode param,
+        // so we issue the raw RPC call.
+        let block: BlockNumberOrTag = (block_number + 1).into();
+        let execution_witness: ExecutionWitness =
+            provider.client().request("debug_executionWitness", (block, "canonical")).await?;
 
         let state = EthereumState::from_execution_witness(&execution_witness, state_root);
 
