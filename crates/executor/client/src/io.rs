@@ -33,9 +33,6 @@ pub type OpClientExecutorInput = ClientExecutorInput<reth_optimism_primitives::O
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientExecutorInput<P: NodePrimitives> {
     /// The current block (which will be executed inside the client).
-    #[serde_as(
-        as = "reth_primitives_traits::serde_bincode_compat::Block<'_, P::SignedTx, Header>"
-    )]
     pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.
@@ -135,6 +132,7 @@ impl DatabaseRef for TrieDB<'_> {
             balance: account_in_trie.balance,
             nonce: account_in_trie.nonce,
             code_hash: account_in_trie.code_hash,
+            account_id: None,
             code: None,
         });
 

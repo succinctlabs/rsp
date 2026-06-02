@@ -191,6 +191,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             excess_blob_gas: current_block.header().excess_blob_gas(),
             parent_beacon_block_root: current_block.header().parent_beacon_block_root(),
             requests_hash: current_block.header().requests_hash(),
+            block_access_list_hash: None,
+            slot_number: None,
         };
 
         let ancestor_headers = rpc_db.ancestor_headers().await?;

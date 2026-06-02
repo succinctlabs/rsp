@@ -25,7 +25,7 @@ rsp-primitives.workspace = true
 reth-consensus.workspace = true
 reth-consensus-common.workspace = true
 reth-ethereum-consensus.workspace = true
-reth-ethereum-primitives = { workspace = true, features = ["serde-bincode-compat"] }
+reth-ethereum-primitives.workspace = true
 reth-execution-types.workspace = true
 reth-primitives-traits.workspace = true
 reth-trie.workspace = true
@@ -34,7 +34,7 @@ reth-evm-ethereum.workspace = true
 reth-optimism-evm = { workspace = true, optional = true }
 reth-optimism-consensus = { workspace = true, optional = true }
 reth-optimism-chainspec = { workspace = true, optional = true }
-reth-optimism-primitives = { workspace = true, optional = true, features = ["serde", "serde-bincode-compat"]}
+reth-optimism-primitives = { workspace = true, optional = true, features = ["serde"]}
 reth-errors.workspace = true
 reth-chainspec.workspace = true
 

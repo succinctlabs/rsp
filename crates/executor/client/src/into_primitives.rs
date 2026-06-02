@@ -108,8 +108,8 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
         reth_ethereum_consensus::validate_block_post_execution(
             block,
             &chain_spec,
-            &execution_output.result.receipts,
-            &execution_output.result.requests,
+            &execution_output.result,
+            None,
         )
     }
 }
@@ -189,6 +189,7 @@ impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
             block.header(),
             &chain_spec,
             &execution_output.result,
+            None,
         )
     }
 }
