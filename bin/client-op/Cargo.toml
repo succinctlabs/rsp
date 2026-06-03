@@ -30,6 +30,11 @@ p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p2
 #  - op-reth chainspec reth-codec opt-in → drops reth-zstd-compressors/zstd/zstd-sys (native C)
 # Both fixes live on the fakedev9999/optimism rsp-reth-v2-validation branch.
 op-alloy-network = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+# Pin the whole op-alloy family to the same fork branch so there is a single source
+# (avoids duplicate op-alloy-consensus/op-alloy-rpc-types instances → type-identity mismatches).
+op-alloy-consensus = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+op-alloy-rpc-types = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+op-alloy-rpc-types-engine = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
 
 [patch."https://github.com/ethereum-optimism/optimism"]
 reth-optimism-chainspec = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
