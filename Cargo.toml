@@ -59,7 +59,7 @@ sp1-prover = "=6.2.3"
 sp1-sdk = { version = "=6.2.3", features = ["profiling"] }
 
 # reth
-reth-primitives-traits = { version = "0.3.1", default-features = false }
+reth-primitives-traits = { version = "0.3.2", default-features = false }
 reth-consensus = { git = "https://github.com/paradigmxyz/reth", rev = "88505c7fcbfdebfd3b56d88c86b62e950043c6c4", default-features = false }
 reth-consensus-common = { git = "https://github.com/paradigmxyz/reth", rev = "88505c7fcbfdebfd3b56d88c86b62e950043c6c4", default-features = false }
 reth-evm = { git = "https://github.com/paradigmxyz/reth", rev = "88505c7fcbfdebfd3b56d88c86b62e950043c6c4", default-features = false }
