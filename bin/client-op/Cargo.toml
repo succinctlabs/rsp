@@ -25,6 +25,15 @@ sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
 
-# op-alloy-network reqwest opt-in fix (temporary, validating ethereum-optimism/optimism PR).
-# Drops the forced reqwest HTTP transport so the zkVM client-op ELF does not pull mio/socket2.
-op-alloy-network = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/op-alloy-network-reqwest-opt-in" }
+# Temporary fork redirect (validating ethereum-optimism/optimism PRs) combining:
+#  - op-alloy-network reqwest opt-in  → drops reqwest/mio/socket2 from the zkVM ELF
+#  - op-reth chainspec reth-codec opt-in → drops reth-zstd-compressors/zstd/zstd-sys (native C)
+# Both fixes live on the fakedev9999/optimism rsp-reth-v2-validation branch.
+op-alloy-network = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+
+[patch."https://github.com/ethereum-optimism/optimism"]
+reth-optimism-chainspec = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+reth-optimism-primitives = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+reth-optimism-evm = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+reth-optimism-consensus = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }
+reth-optimism-forks = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/rsp-reth-v2-validation" }

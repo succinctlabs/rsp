@@ -127,14 +127,16 @@ dependencies = [
 
 [[package]]
 name = "alloy-eip7928"
-version = "0.3.2"
+version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3231de68d5d6e75332b7489cfcc7f4dfabeba94d990a10e4b923af0e6623540"
+checksum = "6b827a6d7784fe3eb3489d40699407a4cdcce74271421a01bdffe60cf573bb16"
 dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "borsh",
+ "once_cell",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -297,7 +299,7 @@ dependencies = [
 [[package]]
 name = "alloy-op-evm"
 version = "0.32.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
@@ -314,7 +316,7 @@ dependencies = [
 [[package]]
 name = "alloy-op-hardforks"
 version = "0.5.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-chains",
  "alloy-hardforks",
@@ -2700,9 +2702,9 @@ dependencies = [
 [[package]]
 name = "op-alloy"
 version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
 ]
 
 [[package]]
@@ -2729,29 +2731,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-consensus"
 version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.5",
- "bytes",
- "derive_more",
- "modular-bitfield",
- "reth-codecs",
- "reth-codecs-derive",
- "reth-zstd-compressors",
- "serde",
- "serde_with",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "op-alloy-consensus"
-version = "2.0.0"
-source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in#571fdbea10d43fa8ba56427a45d8b9470fdcff78"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
@@ -2772,14 +2752,14 @@ dependencies = [
 [[package]]
 name = "op-alloy-network"
 version = "2.0.0"
-source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in#571fdbea10d43fa8ba56427a45d8b9470fdcff78"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-network",
  "alloy-provider",
  "alloy-rpc-types-eth",
- "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in)",
- "op-alloy-rpc-types 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
+ "op-alloy-rpc-types 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
 ]
 
 [[package]]
@@ -2806,25 +2786,7 @@ dependencies = [
 [[package]]
 name = "op-alloy-rpc-types"
 version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-network-primitives",
- "alloy-primitives",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.5",
- "derive_more",
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "op-alloy-rpc-types"
-version = "2.0.0"
-source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in#571fdbea10d43fa8ba56427a45d8b9470fdcff78"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
@@ -2834,7 +2796,7 @@ dependencies = [
  "alloy-rpc-types-eth",
  "alloy-serde 2.0.5",
  "derive_more",
- "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Fop-alloy-network-reqwest-opt-in)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
  "reth-rpc-traits",
  "serde",
  "serde_json",
@@ -2844,14 +2806,14 @@ dependencies = [
 [[package]]
 name = "op-alloy-rpc-types-engine"
 version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types-engine",
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
  "sha2",
  "thiserror 2.0.18",
 ]
@@ -2859,7 +2821,7 @@ dependencies = [
 [[package]]
 name = "op-revm"
 version = "20.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "auto_impl",
  "revm",
@@ -3699,7 +3661,7 @@ dependencies = [
 [[package]]
 name = "reth-optimism-chainspec"
 version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-chains",
  "alloy-consensus",
@@ -3708,8 +3670,8 @@ dependencies = [
  "alloy-hardforks",
  "alloy-primitives",
  "derive_more",
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
- "op-alloy-rpc-types 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
+ "op-alloy-rpc-types 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
  "reth-chainspec",
  "reth-ethereum-forks",
  "reth-network-peers",
@@ -3722,7 +3684,7 @@ dependencies = [
 [[package]]
 name = "reth-optimism-consensus"
 version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
@@ -3747,14 +3709,14 @@ dependencies = [
 [[package]]
 name = "reth-optimism-evm"
 version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
  "alloy-evm",
  "alloy-op-evm",
  "alloy-primitives",
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
  "op-alloy-rpc-types-engine",
  "op-revm",
  "reth-chainspec",
@@ -3774,7 +3736,7 @@ dependencies = [
 [[package]]
 name = "reth-optimism-forks"
 version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-op-hardforks",
  "alloy-primitives",
@@ -3785,16 +3747,15 @@ dependencies = [
 [[package]]
 name = "reth-optimism-primitives"
 version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
+source = "git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation#3dbaffb3364a9f2d72f69483814c3d2e39692887"
 dependencies = [
  "alloy-consensus",
  "alloy-eips 2.0.5",
  "alloy-primitives",
  "alloy-rlp",
- "op-alloy-consensus 2.0.0 (git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2)",
+ "op-alloy-consensus 2.0.0 (git+https://github.com/fakedev9999/optimism?branch=fakedev9999%2Frsp-reth-v2-validation)",
  "reth-primitives-traits",
  "serde",
- "serde_with",
 ]
 
 [[package]]
@@ -3810,11 +3771,9 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types-eth",
  "alloy-trie",
- "byteorder",
  "bytes",
  "dashmap",
  "derive_more",
- "modular-bitfield",
  "once_cell",
  "reth-codecs",
  "revm-bytecode",
