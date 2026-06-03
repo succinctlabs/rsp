@@ -51,7 +51,7 @@ alloy-network.workspace = true
 alloy-rpc-types.workspace = true
 
 # op
-op-alloy-network = { workspace = true, optional = true }
+op-alloy-network = { version = "2.0.0", optional = true, default-features = false }
 op-alloy-rpc-types = { workspace = true, optional = true }
 
 

@@ -24,3 +24,7 @@ bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.0.0",
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.10.8-sp1-6.0.0" }
 k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
 p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
+
+# op-alloy-network reqwest opt-in fix (temporary, validating ethereum-optimism/optimism PR).
+# Drops the forced reqwest HTTP transport so the zkVM client-op ELF does not pull mio/socket2.
+op-alloy-network = { git = "https://github.com/fakedev9999/optimism", branch = "fakedev9999/op-alloy-network-reqwest-opt-in" }
