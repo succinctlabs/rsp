@@ -114,86 +114,6 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
     }
 }
 
-#[cfg(feature = "optimism")]
-impl IntoPrimitives<op_alloy_network::Optimism> for reth_optimism_primitives::OpPrimitives {
-    fn into_primitive_block(
-        block: alloy_rpc_types::Block<op_alloy_rpc_types::Transaction>,
-    ) -> Self::Block {
-        let block = block.map_transactions(|tx| tx.inner.inner.into_inner());
-        block.into_consensus()
-    }
-
-    fn into_consensus_header(header: alloy_rpc_types::Header) -> Header {
-        header.into()
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl FromInput for reth_optimism_primitives::OpPrimitives {
-    fn from_input_block(block: Block<Self::SignedTx>) -> Self::Block {
-        block
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl IntoInput for reth_optimism_primitives::OpPrimitives {
-    fn into_input_block(block: Self::Block) -> Block<Self::SignedTx> {
-        block
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl BlockValidator<reth_optimism_chainspec::OpChainSpec>
-    for reth_optimism_primitives::OpPrimitives
-{
-    fn validate_header(
-        header: &SealedHeader,
-        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
-    ) -> Result<(), ConsensusError> {
-        let validator = reth_optimism_consensus::OpBeaconConsensus::new(chain_spec);
-
-        validator.validate_header(header)
-    }
-
-    fn validate_block(
-        recovered: &RecoveredBlock<Self::Block>,
-        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
-    ) -> Result<(), ConsensusError> {
-        Self::validate_header(recovered.sealed_header(), chain_spec.clone())?;
-
-        reth_optimism_consensus::validation::validate_body_against_header_op(
-            chain_spec,
-            recovered.body(),
-            recovered.header(),
-        )?;
-
-        Ok(())
-    }
-
-    fn validate_header_against_parent(
-        header: &SealedHeader,
-        parent: &SealedHeader,
-        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
-    ) -> Result<(), ConsensusError> {
-        let validator = reth_optimism_consensus::OpBeaconConsensus::new(chain_spec);
-
-        validator.validate_header_against_parent(header, parent)
-    }
-
-    fn validate_block_post_execution(
-        block: &RecoveredBlock<Self::Block>,
-        chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>,
-        execution_output: &BlockExecutionOutput<Self::Receipt>,
-    ) -> Result<(), ConsensusError> {
-        reth_optimism_consensus::validate_block_post_execution(
-            block.header(),
-            &chain_spec,
-            &execution_output.result,
-            None,
-        )
-    }
-}
-
 fn handle_custom_chains(
     result: Result<(), ConsensusError>,
     chain_spec: Arc<ChainSpec>,
@@ -211,8 +131,8 @@ fn handle_custom_chains(
             // Skip extra data and Merge difficulty checks for Linea chains
             if matches!(
                 err,
-                ConsensusError::ExtraDataExceedsMax { .. } |
-                    ConsensusError::TheMergeDifficultyIsNotZero
+                ConsensusError::ExtraDataExceedsMax { .. }
+                    | ConsensusError::TheMergeDifficultyIsNotZero
             ) {
                 Ok(())
             } else {

@@ -25,7 +25,6 @@ pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesi
 #[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
-    OpMainnet,
     Sepolia,
     Holesky,
     Linea,
@@ -36,7 +35,6 @@ impl Hash for Genesis {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Genesis::Mainnet => 1.hash(state),
-            Genesis::OpMainnet => 10.hash(state),
             Genesis::Sepolia => 11155111.hash(state),
             Genesis::Holesky => 17000.hash(state),
             Genesis::Linea => 59144.hash(state),
@@ -68,7 +66,6 @@ impl TryFrom<u64> for Genesis {
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(Genesis::Mainnet),
-            10 => Ok(Genesis::OpMainnet),
             17000 => Ok(Genesis::Holesky),
             59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
@@ -134,58 +131,11 @@ impl TryFrom<&Genesis> for ChainSpec {
                 };
                 Ok(holesky)
             }
-            Genesis::OpMainnet => Err(ChainSpecError::InvalidConversion),
             Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
             Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
                 config: config.clone(),
                 ..Default::default()
             })),
-        }
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl TryFrom<&Genesis> for reth_optimism_chainspec::OpChainSpec {
-    type Error = ChainSpecError;
-
-    fn try_from(value: &Genesis) -> Result<Self, Self::Error> {
-        match value {
-            Genesis::OpMainnet => {
-                use reth_chainspec::Hardfork;
-                use reth_optimism_forks::OpHardfork;
-
-                let op_mainnet = reth_optimism_chainspec::OpChainSpec {
-                    inner: ChainSpec {
-                        chain: Chain::optimism_mainnet(),
-                        genesis: Default::default(),
-                        genesis_header: Default::default(),
-                        paris_block_and_final_difficulty: Default::default(),
-                        hardforks: reth_optimism_forks::OP_MAINNET_HARDFORKS.clone(),
-                        deposit_contract: Default::default(),
-                        base_fee_params: BaseFeeParamsKind::Variable(
-                            vec![
-                                (EthereumHardfork::London.boxed(), BaseFeeParams::optimism()),
-                                (OpHardfork::Canyon.boxed(), BaseFeeParams::optimism_canyon()),
-                            ]
-                            .into(),
-                        ),
-                        prune_delete_limit: 10000,
-                        blob_params: Default::default(),
-                    },
-                };
-
-                Ok(op_mainnet)
-            }
-            Genesis::Custom(config) => {
-                let custom =
-                    reth_optimism_chainspec::OpChainSpec::from_genesis(alloy_genesis::Genesis {
-                        config: config.clone(),
-                        ..Default::default()
-                    });
-
-                Ok(custom)
-            }
-            _ => Err(ChainSpecError::InvalidConversion),
         }
     }
 }

@@ -321,34 +321,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alloy-op-evm"
-version = "0.32.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-evm",
- "alloy-op-hardforks",
- "alloy-primitives",
- "auto_impl",
- "op-alloy",
- "op-revm",
- "revm",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "alloy-op-hardforks"
-version = "0.5.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-chains",
- "alloy-hardforks",
- "alloy-primitives",
- "auto_impl",
-]
-
-[[package]]
 name = "alloy-primitives"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4247,94 +4219,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 
 [[package]]
-name = "op-alloy"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "op-alloy-consensus",
-]
-
-[[package]]
-name = "op-alloy-consensus"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-network",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.5",
- "bytes",
- "derive_more 2.1.1",
- "modular-bitfield",
- "reth-codecs",
- "reth-codecs-derive",
- "reth-zstd-compressors",
- "serde",
- "serde_with",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "op-alloy-network"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-network",
- "alloy-provider",
- "alloy-rpc-types-eth",
- "op-alloy-consensus",
- "op-alloy-rpc-types",
-]
-
-[[package]]
-name = "op-alloy-rpc-types"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-network",
- "alloy-network-primitives",
- "alloy-primitives",
- "alloy-rpc-types-eth",
- "alloy-serde 2.0.5",
- "derive_more 2.1.1",
- "op-alloy-consensus",
- "reth-rpc-traits",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "op-alloy-rpc-types-engine"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-primitives",
- "alloy-rlp",
- "alloy-rpc-types-engine",
- "op-alloy-consensus",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "op-revm"
-version = "20.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "auto_impl",
- "revm",
-]
-
-[[package]]
 name = "openssl"
 version = "0.10.80"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4696,7 +4580,6 @@ dependencies = [
  "arrayvec",
  "bitvec",
  "byte-slice-cast",
- "bytes",
  "const_format",
  "impl-trait-for-tuples",
  "parity-scale-codec-derive",
@@ -5569,7 +5452,6 @@ dependencies = [
  "alloy-trie",
  "bytes",
  "modular-bitfield",
- "parity-scale-codec",
  "reth-codecs-derive",
  "reth-zstd-compressors",
  "serde",
@@ -5758,107 +5640,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reth-optimism-chainspec"
-version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-chains",
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-genesis",
- "alloy-hardforks",
- "alloy-primitives",
- "derive_more 2.1.1",
- "op-alloy-consensus",
- "op-alloy-rpc-types",
- "reth-chainspec",
- "reth-ethereum-forks",
- "reth-network-peers",
- "reth-optimism-forks",
- "reth-optimism-primitives",
- "reth-primitives-traits",
- "serde_json",
-]
-
-[[package]]
-name = "reth-optimism-consensus"
-version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-primitives",
- "alloy-trie",
- "reth-chainspec",
- "reth-consensus",
- "reth-consensus-common",
- "reth-execution-types",
- "reth-optimism-chainspec",
- "reth-optimism-forks",
- "reth-optimism-primitives",
- "reth-primitives-traits",
- "reth-storage-api",
- "reth-storage-errors",
- "reth-trie-common",
- "revm",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "reth-optimism-evm"
-version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-evm",
- "alloy-op-evm",
- "alloy-primitives",
- "op-alloy-consensus",
- "op-alloy-rpc-types-engine",
- "op-revm",
- "reth-chainspec",
- "reth-evm",
- "reth-execution-errors",
- "reth-execution-types",
- "reth-optimism-chainspec",
- "reth-optimism-consensus",
- "reth-optimism-forks",
- "reth-optimism-primitives",
- "reth-primitives-traits",
- "reth-storage-errors",
- "revm",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "reth-optimism-forks"
-version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-op-hardforks",
- "alloy-primitives",
- "once_cell",
- "reth-ethereum-forks",
-]
-
-[[package]]
-name = "reth-optimism-primitives"
-version = "1.11.3"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
-dependencies = [
- "alloy-consensus",
- "alloy-eips 2.0.5",
- "alloy-primitives",
- "alloy-rlp",
- "op-alloy-consensus",
- "reth-primitives-traits",
- "serde",
- "serde_with",
-]
-
-[[package]]
 name = "reth-primitives-traits"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5871,11 +5652,9 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types-eth",
  "alloy-trie",
- "byteorder",
  "bytes",
  "dashmap",
  "derive_more 2.1.1",
- "modular-bitfield",
  "once_cell",
  "reth-codecs",
  "revm-bytecode",
@@ -5896,21 +5675,6 @@ dependencies = [
  "strum",
  "thiserror 2.0.18",
  "tracing",
-]
-
-[[package]]
-name = "reth-rpc-traits"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "860fe223501a76ff14aa3bf164f739f31008c2a2905ac85708bfd88f042e6151"
-dependencies = [
- "alloy-consensus",
- "alloy-network",
- "alloy-primitives",
- "alloy-rpc-types-eth",
- "alloy-signer",
- "reth-primitives-traits",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -6363,8 +6127,6 @@ dependencies = [
  "alloy-rpc-types",
  "itertools 0.13.0",
  "kzg-rs",
- "op-alloy-network",
- "op-alloy-rpc-types",
  "reth-chainspec",
  "reth-consensus",
  "reth-consensus-common",
@@ -6374,10 +6136,6 @@ dependencies = [
  "reth-evm",
  "reth-evm-ethereum",
  "reth-execution-types",
- "reth-optimism-chainspec",
- "reth-optimism-consensus",
- "reth-optimism-evm",
- "reth-optimism-primitives",
  "reth-primitives-traits",
  "reth-trie",
  "revm",
@@ -6405,16 +6163,12 @@ dependencies = [
  "dotenv",
  "either",
  "eyre",
- "op-alloy-network",
  "reqwest 0.12.28",
  "reth-chainspec",
  "reth-errors",
  "reth-ethereum-primitives",
  "reth-evm",
  "reth-evm-ethereum",
- "reth-optimism-chainspec",
- "reth-optimism-evm",
- "reth-optimism-primitives",
  "reth-primitives-traits",
  "reth-trie",
  "revm",
@@ -6459,8 +6213,6 @@ dependencies = [
  "alloy-rpc-types",
  "bincode",
  "reth-chainspec",
- "reth-optimism-chainspec",
- "reth-optimism-forks",
  "reth-primitives-traits",
  "reth-trie",
  "serde",
@@ -10316,11 +10068,6 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
-
-[[patch.unused]]
-name = "op-alloy-provider"
-version = "2.0.0"
-source = "git+https://github.com/ethereum-optimism/optimism?tag=kona-client%2Fv1.5.2#a5f807798b0896becd497d27b92afe911b088ad4"
 
 [[patch.unused]]
 name = "sha3"

@@ -18,7 +18,7 @@ use revm::{
         interpreter_types::{Jumps, LoopControl},
         Interpreter, InterpreterTypes,
     },
-    precompile::{Crypto, PrecompileError, PrecompileHalt, PrecompileSpecId, Precompiles},
+    precompile::{Crypto, PrecompileHalt, PrecompileSpecId, Precompiles},
     Context, Inspector,
 };
 use revm_primitives::{hardfork::SpecId, Address};

@@ -31,10 +31,6 @@ reth-primitives-traits.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true
 reth-evm-ethereum.workspace = true
-reth-optimism-evm = { workspace = true, optional = true }
-reth-optimism-consensus = { workspace = true, optional = true }
-reth-optimism-chainspec = { workspace = true, optional = true }
-reth-optimism-primitives = { workspace = true, optional = true, features = ["serde"]}
 reth-errors.workspace = true
 reth-chainspec.workspace = true
 
@@ -50,21 +46,7 @@ alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-rpc-types.workspace = true
 
-# op
-op-alloy-network = { version = "2.0.0", optional = true, default-features = false }
-op-alloy-rpc-types = { workspace = true, optional = true }
-
-
 [features]
 default = ["sha3-keccak"]
 sha3-keccak = ["alloy-primitives/sha3-keccak"]
 native-keccak = ["alloy-primitives/native-keccak"]
-optimism = [
-    "dep:op-alloy-network",
-    "dep:op-alloy-rpc-types",
-    "dep:reth-optimism-evm",
-    "dep:reth-optimism-consensus",
-    "dep:reth-optimism-chainspec",
-    "dep:reth-optimism-primitives",
-    "rsp-primitives/optimism",
-]
