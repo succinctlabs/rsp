@@ -19,6 +19,40 @@ use serde_with::serde_as;
 
 use crate::error::ClientError;
 
+/// Bincode-compatible serde for [`Block`] via RLP.
+///
+/// The default serde representation of [`Block`] is not bincode-compatible (the inner transaction
+/// envelope serializes via `#[serde(flatten)]`, which makes bincode fail with
+/// `SequenceMustHaveLength`). reth makes blocks bincode-serializable by round-tripping through RLP
+/// bytes; we mirror that here because the previous
+/// `reth_primitives_traits::serde_bincode_compat::Block` wrapper was removed when
+/// `reth-primitives-traits` was published to crates.io.
+mod block_rlp {
+    use alloy_consensus::Block;
+    use alloy_primitives::Bytes;
+    use alloy_rlp::{Decodable, Encodable};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use serde_with::{DeserializeAs, SerializeAs};
+
+    pub(crate) struct BlockRlp;
+
+    impl<T: Encodable> SerializeAs<Block<T>> for BlockRlp {
+        fn serialize_as<S: Serializer>(
+            source: &Block<T>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            Bytes::from(alloy_rlp::encode(source)).serialize(serializer)
+        }
+    }
+
+    impl<'de, T: Decodable> DeserializeAs<'de, Block<T>> for BlockRlp {
+        fn deserialize_as<D: Deserializer<'de>>(deserializer: D) -> Result<Block<T>, D::Error> {
+            let bytes = Bytes::deserialize(deserializer)?;
+            Block::<T>::decode(&mut bytes.as_ref()).map_err(serde::de::Error::custom)
+        }
+    }
+}
+
 pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
 
 /// The input for the client to execute a block and fully verify the STF (state transition
@@ -30,6 +64,7 @@ pub type EthClientExecutorInput = ClientExecutorInput<EthPrimitives>;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ClientExecutorInput<P: NodePrimitives> {
     /// The current block (which will be executed inside the client).
+    #[serde_as(as = "block_rlp::BlockRlp")]
     pub current_block: Block<P::SignedTx>,
     /// The previous block headers starting from the most recent. There must be at least one header
     /// to provide the parent state root.

@@ -6124,6 +6124,7 @@ dependencies = [
  "alloy-evm",
  "alloy-network",
  "alloy-primitives",
+ "alloy-rlp",
  "alloy-rpc-types",
  "itertools 0.13.0",
  "kzg-rs",

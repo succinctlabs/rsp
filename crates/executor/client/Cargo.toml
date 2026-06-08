@@ -45,6 +45,7 @@ alloy-primitives.workspace = true
 alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-rpc-types.workspace = true
+alloy-rlp.workspace = true
 
 [features]
 default = ["sha3-keccak"]

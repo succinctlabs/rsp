@@ -24,8 +24,7 @@ jobs:
         run: |
           cargo tree
           (cd ./bin/client && cargo tree)
-          (cd ./bin/client-op && cargo tree)
-          
+
       - name: "Assert no changes"
         run: |
           if [ -n "$(git status --porcelain)" ]; then 
