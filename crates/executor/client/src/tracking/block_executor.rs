@@ -20,8 +20,7 @@ pub struct OpCodesTrackingBlockExecutor<C, DB> {
 impl<C, DB: Database> OpCodesTrackingBlockExecutor<C, DB> {
     /// Creates a new `CustomBlockExecutor` with the given strategy.
     pub fn new(evm_config: C, db: DB) -> Self {
-        let db =
-            State::builder().with_database(db).with_bundle_update().without_state_clear().build();
+        let db = State::builder().with_database(db).with_bundle_update().build();
         Self { evm_config, db }
     }
 }

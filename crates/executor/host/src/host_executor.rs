@@ -10,8 +10,6 @@ use reth_evm::{
     ConfigureEvm,
 };
 use reth_evm_ethereum::EthEvmConfig;
-use reth_optimism_chainspec::OpChainSpec;
-use reth_optimism_evm::OpEvmConfig;
 use reth_primitives_traits::{Block, BlockBody, SealedHeader};
 use reth_trie::{HashedPostState, KeccakKeyHasher};
 use revm::database::CacheDB;
@@ -25,8 +23,6 @@ use rsp_rpc_db::RpcDb;
 use crate::HostError;
 
 pub type EthHostExecutor = HostExecutor<EthEvmConfig<ChainSpec, CustomEvmFactory>, ChainSpec>;
-
-pub type OpHostExecutor = HostExecutor<OpEvmConfig, OpChainSpec>;
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
@@ -44,12 +40,6 @@ impl EthHostExecutor {
             ),
             chain_spec,
         }
-    }
-}
-
-impl OpHostExecutor {
-    pub fn optimism(chain_spec: Arc<OpChainSpec>) -> Self {
-        Self { evm_config: OpEvmConfig::optimism(chain_spec.clone()), chain_spec }
     }
 }
 
@@ -191,6 +181,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             excess_blob_gas: current_block.header().excess_blob_gas(),
             parent_beacon_block_root: current_block.header().parent_beacon_block_root(),
             requests_hash: current_block.header().requests_hash(),
+            block_access_list_hash: None,
+            slot_number: None,
         };
 
         let ancestor_headers = rpc_db.ancestor_headers().await?;
