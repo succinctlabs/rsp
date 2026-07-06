@@ -81,6 +81,12 @@ jobs:
         run: |
           cargo clippy --all --all-targets -- -D warnings
 
+      # The production Docker image builds ethproofs with this feature (see Dockerfile), so keep
+      # it compiling in CI even though it is off by default in the workspace.
+      - name: "Run clippy lints (ethproofs with execution-witness)"
+        run: |
+          cargo clippy -p ethproofs --features execution-witness -- -D warnings
+
   tests:
     name: "Run tests"
     runs-on:

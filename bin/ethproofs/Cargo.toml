@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio.workspace = true
+tokio-stream = "0.1"
 url.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
@@ -34,6 +35,10 @@ reth-primitives-traits.workspace = true
 # alloy
 alloy-consensus.workspace = true
 alloy-provider = { workspace = true, features = ["ws"] }
+
+[dev-dependencies]
+metrics-util = { version = "0.19", features = ["debugging"] }
+tokio = { workspace = true, features = ["test-util"] }
 
 [build-dependencies]
 sp1-build.workspace = true

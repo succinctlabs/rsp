@@ -112,3 +112,66 @@ impl ExecutionHooks for MetricsHook {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use metrics_util::debugging::{DebugValue, DebuggingRecorder, Snapshotter};
+
+    use super::*;
+
+    /// The current value of a gauge in the snapshot, or 0.0 if it was never touched.
+    fn gauge_value(snapshotter: &Snapshotter, name: &str) -> f64 {
+        snapshotter
+            .snapshot()
+            .into_vec()
+            .into_iter()
+            .find_map(|(key, _, _, value)| {
+                (key.key().name() == name).then(|| match value {
+                    DebugValue::Gauge(value) => value.into_inner(),
+                    _ => panic!("`{name}` is not a gauge"),
+                })
+            })
+            .unwrap_or_default()
+    }
+
+    /// The proofs-in-progress gauge must be released exactly once per block, whether the block
+    /// succeeds (`on_proving_end`) or fails (`on_block_failed`), and never go negative — the
+    /// gauge previously drifted upward forever because failures skipped `on_proving_end`.
+    #[tokio::test]
+    async fn proofs_in_progress_gauge_is_released_exactly_once() {
+        let recorder = DebuggingRecorder::new();
+        let snapshotter = recorder.snapshotter();
+        let hook = MetricsHook::new();
+        let gauge = "rsp_ethproofs_proofs_in_progress";
+
+        metrics::with_local_recorder(&recorder, || {
+            futures::executor::block_on(async {
+                // A successful block: starts, then ends.
+                hook.on_proving_start(1).await.unwrap();
+                assert_eq!(gauge_value(&snapshotter, gauge), 1.0);
+
+                // A failing block: starts, then fails.
+                hook.on_proving_start(2).await.unwrap();
+                assert_eq!(gauge_value(&snapshotter, gauge), 2.0);
+
+                hook.on_block_failed(2).await.unwrap();
+                assert_eq!(gauge_value(&snapshotter, gauge), 1.0);
+
+                // A repeated failure callback must not decrement twice.
+                hook.on_block_failed(2).await.unwrap();
+                assert_eq!(gauge_value(&snapshotter, gauge), 1.0);
+
+                // Block 1 completes; `on_proving_end` releases the gauge through the same
+                // `finish_proving` path exercised here (constructing a real `SP1VerifyingKey`
+                // is not possible in a unit test).
+                hook.finish_proving(1);
+                assert_eq!(gauge_value(&snapshotter, gauge), 0.0);
+
+                // A failure for a block that never started proving (e.g. a fetch failure) must
+                // not decrement the gauge either.
+                hook.on_block_failed(3).await.unwrap();
+                assert_eq!(gauge_value(&snapshotter, gauge), 0.0);
+            })
+        });
+    }
+}

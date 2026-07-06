@@ -79,3 +79,41 @@ impl Args {
             .transpose()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args_with_metrics_addr(metrics_addr: &str) -> Args {
+        Args::try_parse_from([
+            "ethproofs",
+            "--http-rpc-url",
+            "http://localhost:8545",
+            "--ws-rpc-url",
+            "ws://localhost:8546",
+            "--metrics-addr",
+            metrics_addr,
+        ])
+        .unwrap()
+    }
+
+    /// An empty `METRICS_ADDR` — as produced by an untouched `.env.example` or a docker-compose
+    /// `env_file` — must disable metrics rather than fail at startup.
+    #[test]
+    fn empty_metrics_addr_disables_metrics() {
+        assert_eq!(args_with_metrics_addr("").metrics_addr().unwrap(), None);
+    }
+
+    #[test]
+    fn valid_metrics_addr_is_parsed() {
+        assert_eq!(
+            args_with_metrics_addr("0.0.0.0:9000").metrics_addr().unwrap(),
+            Some("0.0.0.0:9000".parse().unwrap())
+        );
+    }
+
+    #[test]
+    fn invalid_metrics_addr_is_rejected() {
+        assert!(args_with_metrics_addr("not-an-address").metrics_addr().is_err());
+    }
+}
