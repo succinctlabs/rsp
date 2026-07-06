@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write, sync::Arc};
+use std::{env, fs::File, io::Write, sync::Arc, time::Duration};
 
 use alloy_chains::Chain;
 use alloy_consensus::Block;
@@ -80,6 +80,7 @@ impl ExecutionHooks for Hook {
         &self,
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
+        _execution_duration: Duration,
     ) -> eyre::Result<()> {
         match self {
             Hook::WithCurrentDev => {

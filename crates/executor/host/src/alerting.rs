@@ -1,9 +1,14 @@
 //! Can't use `pagerduty-rs` because the library is unmaintained.
 
+use std::time::Duration;
+
 use serde::Serialize;
 use tracing::error;
 
 const PAGER_DUTY_ENDPOINT: &str = "https://events.pagerduty.com/v2";
+
+/// Bound alert delivery so a slow or unreachable PagerDuty cannot stall callers indefinitely.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 
 #[derive(Debug)]
 pub struct AlertingClient {
@@ -12,7 +17,12 @@ pub struct AlertingClient {
 }
 impl AlertingClient {
     pub fn new(routing_key: String) -> Self {
-        Self { client: reqwest::Client::new(), routing_key }
+        let client = reqwest::Client::builder()
+            .timeout(REQUEST_TIMEOUT)
+            .build()
+            .expect("failed to build the PagerDuty HTTP client");
+
+        Self { client, routing_key }
     }
 
     /// Send an alert to the PageDuty endpoint.

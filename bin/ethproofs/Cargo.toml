@@ -8,7 +8,6 @@ tokio.workspace = true
 url.workspace = true
 tracing.workspace = true
 serde_json.workspace = true
-serde.workspace = true
 tracing-subscriber = "0.3.18"
 dotenv = "0.15.0"
 clap = { version = "4.5.7", features = ["derive", "env"] }
@@ -17,7 +16,6 @@ reqwest = { workspace = true, features = ["json"] }
 reqwest-middleware = { version = "0.3.3", features = ["json"] }
 reqwest-retry = "0.6.1"
 base64 = "0.22.1"
-time = "0.3.37"
 futures = "0.3"
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.16", features = ["http-listener"] }
@@ -25,7 +23,6 @@ metrics-exporter-prometheus = { version = "0.16", features = ["http-listener"] }
 # workspace
 rsp-host-executor = { workspace = true, features = ["alerting"] }
 rsp-client-executor.workspace = true
-rsp-primitives.workspace = true
 rsp-provider.workspace = true
 
 # sp1
@@ -35,12 +32,8 @@ sp1-sdk.workspace = true
 reth-primitives-traits.workspace = true
 
 # alloy
-alloy-chains.workspace = true
 alloy-consensus.workspace = true
 alloy-provider = { workspace = true, features = ["ws"] }
-alloy-rpc-client.workspace = true
-alloy-transport.workspace = true
-alloy-transport-ws.workspace = true
 
 [build-dependencies]
 sp1-build.workspace = true

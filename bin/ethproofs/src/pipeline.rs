@@ -1,12 +1,14 @@
+use std::sync::Arc;
+
 use alloy_provider::Provider;
+use eyre::bail;
 use futures::{Stream, StreamExt};
 use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::{
     alerting::AlertingClient, BlockExecutor, ExecutionHooks, ExecutorComponents, FullExecutor,
 };
-use sp1_sdk::SP1ProofMode;
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::{error, warn};
 
 /// Capacity of the channel connecting the fetch stage to the process stage.
 ///
@@ -23,18 +25,19 @@ const CHANNEL_CAPACITY: usize = 2;
 /// *concurrently* — proving does not depend on the execute, and they use different resources
 /// (GPU vs CPU), so this keeps the validation-execute off the proving critical path.
 ///
+/// Whether blocks are proved or only executed is read from the executor's own config
+/// (`prove_mode`), so there is a single source of truth for that setting.
+///
 /// Per-block errors are logged (and alerted) without tearing down the pipeline.
 pub async fn run_pipeline<C, P>(
     executor: FullExecutor<C, P>,
     mut blocks: impl Stream<Item = u64> + Unpin,
-    prove_mode: Option<SP1ProofMode>,
     alerting_client: Option<AlertingClient>,
-) -> eyre::Result<()>
-where
+) where
     C: ExecutorComponents,
     P: Provider<C::Network> + Clone + std::fmt::Debug,
 {
-    let alerting = &alerting_client;
+    let alerting = &alerting_client.map(Arc::new);
     let executor = &executor;
 
     let (fetch_tx, mut fetch_rx) =
@@ -45,8 +48,14 @@ where
         while let Some(block_number) = blocks.next().await {
             let result = async {
                 executor.wait_for_block(block_number).await?;
+                let input = executor.fetch_client_input(block_number).await?;
+
+                // Report the block (queued to ethproofs, seen by metrics) only once its input
+                // is actually in hand, so a failed fetch doesn't leave a permanently-"queued"
+                // proof on the ethproofs dashboard.
                 executor.hooks().on_execution_start(block_number).await?;
-                executor.fetch_client_input(block_number).await
+
+                eyre::Ok(input)
             }
             .await;
 
@@ -56,7 +65,7 @@ where
                         break;
                     }
                 }
-                Err(err) => report(alerting, block_number, "fetch", err).await,
+                Err(err) => report(executor.hooks(), alerting, block_number, "fetch", err).await,
             }
         }
     };
@@ -64,22 +73,19 @@ where
     // Stage 2: process the block — validate-execute and (when proving) prove, concurrently.
     let process = async move {
         while let Some((block_number, input)) = fetch_rx.recv().await {
-            if let Err(err) = process_block(executor, prove_mode, block_number, input).await {
-                report(alerting, block_number, "process", err).await;
+            if let Err(err) = process_block(executor, block_number, input).await {
+                report(executor.hooks(), alerting, block_number, "process", err).await;
             }
         }
     };
 
     tokio::join!(fetch, process);
-
-    Ok(())
 }
 
 /// Validate-execute a block and, when proving is enabled, prove it — running the two
 /// concurrently so the execute (CPU) stays off the proving (GPU) critical path.
 async fn process_block<C, P>(
     executor: &FullExecutor<C, P>,
-    prove_mode: Option<SP1ProofMode>,
     block_number: u64,
     input: ClientExecutorInput<C::Primitives>,
 ) -> eyre::Result<()>
@@ -90,45 +96,77 @@ where
     let hooks = executor.hooks();
     let stdin = executor.build_stdin(&input)?;
 
-    match prove_mode {
+    match executor.config().prove_mode {
         // Proving enabled: run the validation-execute and proving concurrently.
         Some(prove_mode) => {
             let vk = executor.vk();
-            let (cycles, proof) = tokio::join!(
-                executor.execute_input(&input, &stdin, hooks),
-                executor.prove_only(block_number, stdin.clone(), prove_mode, hooks),
+            let (execution, proof) = tokio::join!(
+                executor.execute_input(&input, stdin.clone(), hooks),
+                executor.prove_only(block_number, stdin, prove_mode, hooks),
             );
-            let cycle_count = cycles?;
-            let (proof_bytes, proving_duration) = proof?;
 
-            hooks
-                .on_proving_end(
-                    block_number,
-                    &proof_bytes,
-                    vk.as_ref(),
-                    cycle_count,
-                    proving_duration,
-                )
-                .await?;
+            match (execution, proof) {
+                (Ok(cycle_count), Ok((proof_bytes, proving_duration))) => {
+                    hooks
+                        .on_proving_end(
+                            block_number,
+                            &proof_bytes,
+                            vk.as_ref(),
+                            Some(cycle_count),
+                            proving_duration,
+                        )
+                        .await?;
+                }
+                // At least one side failed: surface every failure instead of letting one
+                // error mask the other.
+                (execution, proof) => {
+                    let mut errors = Vec::new();
+
+                    if let Err(err) = execution {
+                        errors.push(format!("execution failed: {err}"));
+                    }
+                    match proof {
+                        Err(err) => errors.push(format!("proving failed: {err}")),
+                        // The proof completed but the execution didn't, so the cycle count
+                        // required for submission is missing and the proof cannot be used.
+                        Ok(_) => warn!(
+                            block_number,
+                            "discarding a completed proof because the validation-execute failed"
+                        ),
+                    }
+
+                    bail!(errors.join("; "));
+                }
+            }
         }
         // Execute-only (proving disabled) — still runs for validation and metrics.
         None => {
-            executor.execute_input(&input, &stdin, hooks).await?;
+            executor.execute_input(&input, stdin, hooks).await?;
         }
     }
 
     Ok(())
 }
 
-async fn report(
-    alerting: &Option<AlertingClient>,
+/// Log and alert a per-block failure, and fire `on_block_failed` so hooks can release any
+/// per-block state (e.g. the proofs-in-progress gauge).
+async fn report<H: ExecutionHooks>(
+    hooks: &H,
+    alerting: &Option<Arc<AlertingClient>>,
     block_number: u64,
     stage: &str,
     err: eyre::Error,
 ) {
     let message = format!("Error handling block {block_number} at {stage} stage: {err}");
     error!(message);
+
+    if let Err(hook_err) = hooks.on_block_failed(block_number).await {
+        error!("on_block_failed hook failed for block {block_number}: {hook_err}");
+    }
+
+    // Deliver the alert in a detached task so a slow PagerDuty never stalls the pipeline.
     if let Some(alerting) = alerting {
-        alerting.send_alert(message).await;
+        let alerting = alerting.clone();
+        tokio::spawn(async move { alerting.send_alert(message).await });
     }
 }

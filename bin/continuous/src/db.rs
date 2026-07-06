@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 use alloy_consensus::{Block, BlockHeader};
 use reth_primitives_traits::NodePrimitives;
@@ -30,6 +30,7 @@ impl ExecutionHooks for PersistToPostgres {
         &self,
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
+        _execution_duration: Duration,
     ) -> eyre::Result<()> {
         // Update the block status in PostgreSQL
         update_block_status(

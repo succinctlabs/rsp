@@ -12,6 +12,7 @@ use sp1_sdk::ExecutionReport;
 use std::{
     fs::{File, OpenOptions},
     path::PathBuf,
+    time::Duration,
 };
 use strum::IntoEnumIterator;
 
@@ -172,6 +173,7 @@ impl ExecutionHooks for PersistExecutionReport {
         &self,
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
+        _execution_duration: Duration,
     ) -> eyre::Result<()> {
         println!("\nExecution report:\n{execution_report}");
 

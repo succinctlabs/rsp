@@ -2532,12 +2532,8 @@ dependencies = [
 name = "ethproofs"
 version = "0.1.0"
 dependencies = [
- "alloy-chains",
  "alloy-consensus",
  "alloy-provider",
- "alloy-rpc-client",
- "alloy-transport",
- "alloy-transport-ws",
  "base64 0.22.1",
  "clap",
  "dotenv",
@@ -2551,13 +2547,10 @@ dependencies = [
  "reth-primitives-traits",
  "rsp-client-executor",
  "rsp-host-executor",
- "rsp-primitives",
  "rsp-provider",
- "serde",
  "serde_json",
  "sp1-build",
  "sp1-sdk",
- "time",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -1,9 +1,7 @@
 use std::net::SocketAddr;
 
-use alloy_chains::Chain;
 use clap::Parser;
 use rsp_host_executor::Config;
-use rsp_primitives::genesis::Genesis;
 use sp1_sdk::SP1ProofMode;
 use url::Url;
 
@@ -29,8 +27,11 @@ pub struct Args {
 
     /// Address to serve internal Prometheus metrics on (e.g. `0.0.0.0:9000`). Metrics are
     /// disabled when unset.
+    // Parsed manually (not as a SocketAddr) so an empty METRICS_ADDR env var — as produced by
+    // an untouched `.env.example` or a docker-compose env_file — means "disabled" instead of
+    // crashing argument parsing at startup.
     #[clap(long, env)]
-    pub metrics_addr: Option<SocketAddr>,
+    pub metrics_addr: Option<String>,
 
     /// ETH proofs endpoint. Submission is disabled (run locally without reporting) unless both
     /// this and `--ethproofs-api-token` are set.
@@ -56,18 +57,25 @@ pub struct Args {
 impl Args {
     pub async fn as_config(&self) -> eyre::Result<Config> {
         let config = Config {
-            chain: Chain::mainnet(),
-            genesis: Genesis::Mainnet,
             rpc_url: Some(self.http_rpc_url.clone()),
-            cache_dir: None,
-            custom_beneficiary: None,
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
-            // Execution must run so we can capture the cycle count to report to ethproofs;
-            // the local prover does not expose cycles from `prove` in SP1 v6.
-            skip_client_execution: false,
-            opcode_tracking: false,
+            // Note that `Config::mainnet()` leaves `skip_client_execution` off, which this
+            // service requires: execution is the only source of the cycle count reported to
+            // ethproofs (the local prover does not expose cycles from `prove` in SP1 v6).
+            ..Config::mainnet()
         };
 
         Ok(config)
+    }
+
+    /// The metrics listen address, treating an unset or empty `METRICS_ADDR` as disabled.
+    pub fn metrics_addr(&self) -> eyre::Result<Option<SocketAddr>> {
+        self.metrics_addr
+            .as_deref()
+            .filter(|addr| !addr.is_empty())
+            .map(|addr| {
+                addr.parse().map_err(|err| eyre::eyre!("invalid metrics address `{addr}`: {err}"))
+            })
+            .transpose()
     }
 }

@@ -69,29 +69,30 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         Ok(stdin)
     }
 
-    /// Execute the program in the zkVM to validate it, firing `on_execution_end`.
+    /// Execute the program in the zkVM to validate it, firing `on_execution_end` with the
+    /// measured execution duration.
     ///
     /// Returns the cycle count from the execution report. This is the only source of the cycle
     /// count: the local prover does not expose it from `prove` in SP1 v6.
     ///
-    /// The CPU-bound execution runs on a dedicated task, so when the caller drives this
-    /// concurrently with proving (see the ethproofs pipeline) the execution genuinely runs in
-    /// parallel on another thread rather than blocking the task that is also polling the prover.
+    /// The execution runs on a dedicated task, so when the caller drives this concurrently with
+    /// proving (see the ethproofs pipeline) the execution runs in parallel with the prover.
     #[allow(async_fn_in_trait)]
     async fn execute_input(
         &self,
         client_input: &ClientExecutorInput<C::Primitives>,
-        stdin: &SP1Stdin,
+        stdin: SP1Stdin,
         hooks: &C::Hooks,
-    ) -> eyre::Result<Option<u64>> {
+    ) -> eyre::Result<u64> {
         let elf = self.pk().elf().clone();
         let client = self.client();
-        let stdin = stdin.clone();
+        let execution_start = Instant::now();
         let (mut public_values, execution_report) =
             tokio::spawn(async move { client.execute(elf, stdin).await })
                 .await
                 .map_err(|err| eyre::eyre!("execution task failed: {err}"))?
                 .map_err(|err| eyre::eyre!("{err}"))?;
+        let execution_duration = execution_start.elapsed();
 
         // Read the block header and check it matches the input.
         let header = public_values.read::<CommittedHeader>().header;
@@ -105,10 +106,14 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         info!(?executed_block_hash, "Execution successful");
 
         hooks
-            .on_execution_end::<C::Primitives>(&client_input.current_block, &execution_report)
+            .on_execution_end::<C::Primitives>(
+                &client_input.current_block,
+                &execution_report,
+                execution_duration,
+            )
             .await?;
 
-        Ok(Some(execution_report.total_instruction_count()))
+        Ok(execution_report.total_instruction_count())
     }
 
     /// Generate a proof for a prepared stdin, firing `on_proving_start` and returning the
@@ -147,33 +152,6 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         Ok((proof_bytes, proving_duration))
     }
 
-    /// Prove a prepared stdin in the given mode, firing the proving hooks (including
-    /// `on_proving_end` with the given cycle count).
-    #[allow(async_fn_in_trait)]
-    async fn prove_input(
-        &self,
-        block_number: u64,
-        stdin: SP1Stdin,
-        prove_mode: SP1ProofMode,
-        cycle_count: Option<u64>,
-        hooks: &C::Hooks,
-    ) -> eyre::Result<()> {
-        let (proof_bytes, proving_duration) =
-            self.prove_only(block_number, stdin, prove_mode, hooks).await?;
-
-        hooks
-            .on_proving_end(
-                block_number,
-                &proof_bytes,
-                self.vk().as_ref(),
-                cycle_count,
-                proving_duration,
-            )
-            .await?;
-
-        Ok(())
-    }
-
     #[allow(async_fn_in_trait)]
     async fn process_client(
         &self,
@@ -182,22 +160,36 @@ pub trait BlockExecutor<C: ExecutorComponents> {
     ) -> eyre::Result<()> {
         let stdin = self.build_stdin(&client_input)?;
 
-        let cycle_count = if self.config().skip_client_execution {
-            info!("Client execution skipped");
-            None
-        } else {
-            self.execute_input(&client_input, &stdin, hooks).await?
-        };
+        match self.config().prove_mode {
+            Some(prove_mode) => {
+                let cycle_count = if self.config().skip_client_execution {
+                    info!("Client execution skipped");
+                    None
+                } else {
+                    Some(self.execute_input(&client_input, stdin.clone(), hooks).await?)
+                };
 
-        if let Some(prove_mode) = self.config().prove_mode {
-            self.prove_input(
-                client_input.current_block.number,
-                stdin,
-                prove_mode,
-                cycle_count,
-                hooks,
-            )
-            .await?;
+                let block_number = client_input.current_block.number;
+                let (proof_bytes, proving_duration) =
+                    self.prove_only(block_number, stdin, prove_mode, hooks).await?;
+
+                hooks
+                    .on_proving_end(
+                        block_number,
+                        &proof_bytes,
+                        self.vk().as_ref(),
+                        cycle_count,
+                        proving_duration,
+                    )
+                    .await?;
+            }
+            None => {
+                if self.config().skip_client_execution {
+                    info!("Client execution skipped");
+                } else {
+                    self.execute_input(&client_input, stdin, hooks).await?;
+                }
+            }
         }
 
         Ok(())

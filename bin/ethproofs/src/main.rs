@@ -44,10 +44,9 @@ async fn main() -> eyre::Result<()> {
     // Parse the command line arguments.
     let args = Args::parse();
     let config = args.as_config().await?;
-    let prove_mode = config.prove_mode;
 
     // Install the Prometheus exporter when an address is configured.
-    if let Some(metrics_addr) = args.metrics_addr {
+    if let Some(metrics_addr) = args.metrics_addr()? {
         install_prometheus_exporter(metrics_addr)?;
     }
 
@@ -69,7 +68,9 @@ async fn main() -> eyre::Result<()> {
         );
     }
     let hooks = (ethproofs_client, MetricsHook::new());
-    let alerting_client = args.pager_duty_integration_key.map(AlertingClient::new);
+    // An empty env var (e.g. from an untouched `.env.example`) means "disabled", like unset.
+    let alerting_client =
+        args.pager_duty_integration_key.filter(|key| !key.is_empty()).map(AlertingClient::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
@@ -98,5 +99,7 @@ async fn main() -> eyre::Result<()> {
         .filter(move |h| ready(h.number.is_multiple_of(block_interval)))
         .map(|h| h.number);
 
-    run_pipeline(executor, blocks, prove_mode, alerting_client).await
+    run_pipeline(executor, blocks, alerting_client).await;
+
+    Ok(())
 }

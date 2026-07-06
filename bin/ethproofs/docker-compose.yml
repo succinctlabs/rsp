@@ -4,6 +4,9 @@ services:
       context: ../..
       target: rsp-ethproofs
     env_file: .env
+    # Publish the internal Prometheus metrics endpoint (must match METRICS_ADDR in .env).
+    ports:
+      - "9000:9000"
     # Proving runs in-process on the GPU (managed by the SP1 SDK), so the service needs GPU access.
     runtime: nvidia
     deploy:

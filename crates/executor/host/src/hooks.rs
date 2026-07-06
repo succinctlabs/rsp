@@ -16,11 +16,18 @@ pub trait ExecutionHooks: Send {
         &self,
         _executed_block: &Block<P::SignedTx>,
         _execution_report: &ExecutionReport,
+        _execution_duration: Duration,
     ) -> impl Future<Output = eyre::Result<()>> {
         async { Ok(()) }
     }
 
     fn on_proving_start(&self, _block_number: u64) -> impl Future<Output = eyre::Result<()>> {
+        async { Ok(()) }
+    }
+
+    /// Called when a block fails at any stage, so hooks can release per-block state (e.g.
+    /// in-progress gauges) that the success callbacks would otherwise have cleaned up.
+    fn on_block_failed(&self, _block_number: u64) -> impl Future<Output = eyre::Result<()>> + Send {
         async { Ok(()) }
     }
 
@@ -57,15 +64,22 @@ where
         &self,
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
+        execution_duration: Duration,
     ) -> eyre::Result<()> {
-        self.0.on_execution_end::<P>(executed_block, execution_report).await?;
-        self.1.on_execution_end::<P>(executed_block, execution_report).await?;
+        self.0.on_execution_end::<P>(executed_block, execution_report, execution_duration).await?;
+        self.1.on_execution_end::<P>(executed_block, execution_report, execution_duration).await?;
         Ok(())
     }
 
     async fn on_proving_start(&self, block_number: u64) -> eyre::Result<()> {
         self.0.on_proving_start(block_number).await?;
         self.1.on_proving_start(block_number).await?;
+        Ok(())
+    }
+
+    async fn on_block_failed(&self, block_number: u64) -> eyre::Result<()> {
+        self.0.on_block_failed(block_number).await?;
+        self.1.on_block_failed(block_number).await?;
         Ok(())
     }
 
