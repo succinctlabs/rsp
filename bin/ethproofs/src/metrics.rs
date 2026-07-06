@@ -20,6 +20,21 @@ pub fn install_prometheus_exporter(addr: SocketAddr) -> eyre::Result<()> {
     Ok(())
 }
 
+/// Record the chain head announced by the WS subscription. Together with
+/// `rsp_ethproofs_last_proved_block` this lets dashboards compute how far the pipeline lags
+/// behind the chain — the signal that proving is falling behind, before backlogged witness
+/// fetches start failing.
+pub fn record_chain_head(block_number: u64) {
+    gauge!("rsp_ethproofs_chain_head_block").set(block_number as f64);
+}
+
+/// Record a sampled block at intake, before any fetch attempt — so intake monitoring keeps
+/// counting even when every fetch fails (`blocks_seen_total >= blocks_failed_total` always
+/// holds).
+pub fn record_block_sampled() {
+    counter!("rsp_ethproofs_blocks_seen_total").increment(1);
+}
+
 /// An [`ExecutionHooks`] implementation that records internal proving-service metrics.
 ///
 /// Metrics are emitted through the `metrics` facade and surfaced by the Prometheus exporter
@@ -42,11 +57,39 @@ impl MetricsHook {
             gauge!("rsp_ethproofs_proofs_in_progress").decrement(1.0);
         }
     }
+
+    /// The full `on_proving_end` recording logic, split out (without the verifying key, which
+    /// the metrics never use) so it is unit-testable — a real `SP1VerifyingKey` cannot be
+    /// constructed in a test.
+    fn record_proving_end(
+        &self,
+        block_number: u64,
+        proof_size: usize,
+        cycle_count: Option<u64>,
+        proving_duration: Duration,
+    ) {
+        self.finish_proving(block_number);
+        counter!("rsp_ethproofs_blocks_proved_total").increment(1);
+        histogram!("rsp_ethproofs_proving_duration_seconds").record(proving_duration.as_secs_f64());
+        histogram!("rsp_ethproofs_proof_size_bytes").record(proof_size as f64);
+
+        // Proving throughput in kHz (cycles per second / 1000), the headline efficiency metric.
+        if let Some(cycles) = cycle_count {
+            let secs = proving_duration.as_secs_f64();
+            if secs > 0.0 {
+                gauge!("rsp_ethproofs_proving_khz").set((cycles as f64 / secs) / 1000.0);
+            }
+        }
+
+        gauge!("rsp_ethproofs_last_proved_block").set(block_number as f64);
+    }
 }
 
 impl ExecutionHooks for MetricsHook {
     async fn on_execution_start(&self, _block_number: u64) -> eyre::Result<()> {
-        counter!("rsp_ethproofs_blocks_seen_total").increment(1);
+        // Fired by the pipeline once a block's input is fetched and it enters the process
+        // queue; intake counting (`blocks_seen_total`) happens earlier, at sampling time.
+        counter!("rsp_ethproofs_blocks_queued_total").increment(1);
         Ok(())
     }
 
@@ -88,20 +131,7 @@ impl ExecutionHooks for MetricsHook {
         cycle_count: Option<u64>,
         proving_duration: Duration,
     ) -> eyre::Result<()> {
-        self.finish_proving(block_number);
-        counter!("rsp_ethproofs_blocks_proved_total").increment(1);
-        histogram!("rsp_ethproofs_proving_duration_seconds").record(proving_duration.as_secs_f64());
-        histogram!("rsp_ethproofs_proof_size_bytes").record(proof_bytes.len() as f64);
-
-        // Proving throughput in kHz (cycles per second / 1000), the headline efficiency metric.
-        if let Some(cycles) = cycle_count {
-            let secs = proving_duration.as_secs_f64();
-            if secs > 0.0 {
-                gauge!("rsp_ethproofs_proving_khz").set((cycles as f64 / secs) / 1000.0);
-            }
-        }
-
-        gauge!("rsp_ethproofs_last_proved_block").set(block_number as f64);
+        self.record_proving_end(block_number, proof_bytes.len(), cycle_count, proving_duration);
 
         Ok(())
     }
@@ -161,10 +191,9 @@ mod tests {
                 hook.on_block_failed(2).await.unwrap();
                 assert_eq!(gauge_value(&snapshotter, gauge), 1.0);
 
-                // Block 1 completes; `on_proving_end` releases the gauge through the same
-                // `finish_proving` path exercised here (constructing a real `SP1VerifyingKey`
-                // is not possible in a unit test).
-                hook.finish_proving(1);
+                // Block 1 completes: the success path (the full recording logic behind
+                // `on_proving_end`, minus the unused verifying key) must release the gauge.
+                hook.record_proving_end(1, 1024, Some(1_000_000), Duration::from_secs(60));
                 assert_eq!(gauge_value(&snapshotter, gauge), 0.0);
 
                 // A failure for a block that never started proving (e.g. a fetch failure) must

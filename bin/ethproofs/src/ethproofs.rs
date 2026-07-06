@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use eyre::eyre;
@@ -6,7 +9,8 @@ use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{HashableKey, SP1VerifyingKey};
-use tracing::error;
+use tokio::task::JoinSet;
+use tracing::{error, warn};
 
 #[derive(Debug, Clone)]
 pub struct EthproofsClient {
@@ -14,6 +18,10 @@ pub struct EthproofsClient {
     /// `None` disables submission entirely (no requests are sent). This lets the service run
     /// execution, proving and metrics locally without ethproofs credentials.
     submit: Option<Submit>,
+    /// In-flight submission tasks, so shutdown can drain them (see
+    /// [`Self::drain_submissions`]) instead of the runtime teardown aborting a half-sent
+    /// proof. Shared across clones.
+    inflight: Arc<Mutex<JoinSet<()>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,7 +46,7 @@ impl EthproofsClient {
             _ => None,
         };
 
-        Self { cluster_id, submit }
+        Self { cluster_id, submit, inflight: Arc::new(Mutex::new(JoinSet::new())) }
     }
 
     /// Whether this client will actually submit to ethproofs.
@@ -46,14 +54,34 @@ impl EthproofsClient {
         self.submit.is_some()
     }
 
-    /// Fire a `POST {endpoint}/{path}` with the given JSON body in a detached task, so retries
-    /// never block block processing. A no-op when submission is disabled; failures are logged,
-    /// not propagated.
+    /// Wait for in-flight submissions to finish, bounded by `timeout`. Call before exiting so
+    /// the runtime teardown doesn't abort a proof submission mid-request.
+    pub async fn drain_submissions(&self, timeout: Duration) {
+        // Take the set out of the mutex so it isn't held across awaits.
+        let mut inflight = std::mem::take(&mut *self.inflight.lock().unwrap());
+
+        if inflight.is_empty() {
+            return;
+        }
+
+        let drain = async { while inflight.join_next().await.is_some() {} };
+        if tokio::time::timeout(timeout, drain).await.is_err() {
+            warn!("timed out draining in-flight ethproofs submissions after {timeout:?}");
+        }
+    }
+
+    /// Fire a `POST {endpoint}/{path}` with the given JSON body in a tracked background task,
+    /// so retries never block block processing. A no-op when submission is disabled; failures
+    /// are logged, not propagated.
     fn post(&self, path: &'static str, json: serde_json::Value) {
         let Some(submit) = self.submit.clone() else { return };
         let url = format!("{}/{path}", submit.endpoint);
 
-        tokio::spawn(async move {
+        let mut inflight = self.inflight.lock().unwrap();
+        // Reap completed tasks so the set doesn't grow over the service's lifetime.
+        while inflight.try_join_next().is_some() {}
+
+        inflight.spawn(async move {
             let response = submit
                 .client
                 .post(url)

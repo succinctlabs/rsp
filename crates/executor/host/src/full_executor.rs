@@ -194,6 +194,93 @@ pub trait BlockExecutor<C: ExecutorComponents> {
 
         Ok(())
     }
+
+    /// Like [`Self::process_client`], but runs the validation-execute and proving
+    /// *concurrently*: proving does not depend on the execute, and they use different resources
+    /// (GPU vs CPU), so this keeps the execute off the proving critical path. Used by
+    /// long-running proving services (the ethproofs pipeline); the sequential
+    /// [`Self::process_client`] is preferable for one-shot runs, where an execution failure
+    /// should prevent spending GPU time on a doomed proof.
+    ///
+    /// Both sides are always run to completion even if the other fails, so a fast failure on
+    /// one side still yields the other's metrics; every failure is surfaced rather than letting
+    /// one error mask the other.
+    #[allow(async_fn_in_trait)]
+    async fn process_client_concurrent(
+        &self,
+        client_input: ClientExecutorInput<C::Primitives>,
+        hooks: &C::Hooks,
+    ) -> eyre::Result<()> {
+        let stdin = self.build_stdin(&client_input)?;
+        let block_number = client_input.current_block.number;
+
+        let Some(prove_mode) = self.config().prove_mode else {
+            // Execute-only (proving disabled) — still runs for validation and metrics.
+            if self.config().skip_client_execution {
+                info!("Client execution skipped");
+            } else {
+                self.execute_input(&client_input, stdin, hooks).await?;
+            }
+            return Ok(());
+        };
+
+        if self.config().skip_client_execution {
+            info!("Client execution skipped");
+            let (proof_bytes, proving_duration) =
+                self.prove_only(block_number, stdin, prove_mode, hooks).await?;
+            hooks
+                .on_proving_end(
+                    block_number,
+                    &proof_bytes,
+                    self.vk().as_ref(),
+                    None,
+                    proving_duration,
+                )
+                .await?;
+            return Ok(());
+        }
+
+        let (execution, proof) = tokio::join!(
+            self.execute_input(&client_input, stdin.clone(), hooks),
+            self.prove_only(block_number, stdin, prove_mode, hooks),
+        );
+
+        match (execution, proof) {
+            (Ok(cycle_count), Ok((proof_bytes, proving_duration))) => {
+                hooks
+                    .on_proving_end(
+                        block_number,
+                        &proof_bytes,
+                        self.vk().as_ref(),
+                        Some(cycle_count),
+                        proving_duration,
+                    )
+                    .await?;
+
+                Ok(())
+            }
+            // At least one side failed: surface every failure instead of letting one error
+            // mask the other.
+            (execution, proof) => {
+                let mut errors = Vec::new();
+
+                if let Err(err) = execution {
+                    errors.push(format!("execution failed: {err}"));
+                }
+                match proof {
+                    Err(err) => errors.push(format!("proving failed: {err}")),
+                    // The proof completed but the execution didn't, so the cycle count
+                    // required for submission is missing and the proof cannot be used.
+                    Ok(_) => warn!(
+                        block_number,
+                        "discarding a completed proof because the validation-execute failed"
+                    ),
+                }
+
+                bail!(errors.join("; "));
+            }
+        }
+    }
 }
 
 impl<C, P> BlockExecutor<C> for EitherExecutor<C, P>

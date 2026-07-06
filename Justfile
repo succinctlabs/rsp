@@ -31,10 +31,11 @@ trace-block block chain_id:
     cargo prove --trace 
 
 # Recipe to run the ethproofs proving service, sampling every `block_interval`-th block.
-# Requires HTTP_RPC_URL and WS_RPC_URL (e.g. via bin/ethproofs/.env); proofs are submitted to
-# ethproofs only when ETH_PROOFS_ENDPOINT and ETH_PROOFS_API_TOKEN are also set.
+# Requires HTTP_RPC_URL and WS_RPC_URL — set them in bin/ethproofs/.env (the recipe runs from
+# that directory so dotenv picks the file up). Proofs are submitted to ethproofs only when
+# ETH_PROOFS_ENDPOINT and ETH_PROOFS_API_TOKEN are also set.
 run-ethproofs cluster_id="1" block_interval="100":
-    cargo run --release --bin ethproofs -- --ethproofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
+    cd bin/ethproofs && cargo run --release --bin ethproofs -- --ethproofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
 
 # Usage:
 # just run-ethproofs <cluster-id> <block-interval>

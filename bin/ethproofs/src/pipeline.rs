@@ -1,14 +1,14 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use alloy_provider::Provider;
-use eyre::{bail, eyre};
+use eyre::eyre;
 use futures::{Stream, StreamExt};
 use rsp_client_executor::io::ClientExecutorInput;
 use rsp_host_executor::{
     alerting::AlertingClient, BlockExecutor, ExecutionHooks, ExecutorComponents, FullExecutor,
 };
 use tokio::sync::mpsc;
-use tracing::{error, warn};
+use tracing::error;
 
 /// Capacity of the channel connecting the fetch stage to the process stage.
 ///
@@ -22,6 +22,12 @@ const CHANNEL_CAPACITY: usize = 2;
 /// syncing — while the WS node keeps announcing headers — would stall the pipeline forever
 /// without ever alerting.
 const WAIT_FOR_BLOCK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
+/// Upper bound on the whole per-block fetch stage (waiting for the block, then fetching its
+/// witness). The witness fetch runs many RPC round-trips over a client with no request timeout,
+/// so without this bound a hung connection mid-fetch would stall the pipeline forever — the
+/// same hazard [`WAIT_FOR_BLOCK_TIMEOUT`] covers for the wait half.
+const FETCH_STAGE_TIMEOUT: Duration = Duration::from_secs(15 * 60);
 
 /// The executor surface the pipeline drives, abstracted so the pipeline's orchestration
 /// (fetch-ahead, per-block error tolerance, hook ordering) is testable without an RPC node or
@@ -60,11 +66,11 @@ pub trait PipelineExecutor {
 pub async fn run_pipeline<E>(
     executor: E,
     mut blocks: impl Stream<Item = u64> + Unpin,
-    alerting_client: Option<AlertingClient>,
+    alerting_client: Option<Arc<AlertingClient>>,
 ) where
     E: PipelineExecutor,
 {
-    let alerting = &alerting_client.map(Arc::new);
+    let alerting = &alerting_client;
     let executor = &executor;
 
     let (fetch_tx, mut fetch_rx) = mpsc::channel::<(u64, E::Input)>(CHANNEL_CAPACITY);
@@ -72,7 +78,7 @@ pub async fn run_pipeline<E>(
     // Stage 1: fetch the block and build its execution witness, running ahead of processing.
     let fetch = async move {
         while let Some(block_number) = blocks.next().await {
-            let result = async {
+            let fetch_one = async {
                 tokio::time::timeout(WAIT_FOR_BLOCK_TIMEOUT, executor.wait_for_block(block_number))
                     .await
                     .map_err(|_| {
@@ -87,8 +93,15 @@ pub async fn run_pipeline<E>(
                 executor.on_queued(block_number).await?;
 
                 eyre::Ok(input)
-            }
-            .await;
+            };
+
+            let result = match tokio::time::timeout(FETCH_STAGE_TIMEOUT, fetch_one).await {
+                Ok(result) => result,
+                Err(_) => Err(eyre!(
+                    "fetch stage timed out after {FETCH_STAGE_TIMEOUT:?} (the witness fetch \
+                     likely hung on a dead RPC connection)"
+                )),
+            };
 
             match result {
                 Ok(input) => {
@@ -132,67 +145,8 @@ where
         self.hooks().on_execution_start(block_number).await
     }
 
-    /// Validate-execute a block and, when proving is enabled, prove it — running the two
-    /// concurrently so the execute (CPU) stays off the proving (GPU) critical path: proving
-    /// does not depend on the execute, and they use different resources (GPU vs CPU).
-    ///
-    /// Whether blocks are proved or only executed is read from the executor's own config
-    /// (`prove_mode`), so there is a single source of truth for that setting.
-    async fn process(&self, block_number: u64, input: Self::Input) -> eyre::Result<()> {
-        let hooks = self.hooks();
-        let stdin = self.build_stdin(&input)?;
-
-        match self.config().prove_mode {
-            // Proving enabled: run the validation-execute and proving concurrently.
-            Some(prove_mode) => {
-                let vk = self.vk();
-                let (execution, proof) = tokio::join!(
-                    self.execute_input(&input, stdin.clone(), hooks),
-                    self.prove_only(block_number, stdin, prove_mode, hooks),
-                );
-
-                match (execution, proof) {
-                    (Ok(cycle_count), Ok((proof_bytes, proving_duration))) => {
-                        hooks
-                            .on_proving_end(
-                                block_number,
-                                &proof_bytes,
-                                vk.as_ref(),
-                                Some(cycle_count),
-                                proving_duration,
-                            )
-                            .await?;
-                    }
-                    // At least one side failed: surface every failure instead of letting one
-                    // error mask the other.
-                    (execution, proof) => {
-                        let mut errors = Vec::new();
-
-                        if let Err(err) = execution {
-                            errors.push(format!("execution failed: {err}"));
-                        }
-                        match proof {
-                            Err(err) => errors.push(format!("proving failed: {err}")),
-                            // The proof completed but the execution didn't, so the cycle count
-                            // required for submission is missing and the proof cannot be used.
-                            Ok(_) => warn!(
-                                block_number,
-                                "discarding a completed proof because the validation-execute \
-                                 failed"
-                            ),
-                        }
-
-                        bail!(errors.join("; "));
-                    }
-                }
-            }
-            // Execute-only (proving disabled) — still runs for validation and metrics.
-            None => {
-                self.execute_input(&input, stdin, hooks).await?;
-            }
-        }
-
-        Ok(())
+    async fn process(&self, _block_number: u64, input: Self::Input) -> eyre::Result<()> {
+        self.process_client_concurrent(input, self.hooks()).await
     }
 
     async fn on_failed(&self, block_number: u64) -> eyre::Result<()> {
@@ -202,6 +156,9 @@ where
 
 /// Log and alert a per-block failure, and fire the executor's failure callback so hooks can
 /// release any per-block state (e.g. the proofs-in-progress gauge).
+///
+/// The alert is awaited (bounded by the alerting client's request timeout) rather than
+/// detached, so an alert in flight when the pipeline shuts down is still delivered.
 async fn report<E: PipelineExecutor>(
     executor: &E,
     alerting: &Option<Arc<AlertingClient>>,
@@ -216,10 +173,8 @@ async fn report<E: PipelineExecutor>(
         error!("on_failed hook failed for block {block_number}: {hook_err}");
     }
 
-    // Deliver the alert in a detached task so a slow PagerDuty never stalls the pipeline.
     if let Some(alerting) = alerting {
-        let alerting = alerting.clone();
-        tokio::spawn(async move { alerting.send_alert(message).await });
+        alerting.send_alert(message).await;
     }
 }
 
@@ -230,6 +185,7 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
+    use eyre::bail;
     use futures::stream;
 
     use super::*;
@@ -239,6 +195,7 @@ mod tests {
     struct MockExecutor {
         events: Arc<Mutex<Vec<String>>>,
         stall_wait: HashSet<u64>,
+        stall_fetch: HashSet<u64>,
         fail_fetch: HashSet<u64>,
         fail_process: HashSet<u64>,
         process_delay: Option<Duration>,
@@ -262,6 +219,10 @@ mod tests {
         }
 
         async fn fetch_input(&self, block_number: u64) -> eyre::Result<u64> {
+            if self.stall_fetch.contains(&block_number) {
+                // A witness fetch hanging on a dead connection; only the stage timeout ends it.
+                std::future::pending::<()>().await;
+            }
             if self.fail_fetch.contains(&block_number) {
                 bail!("fetch failed");
             }
@@ -340,17 +301,20 @@ mod tests {
             MockExecutor { process_delay: Some(Duration::from_secs(60)), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2, 3]), None).await;
+        run_pipeline(executor, stream::iter([1, 2, 3, 4]), None).await;
 
         let events = events.lock().unwrap();
 
         // While block 1 spends a minute processing, the fetch stage pre-fetches the following
-        // blocks instead of idling — the whole point of the two-stage pipeline.
-        assert!(index_of(&events, "fetch:3") < index_of(&events, "process_end:1"));
+        // blocks instead of idling — the whole point of the two-stage pipeline. Block 4 is the
+        // sensitive probe: its fetch starts this early only when the channel really buffers
+        // CHANNEL_CAPACITY (2) inputs ahead; with a buffer of 1 it would only be fetched after
+        // block 1 finishes processing.
+        assert!(index_of(&events, "fetch:4") < index_of(&events, "process_end:1"));
     }
 
     #[tokio::test(start_paused = true)]
-    async fn a_stalled_node_times_out_and_alerts_instead_of_hanging_the_pipeline() {
+    async fn a_stalled_node_times_out_instead_of_hanging_the_pipeline() {
         let executor = MockExecutor { stall_wait: [1].into(), ..Default::default() };
         let events = executor.events.clone();
 
@@ -360,6 +324,22 @@ mod tests {
 
         // Block 1 hits the wait timeout and is reported failed; block 2 still goes through.
         assert!(events.contains(&"failed:1".to_string()));
+        assert!(events.contains(&"process_end:2".to_string()));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_hung_witness_fetch_times_out_instead_of_hanging_the_pipeline() {
+        let executor = MockExecutor { stall_fetch: [1].into(), ..Default::default() };
+        let events = executor.events.clone();
+
+        run_pipeline(executor, stream::iter([1, 2]), None).await;
+
+        let events = events.lock().unwrap();
+
+        // Block 1's witness fetch hangs, hits the stage timeout, and is reported failed —
+        // without ever being reported as queued — while block 2 still goes through.
+        assert!(events.contains(&"failed:1".to_string()));
+        assert!(!events.contains(&"queued:1".to_string()));
         assert!(events.contains(&"process_end:2".to_string()));
     }
 }

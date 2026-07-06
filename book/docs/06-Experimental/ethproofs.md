@@ -2,7 +2,8 @@
 
 To run benchmarking with [ETH proofs](https://ethproofs.org/), you'll need to:
 
-1. Set the following environment variables:
+1. Set the following environment variables (either exported, or in `bin/ethproofs/.env` —
+   see `bin/ethproofs/.env.example`):
    ```bash
    export ETH_PROOFS_ENDPOINT="https://staging--ethproofs.netlify.app/api/v0"
    export ETH_PROOFS_API_TOKEN=<your_api_token>
@@ -14,7 +15,7 @@ To run benchmarking with [ETH proofs](https://ethproofs.org/), you'll need to:
    > `ETH_PROOFS_ENDPOINT` and `ETH_PROOFS_API_TOKEN` unset — execution, proving and metrics
    > still run, but nothing is posted to ethproofs.
 
-3. Run the benchmarking recipe:
+2. Run the benchmarking recipe:
    ```bash
    # Run with default cluster ID (1) and block interval (100)
    just run-ethproofs

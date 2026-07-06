@@ -21,15 +21,16 @@ pub struct Args {
     pub execute_only: bool,
 
     /// The interval at which to sample blocks: a block is processed (executed and proved) when
-    /// `block_number % block_interval == 0`.
-    #[clap(long, default_value_t = 100)]
+    /// `block_number % block_interval == 0`. Must be at least 1 (a value of 0 would silently
+    /// match no block at all).
+    #[clap(long, default_value_t = 100, value_parser = clap::value_parser!(u64).range(1..))]
     pub block_interval: u64,
 
     /// Address to serve internal Prometheus metrics on (e.g. `0.0.0.0:9000`). Metrics are
     /// disabled when unset.
-    // Parsed manually (not as a SocketAddr) so an empty METRICS_ADDR env var — as produced by
-    // an untouched `.env.example` or a docker-compose env_file — means "disabled" instead of
-    // crashing argument parsing at startup.
+    // Kept as a String (not a SocketAddr) so an empty METRICS_ADDR env var — as produced by an
+    // untouched `.env.example` or a docker-compose env_file — means "disabled" instead of
+    // crashing argument parsing at startup. Read through [`Args::metrics_addr`].
     #[clap(long, env)]
     pub metrics_addr: Option<String>,
 
@@ -54,6 +55,13 @@ pub struct Args {
     pub pager_duty_integration_key: Option<String>,
 }
 
+/// Treat an empty optional string arg as unset. Env-backed optional args go through this so an
+/// empty env var (e.g. from an untouched `.env.example` or a docker-compose `env_file`) behaves
+/// like an absent one instead of enabling a feature with a blank value.
+fn non_empty(value: &Option<String>) -> Option<&str> {
+    value.as_deref().filter(|value| !value.is_empty())
+}
+
 impl Args {
     pub async fn as_config(&self) -> eyre::Result<Config> {
         let config = Config {
@@ -70,13 +78,26 @@ impl Args {
 
     /// The metrics listen address, treating an unset or empty `METRICS_ADDR` as disabled.
     pub fn metrics_addr(&self) -> eyre::Result<Option<SocketAddr>> {
-        self.metrics_addr
-            .as_deref()
-            .filter(|addr| !addr.is_empty())
+        non_empty(&self.metrics_addr)
             .map(|addr| {
                 addr.parse().map_err(|err| eyre::eyre!("invalid metrics address `{addr}`: {err}"))
             })
             .transpose()
+    }
+
+    /// The ethproofs endpoint, treating an unset or empty value as unset.
+    pub fn ethproofs_endpoint(&self) -> Option<String> {
+        non_empty(&self.ethproofs_endpoint).map(str::to_owned)
+    }
+
+    /// The ethproofs API token, treating an unset or empty value as unset.
+    pub fn ethproofs_api_token(&self) -> Option<String> {
+        non_empty(&self.ethproofs_api_token).map(str::to_owned)
+    }
+
+    /// The PagerDuty integration key, treating an unset or empty value as unset.
+    pub fn pager_duty_integration_key(&self) -> Option<String> {
+        non_empty(&self.pager_duty_integration_key).map(str::to_owned)
     }
 }
 
@@ -84,36 +105,60 @@ impl Args {
 mod tests {
     use super::*;
 
-    fn args_with_metrics_addr(metrics_addr: &str) -> Args {
-        Args::try_parse_from([
-            "ethproofs",
-            "--http-rpc-url",
-            "http://localhost:8545",
-            "--ws-rpc-url",
-            "ws://localhost:8546",
-            "--metrics-addr",
-            metrics_addr,
-        ])
-        .unwrap()
+    fn parse(extra_args: &[&str]) -> Result<Args, clap::Error> {
+        let base =
+            ["ethproofs", "--http-rpc-url", "http://localhost:8545", "--ws-rpc-url", "ws://x"];
+        Args::try_parse_from(base.iter().copied().chain(extra_args.iter().copied()))
     }
 
     /// An empty `METRICS_ADDR` — as produced by an untouched `.env.example` or a docker-compose
-    /// `env_file` — must disable metrics rather than fail at startup.
+    /// `env_file` — must disable metrics rather than fail at startup. Also exercised through
+    /// clap's env-var path, which is how the docker-compose deployment actually hits it.
     #[test]
     fn empty_metrics_addr_disables_metrics() {
-        assert_eq!(args_with_metrics_addr("").metrics_addr().unwrap(), None);
+        let args = parse(&["--metrics-addr", ""]).unwrap();
+        assert_eq!(args.metrics_addr().unwrap(), None);
+
+        std::env::set_var("METRICS_ADDR", "");
+        let args = parse(&[]).unwrap();
+        assert_eq!(args.metrics_addr, Some(String::new()));
+        assert_eq!(args.metrics_addr().unwrap(), None);
     }
 
     #[test]
     fn valid_metrics_addr_is_parsed() {
-        assert_eq!(
-            args_with_metrics_addr("0.0.0.0:9000").metrics_addr().unwrap(),
-            Some("0.0.0.0:9000".parse().unwrap())
-        );
+        let args = parse(&["--metrics-addr", "0.0.0.0:9000"]).unwrap();
+        assert_eq!(args.metrics_addr().unwrap(), Some("0.0.0.0:9000".parse().unwrap()));
     }
 
     #[test]
     fn invalid_metrics_addr_is_rejected() {
-        assert!(args_with_metrics_addr("not-an-address").metrics_addr().is_err());
+        let args = parse(&["--metrics-addr", "not-an-address"]).unwrap();
+        assert!(args.metrics_addr().is_err());
+    }
+
+    /// `--block-interval 0` would silently sample no block at all (`n.is_multiple_of(0)` is
+    /// false for every nonzero n), so it must be rejected at parse time.
+    #[test]
+    fn zero_block_interval_is_rejected() {
+        assert!(parse(&["--block-interval", "0"]).is_err());
+        assert_eq!(parse(&["--block-interval", "1"]).unwrap().block_interval, 1);
+    }
+
+    #[test]
+    fn empty_optional_env_args_are_treated_as_unset() {
+        let args = parse(&[
+            "--ethproofs-endpoint",
+            "",
+            "--ethproofs-api-token",
+            "",
+            "--pager-duty-integration-key",
+            "",
+        ])
+        .unwrap();
+
+        assert_eq!(args.ethproofs_endpoint(), None);
+        assert_eq!(args.ethproofs_api_token(), None);
+        assert_eq!(args.pager_duty_integration_key(), None);
     }
 }

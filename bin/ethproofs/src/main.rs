@@ -1,9 +1,10 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use alloy_provider::{Provider, ProviderBuilder, WsConnect};
 use clap::Parser;
 use cli::Args;
 use ethproofs::EthproofsClient;
+use eyre::bail;
 use metrics::{install_prometheus_exporter, MetricsHook};
 use pipeline::run_pipeline;
 use rsp_host_executor::{
@@ -21,6 +22,10 @@ mod cli;
 mod ethproofs;
 mod metrics;
 mod pipeline;
+
+/// How long to wait at shutdown for in-flight ethproofs submissions to complete, so a
+/// just-proved block's submission isn't aborted by the runtime teardown.
+const SUBMISSION_DRAIN_TIMEOUT: Duration = Duration::from_secs(60);
 
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
@@ -60,18 +65,16 @@ async fn main() -> eyre::Result<()> {
     // (execute, prove, collect metrics) locally without credentials.
     let ethproofs_client = EthproofsClient::new(
         args.ethproofs_cluster_id,
-        args.ethproofs_endpoint.filter(|s| !s.is_empty()),
-        args.ethproofs_api_token.filter(|s| !s.is_empty()),
+        args.ethproofs_endpoint(),
+        args.ethproofs_api_token(),
     );
     if !ethproofs_client.is_enabled() {
-        tracing::warn!(
-            "ethproofs submission disabled (endpoint and/or API token not set); running locally"
-        );
+        warn!("ethproofs submission disabled (endpoint and/or API token not set); running locally");
     }
+    // Keep a handle so in-flight submissions can be drained before exiting.
+    let submissions = ethproofs_client.clone();
     let hooks = (ethproofs_client, MetricsHook::new());
-    // An empty env var (e.g. from an untouched `.env.example`) means "disabled", like unset.
-    let alerting_client =
-        args.pager_duty_integration_key.filter(|key| !key.is_empty()).map(AlertingClient::new);
+    let alerting_client = args.pager_duty_integration_key().map(AlertingClient::new).map(Arc::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);
     let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
@@ -95,19 +98,24 @@ async fn main() -> eyre::Result<()> {
     // backlogged pipeline can never park the WS broadcast buffer into overflowing and silently
     // dropping headers. Sampled block numbers are buffered without bound instead: they are just
     // integers, and accumulating a backlog (rather than dropping blocks) is the desired behavior
-    // when proving falls behind.
+    // when proving falls behind — the rsp_ethproofs_chain_head_block gauge (vs last_proved_block)
+    // exposes the lag so operators can alert on it.
     let block_interval = args.block_interval;
     let mut subscription = ws_provider.subscribe_blocks().await?;
     let (block_tx, block_rx) = mpsc::unbounded_channel();
+    let drain_alerting = alerting_client.clone();
 
     tokio::spawn(async move {
         loop {
             match subscription.recv().await {
                 Ok(header) => {
-                    if header.number.is_multiple_of(block_interval) &&
-                        block_tx.send(header.number).is_err()
-                    {
-                        break;
+                    metrics::record_chain_head(header.number);
+
+                    if header.number.is_multiple_of(block_interval) {
+                        metrics::record_block_sampled();
+                        if block_tx.send(header.number).is_err() {
+                            break;
+                        }
                     }
                 }
                 // This task always polls promptly, so lag means the runtime itself is starved;
@@ -115,8 +123,19 @@ async fn main() -> eyre::Result<()> {
                 Err(RecvError::Lagged(skipped)) => {
                     warn!("WS block subscription lagged; {skipped} headers were dropped");
                 }
+                // Terminal: alert before breaking, since dropping the sender ends the pipeline
+                // and the process.
                 Err(RecvError::Closed) => {
                     error!("WS block subscription closed; no further blocks will be received");
+                    if let Some(alerting) = &drain_alerting {
+                        alerting
+                            .send_alert(
+                                "ethproofs: the WS block subscription closed; the service is \
+                                 exiting"
+                                    .to_string(),
+                            )
+                            .await;
+                    }
                     break;
                 }
             }
@@ -125,5 +144,11 @@ async fn main() -> eyre::Result<()> {
 
     run_pipeline(executor, UnboundedReceiverStream::new(block_rx), alerting_client).await;
 
-    Ok(())
+    // Give in-flight ethproofs submissions a chance to finish before the runtime tears down.
+    submissions.drain_submissions(SUBMISSION_DRAIN_TIMEOUT).await;
+
+    // The pipeline only ends when the block stream does, i.e. the WS subscription closed for
+    // good. Exit with an error so exit-code-based supervision (systemd Restart=on-failure)
+    // restarts the service with a fresh connection.
+    bail!("the WS block subscription closed; exiting so the supervisor restarts the service");
 }
