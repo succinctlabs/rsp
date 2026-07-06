@@ -70,6 +70,7 @@ impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P
                 balance: account.balance,
                 nonce: account.nonce,
                 code_hash: account.code_hash,
+                account_id: None,
                 code: None,
             };
 

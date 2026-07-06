@@ -87,6 +87,7 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
             nonce: proof.nonce,
             balance: proof.balance,
             code_hash,
+            account_id: None,
             code: Some(bytecode.clone()),
         };
 
@@ -303,6 +304,8 @@ where
                 excess_blob_gas: block.header().excess_blob_gas(),
                 parent_beacon_block_root: block.header().parent_beacon_block_root(),
                 requests_hash: block.header().requests_hash(),
+                block_access_list_hash: None,
+                slot_number: None,
             });
         }
 

@@ -34,10 +34,6 @@ pub const COMPUTE_STATE_ROOT: &str = "compute state root";
 
 pub type EthClientExecutor = ClientExecutor<EthEvmConfig<ChainSpec, CustomEvmFactory>, ChainSpec>;
 
-#[cfg(feature = "optimism")]
-pub type OpClientExecutor =
-    ClientExecutor<reth_optimism_evm::OpEvmConfig, reth_optimism_chainspec::OpChainSpec>;
-
 /// An executor that executes a block inside a zkVM.
 #[derive(Debug, Clone)]
 pub struct ClientExecutor<C: ConfigureEvm, CS> {
@@ -142,6 +138,8 @@ where
             excess_blob_gas: input.current_block.header().excess_blob_gas(),
             parent_beacon_block_root: input.current_block.header().parent_beacon_block_root(),
             requests_hash: input.current_block.header().requests_hash(),
+            block_access_list_hash: None,
+            slot_number: None,
         };
 
         Ok(header)
@@ -157,18 +155,6 @@ impl EthClientExecutor {
                 chain_spec.clone(),
                 CustomEvmFactory::new(custom_beneficiary),
             ),
-            chain_spec,
-        }
-    }
-}
-
-#[cfg(feature = "optimism")]
-impl OpClientExecutor {
-    pub fn optimism(chain_spec: Arc<reth_optimism_chainspec::OpChainSpec>) -> Self {
-        install_crypto(CustomCrypto::default());
-
-        Self {
-            evm_config: reth_optimism_evm::OpEvmConfig::optimism(chain_spec.clone()),
             chain_spec,
         }
     }

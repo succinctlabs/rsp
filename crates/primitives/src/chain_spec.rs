@@ -7,12 +7,6 @@ pub fn mainnet() -> Result<ChainSpec, ChainSpecError> {
     (&Genesis::Mainnet).try_into()
 }
 
-#[cfg(feature = "optimism")]
-/// Returns the [ChainSpec] for OP Mainnet.
-pub fn op_mainnet() -> Result<reth_optimism_chainspec::OpChainSpec, ChainSpecError> {
-    (&Genesis::OpMainnet).try_into()
-}
-
 /// Returns the [ChainSpec] for Linea Mainnet.
 pub fn linea_mainnet() -> Result<ChainSpec, ChainSpecError> {
     (&Genesis::Linea).try_into()
@@ -32,9 +26,6 @@ pub fn holesky() -> Result<ChainSpec, ChainSpecError> {
 mod tests {
     use crate::chain_spec::{linea_mainnet, sepolia};
 
-    #[cfg(feature = "optimism")]
-    use crate::chain_spec::op_mainnet;
-
     use super::mainnet;
 
     #[test]
@@ -42,14 +33,6 @@ mod tests {
         let chain_spec = mainnet().unwrap();
 
         assert_eq!(1, chain_spec.chain.id(), "the chain id must be 1 for Ethereum mainnet");
-    }
-
-    #[cfg(feature = "optimism")]
-    #[test]
-    pub fn test_op_mainnet_chain_spec() {
-        let chain_spec = op_mainnet().unwrap();
-
-        assert_eq!(10, chain_spec.chain.id(), "the chain id must be 10 for OP mainnet");
     }
 
     #[test]

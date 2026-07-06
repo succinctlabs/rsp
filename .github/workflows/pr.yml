@@ -24,8 +24,7 @@ jobs:
         run: |
           cargo tree
           (cd ./bin/client && cargo tree)
-          (cd ./bin/client-op && cargo tree)
-          
+
       - name: "Assert no changes"
         run: |
           if [ -n "$(git status --porcelain)" ]; then 
@@ -71,7 +70,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.2.1
+          sp1up -v v6.2.4
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -104,7 +103,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.2.1
+          sp1up -v v6.2.4
 
       - name: "Set up test fixture"
         run: |
