@@ -10,9 +10,10 @@ use reth_evm::{
     ConfigureEvm,
 };
 use reth_evm_ethereum::EthEvmConfig;
-use reth_primitives_traits::{Block, BlockBody, SealedHeader};
+use reth_primitives_traits::{Block, BlockBody, NodePrimitives, SealedHeader};
+use reth_storage_errors::provider::ProviderError;
 use reth_trie::{HashedPostState, KeccakKeyHasher};
-use revm::database::CacheDB;
+use revm::{database::CacheDB, DatabaseRef};
 use revm_primitives::Address;
 use rsp_client_executor::{
     custom::CustomEvmFactory, io::ClientExecutorInput, BlockValidator, IntoInput, IntoPrimitives,
@@ -20,7 +21,7 @@ use rsp_client_executor::{
 use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 
-use crate::HostError;
+use crate::{HostError, StateBackend};
 
 pub type EthHostExecutor = HostExecutor<EthEvmConfig<ChainSpec, CustomEvmFactory>, ChainSpec>;
 
@@ -49,7 +50,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         Self { evm_config, chain_spec }
     }
 
-    /// Executes the block with the given block number.
+    /// Executes the block with the given block number, fetching state through the given
+    /// [`StateBackend`].
     pub async fn execute<P, N>(
         &self,
         block_number: u64,
@@ -57,6 +59,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         genesis: Genesis,
         custom_beneficiary: Option<Address>,
         opcode_tracking: bool,
+        state_backend: StateBackend,
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
         C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
@@ -80,21 +83,65 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             .ok_or(HostError::ExpectedBlock(block_number))
             .map(C::Primitives::into_primitive_block)?;
 
-        // Setup the database for the block executor.
+        // Setup the database for the block executor. The backend is a runtime choice (not a
+        // cargo feature), so binaries sharing one build can fetch state differently.
         tracing::info!("setting up the database for the block executor");
-        #[cfg(not(feature = "execution-witness"))]
-        let rpc_db = rsp_rpc_db::BasicRpcDb::new(
-            provider.clone(),
-            block_number - 1,
-            previous_block.header().state_root(),
-        );
-        #[cfg(feature = "execution-witness")]
-        let rpc_db = rsp_rpc_db::ExecutionWitnessRpcDb::new(
-            provider.clone(),
-            block_number - 1,
-            previous_block.header().state_root(),
-        )
-        .await?;
+        match state_backend {
+            StateBackend::Proofs => {
+                let rpc_db = rsp_rpc_db::BasicRpcDb::new(
+                    provider.clone(),
+                    block_number - 1,
+                    previous_block.header().state_root(),
+                );
+
+                self.execute_with_db(
+                    rpc_db,
+                    rpc_block,
+                    current_block,
+                    genesis,
+                    custom_beneficiary,
+                    opcode_tracking,
+                )
+                .await
+            }
+            StateBackend::ExecutionWitness => {
+                let rpc_db = rsp_rpc_db::ExecutionWitnessRpcDb::new(
+                    provider.clone(),
+                    block_number - 1,
+                    previous_block.header().state_root(),
+                )
+                .await?;
+
+                self.execute_with_db(
+                    rpc_db,
+                    rpc_block,
+                    current_block,
+                    genesis,
+                    custom_beneficiary,
+                    opcode_tracking,
+                )
+                .await
+            }
+        }
+    }
+
+    /// Executes the block against the given state database — the backend-independent part of
+    /// [`Self::execute`].
+    async fn execute_with_db<DB, N>(
+        &self,
+        rpc_db: DB,
+        rpc_block: N::BlockResponse,
+        current_block: <C::Primitives as NodePrimitives>::Block,
+        genesis: Genesis,
+        custom_beneficiary: Option<Address>,
+        opcode_tracking: bool,
+    ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
+    where
+        C::Primitives: IntoPrimitives<N> + IntoInput + BlockValidator<CS>,
+        DB: RpcDb<N> + DatabaseRef<Error = ProviderError> + std::fmt::Debug,
+        N: Network,
+    {
+        let block_number = current_block.header().number();
 
         let cache_db = CacheDB::new(&rpc_db);
 

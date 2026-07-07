@@ -6289,6 +6289,7 @@ dependencies = [
  "reth-evm",
  "reth-evm-ethereum",
  "reth-primitives-traits",
+ "reth-storage-errors",
  "reth-trie",
  "revm",
  "revm-primitives",

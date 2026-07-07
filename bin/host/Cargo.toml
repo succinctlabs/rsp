@@ -38,12 +38,6 @@ sp1-sdk.workspace = true
 sp1-core-executor.workspace = true
 strum = "0.27"
 
-[features]
-# Fetch state via a single `debug_executionWitness` call instead of the default `eth_getProof`
-# path. Requires the node's `debug` namespace. Opt-in (non-default) so the workspace test build
-# keeps using `eth_getProof`.
-execution-witness = ["rsp-host-executor/execution-witness"]
-
 [dev-dependencies]
 serde.workspace = true
 alloy-network.workspace = true

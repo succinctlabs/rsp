@@ -37,6 +37,46 @@ pub fn create_eth_block_execution_strategy_factory(
     EthEvmConfig::new_with_evm_factory(chain_spec, CustomEvmFactory::new(custom_beneficiary))
 }
 
+/// How the host fetches the state needed to execute a block.
+///
+/// A runtime choice (not a cargo feature) so different binaries in one build can pick
+/// different backends — e.g. the ethproofs service uses [`Self::ExecutionWitness`] against its
+/// own node while tests use [`Self::Proofs`] against a fixture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StateBackend {
+    /// Reconstruct state with `eth_getProof` calls. Portable — works against any RPC provider —
+    /// but does many round-trips per block and needs the node's proof window to cover the
+    /// parent block (reth's `--rpc.eth-proof-window` defaults to 0).
+    #[default]
+    Proofs,
+    /// Fetch the whole witness in a single `debug_executionWitness` call (lowest latency).
+    /// Requires the node's `debug` namespace, which hosted RPC providers usually don't expose.
+    ExecutionWitness,
+}
+
+impl std::str::FromStr for StateBackend {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "proofs" => Ok(Self::Proofs),
+            "execution-witness" => Ok(Self::ExecutionWitness),
+            other => Err(format!(
+                "unknown state backend `{other}` (expected `proofs` or `execution-witness`)"
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for StateBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Proofs => "proofs",
+            Self::ExecutionWitness => "execution-witness",
+        })
+    }
+}
+
 #[derive(Debug)]
 pub struct Config {
     pub chain: Chain,
@@ -47,6 +87,7 @@ pub struct Config {
     pub prove_mode: Option<SP1ProofMode>,
     pub skip_client_execution: bool,
     pub opcode_tracking: bool,
+    pub state_backend: StateBackend,
 }
 
 impl Config {
@@ -60,6 +101,7 @@ impl Config {
             prove_mode: None,
             skip_client_execution: false,
             opcode_tracking: false,
+            state_backend: StateBackend::default(),
         }
     }
 }

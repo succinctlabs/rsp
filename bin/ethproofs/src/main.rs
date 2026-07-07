@@ -80,7 +80,8 @@ async fn main() -> eyre::Result<()> {
     let ws_provider = ProviderBuilder::new().connect_ws(ws).await?;
     let http_provider = create_provider(args.http_rpc_url);
 
-    let client = Arc::new(ProverClient::builder().cuda().build().await);
+    let prover_client = ProverClient::from_env().await;
+    let client = Arc::new(prover_client);
 
     let executor = FullExecutor::<EthExecutorComponents<_, _>, _>::try_new(
         http_provider.clone(),

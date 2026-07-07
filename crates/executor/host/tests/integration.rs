@@ -99,9 +99,16 @@ async fn run_e2e<C, CS, N>(
         Url::parse(std::env::var(env_var_key).unwrap().as_str()).expect("invalid rpc url");
     let provider = RootProvider::<N>::new_http(rpc_url);
 
-    // Execute the host.
+    // Execute the host. The proofs backend is the one the CI RPC fixture supports.
     let client_input = host_executor
-        .execute(block_number, &provider, genesis.clone(), custom_beneficiary, false)
+        .execute(
+            block_number,
+            &provider,
+            genesis.clone(),
+            custom_beneficiary,
+            false,
+            rsp_host_executor::StateBackend::Proofs,
+        )
         .await
         .expect("failed to execute host");
 

@@ -420,6 +420,7 @@ where
                         self.config.genesis.clone(),
                         self.config.custom_beneficiary,
                         self.config.opcode_tracking,
+                        self.config.state_backend,
                     )
                     .await?;
 

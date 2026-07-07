@@ -34,17 +34,20 @@ next block's witness is fetched while the current block is processed:
 
 ## State fetching
 
-By default the binary fetches state via `eth_getProof`, which works against any node that serves
-a state proof window but does many round-trips per block. For lowest latency, build with the
-`execution-witness` feature to fetch each block's witness in a single `debug_executionWitness`
-call (requires the node's `debug` namespace):
+The state-fetch backend is a runtime choice via `--state-backend`:
+
+- `execution-witness` (the default): fetches each block's witness in a single
+  `debug_executionWitness` call — lowest latency, but requires the node's `debug` namespace,
+  which self-hosted nodes have and hosted RPC providers usually don't.
+- `proofs`: reconstructs state via `eth_getProof` — portable across RPC providers, but does
+  many round-trips per block. Note that reth only serves these proofs within
+  `--rpc.eth-proof-window` of the head, which defaults to 0; widen the window on the node or
+  use the default `execution-witness` backend instead.
 
 ```bash
-cargo build --release -p ethproofs --features execution-witness
+# Against a hosted RPC provider without the debug namespace:
+ethproofs --state-backend proofs ...
 ```
-
-The production Docker image (`rsp-ethproofs` target) is built with this feature enabled. It is
-left off by default so the workspace test build keeps using `eth_getProof`.
 
 ## Internal metrics
 

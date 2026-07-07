@@ -36,6 +36,7 @@ async fn test_in_zkvm() {
         prove_mode: None,
         skip_client_execution: false,
         opcode_tracking: false,
+        state_backend: Default::default(),
     };
 
     let rpc_url = Url::parse(env::var("RPC_1").unwrap().as_str()).expect("invalid rpc url");

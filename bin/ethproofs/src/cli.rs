@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use clap::Parser;
-use rsp_host_executor::Config;
+use rsp_host_executor::{Config, StateBackend};
 use sp1_sdk::SP1ProofMode;
 use url::Url;
 
@@ -53,6 +53,14 @@ pub struct Args {
     /// PagerDuty integration key.
     #[clap(long, env)]
     pub pager_duty_integration_key: Option<String>,
+
+    /// How to fetch the state needed to execute blocks. Defaults to `execution-witness` (a
+    /// single `debug_executionWitness` call per block — lowest latency, requires the node's
+    /// `debug` namespace, which a self-hosted node has). Use `proofs` for the portable
+    /// `eth_getProof` path when running against a hosted RPC provider; note reth only serves
+    /// those proofs within `--rpc.eth-proof-window` of the head (default 0).
+    #[clap(long, default_value_t = StateBackend::ExecutionWitness)]
+    pub state_backend: StateBackend,
 }
 
 /// Treat an empty optional string arg as unset. Env-backed optional args go through this so an
@@ -67,6 +75,7 @@ impl Args {
         let config = Config {
             rpc_url: Some(self.http_rpc_url.clone()),
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
+            state_backend: self.state_backend,
             // Note that `Config::mainnet()` leaves `skip_client_execution` off, which this
             // service requires: execution is the only source of the cycle count reported to
             // ethproofs (the local prover does not expose cycles from `prove` in SP1 v6).
@@ -143,6 +152,18 @@ mod tests {
     fn zero_block_interval_is_rejected() {
         assert!(parse(&["--block-interval", "0"]).is_err());
         assert_eq!(parse(&["--block-interval", "1"]).unwrap().block_interval, 1);
+    }
+
+    /// The ethproofs service targets a self-hosted node, so the low-latency witness backend is
+    /// the default; the portable proofs backend stays selectable for hosted RPC providers.
+    #[test]
+    fn state_backend_defaults_to_execution_witness() {
+        assert_eq!(parse(&[]).unwrap().state_backend, StateBackend::ExecutionWitness);
+        assert_eq!(
+            parse(&["--state-backend", "proofs"]).unwrap().state_backend,
+            StateBackend::Proofs
+        );
+        assert!(parse(&["--state-backend", "nonsense"]).is_err());
     }
 
     #[test]
