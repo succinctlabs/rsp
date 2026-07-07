@@ -105,7 +105,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             return Err(HostError::HeaderMismatch(executed_block_hash, input_block_hash))?;
         }
 
-        info!(?executed_block_hash, "Execution successful");
+        info!(?executed_block_hash, duration = ?execution_duration, "Execution successful");
 
         hooks
             .on_execution_end::<C::Primitives>(
@@ -149,7 +149,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         let proving_duration = proving_start.elapsed();
         let proof_bytes = bincode::serialize(&proof.proof)?;
 
-        info!("Proof successfully generated!");
+        info!(duration = ?proving_duration, "Proof successfully generated!");
 
         Ok((proof_bytes, proving_duration))
     }

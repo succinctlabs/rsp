@@ -1,4 +1,8 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use alloy_provider::Provider;
 use eyre::eyre;
@@ -73,7 +77,7 @@ pub async fn run_pipeline<E>(
     let alerting = &alerting_client;
     let executor = &executor;
 
-    let (fetch_tx, mut fetch_rx) = mpsc::channel::<(u64, E::Input)>(CHANNEL_CAPACITY);
+    let (fetch_tx, mut fetch_rx) = mpsc::channel::<FetchedBlock<E::Input>>(CHANNEL_CAPACITY);
 
     // Stage 1: fetch the block and build its execution witness, running ahead of processing.
     //
@@ -82,6 +86,8 @@ pub async fn run_pipeline<E>(
     // attributable to a block.
     let fetch = async move {
         while let Some(block_number) = blocks.next().await {
+            let started_at = Instant::now();
+
             let fetch_one = async {
                 tokio::time::timeout(WAIT_FOR_BLOCK_TIMEOUT, executor.wait_for_block(block_number))
                     .await
@@ -92,7 +98,12 @@ pub async fn run_pipeline<E>(
                         )
                     })??;
 
+                let fetch_start = Instant::now();
                 let input = executor.fetch_input(block_number).await?;
+                let fetch_duration = fetch_start.elapsed();
+
+                crate::metrics::record_fetch_duration(fetch_duration);
+                tracing::info!(duration = ?fetch_duration, "Input fetched");
 
                 executor.on_queued(block_number).await?;
 
@@ -109,7 +120,15 @@ pub async fn run_pipeline<E>(
                 };
 
                 match result {
-                    Ok(input) => fetch_tx.send((block_number, input)).await.is_ok(),
+                    Ok(input) => {
+                        let fetched = FetchedBlock {
+                            block_number,
+                            input,
+                            started_at,
+                            enqueued_at: Instant::now(),
+                        };
+                        fetch_tx.send(fetched).await.is_ok()
+                    }
                     Err(err) => {
                         report(executor, alerting, block_number, "fetch", err).await;
                         true
@@ -127,10 +146,21 @@ pub async fn run_pipeline<E>(
 
     // Stage 2: process the block — validate-execute and (when proving) prove, concurrently.
     let process = async move {
-        while let Some((block_number, input)) = fetch_rx.recv().await {
+        while let Some(FetchedBlock { block_number, input, started_at, enqueued_at }) =
+            fetch_rx.recv().await
+        {
             async {
-                if let Err(err) = executor.process(block_number, input).await {
-                    report(executor, alerting, block_number, "process", err).await;
+                // Time spent buffered between the stages: sustained growth here means proving
+                // is the bottleneck and the pipeline is falling behind the sampled cadence.
+                crate::metrics::record_queue_wait(enqueued_at.elapsed());
+
+                match executor.process(block_number, input).await {
+                    Ok(()) => {
+                        let e2e_duration = started_at.elapsed();
+                        crate::metrics::record_e2e_duration(e2e_duration);
+                        tracing::info!(duration = ?e2e_duration, "Block fully processed");
+                    }
+                    Err(err) => report(executor, alerting, block_number, "process", err).await,
                 }
             }
             .instrument(tracing::info_span!("process", block_number))
@@ -139,6 +169,17 @@ pub async fn run_pipeline<E>(
     };
 
     tokio::join!(fetch, process);
+}
+
+/// A fetched block flowing from the fetch stage to the process stage, carrying the timestamps
+/// behind the pipeline's latency metrics.
+struct FetchedBlock<I> {
+    block_number: u64,
+    input: I,
+    /// When the fetch stage started on the block — start of the end-to-end latency window.
+    started_at: Instant,
+    /// When the input entered the process queue, for measuring queue wait.
+    enqueued_at: Instant,
 }
 
 impl<C, P> PipelineExecutor for FullExecutor<C, P>

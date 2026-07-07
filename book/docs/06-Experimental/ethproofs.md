@@ -53,5 +53,7 @@ ethproofs --state-backend proofs ...
 
 Set `--metrics-addr` (or the `METRICS_ADDR` env var) to serve Prometheus metrics, e.g.
 `--metrics-addr 0.0.0.0:9000` exposes them at `http://0.0.0.0:9000/metrics`. Metrics are emitted
-under the `rsp_ethproofs_` prefix and include per-block execution/proving durations, cycle
-counts, gas used, proof sizes and proving throughput (kHz) — suitable for scraping into Grafana.
+under the `rsp_ethproofs_` prefix and include per-block witness-fetch/execution/proving
+durations, queue wait and end-to-end latency, cycle counts, gas used, proof sizes, proving
+throughput (kHz), and the chain head vs last proved block (pipeline lag) — suitable for
+scraping into Grafana.

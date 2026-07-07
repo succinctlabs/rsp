@@ -35,6 +35,23 @@ pub fn record_block_sampled() {
     counter!("rsp_ethproofs_blocks_seen_total").increment(1);
 }
 
+/// Record how long a block's witness fetch took (successful fetches only).
+pub fn record_fetch_duration(duration: Duration) {
+    histogram!("rsp_ethproofs_fetch_duration_seconds").record(duration.as_secs_f64());
+}
+
+/// Record how long a fetched input waited in the queue before the process stage picked it up.
+/// Sustained growth here means proving is the pipeline's bottleneck.
+pub fn record_queue_wait(duration: Duration) {
+    histogram!("rsp_ethproofs_queue_wait_seconds").record(duration.as_secs_f64());
+}
+
+/// Record a block's end-to-end pipeline latency: from the fetch stage picking it up until its
+/// processing (execution and, when enabled, proving) completed.
+pub fn record_e2e_duration(duration: Duration) {
+    histogram!("rsp_ethproofs_e2e_duration_seconds").record(duration.as_secs_f64());
+}
+
 /// An [`ExecutionHooks`] implementation that records internal proving-service metrics.
 ///
 /// Metrics are emitted through the `metrics` facade and surfaced by the Prometheus exporter
@@ -74,14 +91,22 @@ impl MetricsHook {
         histogram!("rsp_ethproofs_proof_size_bytes").record(proof_size as f64);
 
         // Proving throughput in kHz (cycles per second / 1000), the headline efficiency metric.
-        if let Some(cycles) = cycle_count {
-            let secs = proving_duration.as_secs_f64();
-            if secs > 0.0 {
-                gauge!("rsp_ethproofs_proving_khz").set((cycles as f64 / secs) / 1000.0);
-            }
+        let secs = proving_duration.as_secs_f64();
+        let khz =
+            cycle_count.and_then(|cycles| (secs > 0.0).then(|| (cycles as f64 / secs) / 1000.0));
+        if let Some(khz) = khz {
+            gauge!("rsp_ethproofs_proving_khz").set(khz);
         }
 
         gauge!("rsp_ethproofs_last_proved_block").set(block_number as f64);
+
+        info!(
+            duration = ?proving_duration,
+            cycles = cycle_count.unwrap_or_default(),
+            khz = format!("{:.1}", khz.unwrap_or_default()),
+            proof_size_bytes = proof_size,
+            "block proved"
+        );
     }
 }
 
