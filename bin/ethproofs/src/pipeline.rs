@@ -8,7 +8,7 @@ use rsp_host_executor::{
     alerting::AlertingClient, BlockExecutor, ExecutionHooks, ExecutorComponents, FullExecutor,
 };
 use tokio::sync::mpsc;
-use tracing::error;
+use tracing::{error, Instrument};
 
 /// Capacity of the channel connecting the fetch stage to the process stage.
 ///
@@ -76,6 +76,10 @@ pub async fn run_pipeline<E>(
     let (fetch_tx, mut fetch_rx) = mpsc::channel::<(u64, E::Input)>(CHANNEL_CAPACITY);
 
     // Stage 1: fetch the block and build its execution witness, running ahead of processing.
+    //
+    // Each block's work is instrumented with a span carrying its number, so every log line —
+    // including the interleaved ones from the concurrently running process stage — is
+    // attributable to a block.
     let fetch = async move {
         while let Some(block_number) = blocks.next().await {
             let fetch_one = async {
@@ -95,21 +99,28 @@ pub async fn run_pipeline<E>(
                 eyre::Ok(input)
             };
 
-            let result = match tokio::time::timeout(FETCH_STAGE_TIMEOUT, fetch_one).await {
-                Ok(result) => result,
-                Err(_) => Err(eyre!(
-                    "fetch stage timed out after {FETCH_STAGE_TIMEOUT:?} (the witness fetch \
-                     likely hung on a dead RPC connection)"
-                )),
-            };
+            let keep_going = async {
+                let result = match tokio::time::timeout(FETCH_STAGE_TIMEOUT, fetch_one).await {
+                    Ok(result) => result,
+                    Err(_) => Err(eyre!(
+                        "fetch stage timed out after {FETCH_STAGE_TIMEOUT:?} (the witness fetch \
+                         likely hung on a dead RPC connection)"
+                    )),
+                };
 
-            match result {
-                Ok(input) => {
-                    if fetch_tx.send((block_number, input)).await.is_err() {
-                        break;
+                match result {
+                    Ok(input) => fetch_tx.send((block_number, input)).await.is_ok(),
+                    Err(err) => {
+                        report(executor, alerting, block_number, "fetch", err).await;
+                        true
                     }
                 }
-                Err(err) => report(executor, alerting, block_number, "fetch", err).await,
+            }
+            .instrument(tracing::info_span!("fetch", block_number))
+            .await;
+
+            if !keep_going {
+                break;
             }
         }
     };
@@ -117,9 +128,13 @@ pub async fn run_pipeline<E>(
     // Stage 2: process the block — validate-execute and (when proving) prove, concurrently.
     let process = async move {
         while let Some((block_number, input)) = fetch_rx.recv().await {
-            if let Err(err) = executor.process(block_number, input).await {
-                report(executor, alerting, block_number, "process", err).await;
+            async {
+                if let Err(err) = executor.process(block_number, input).await {
+                    report(executor, alerting, block_number, "process", err).await;
+                }
             }
+            .instrument(tracing::info_span!("process", block_number))
+            .await;
         }
     };
 

@@ -10,7 +10,7 @@ use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use rsp_host_executor::ExecutionHooks;
 use sp1_sdk::{HashableKey, SP1VerifyingKey};
 use tokio::task::JoinSet;
-use tracing::{error, warn};
+use tracing::{error, warn, Instrument};
 
 #[derive(Debug, Clone)]
 pub struct EthproofsClient {
@@ -81,22 +81,27 @@ impl EthproofsClient {
         // Reap completed tasks so the set doesn't grow over the service's lifetime.
         while inflight.try_join_next().is_some() {}
 
-        inflight.spawn(async move {
-            let response = submit
-                .client
-                .post(url)
-                .header("Content-Type", "application/json")
-                .header("Authorization", format!("Bearer {}", submit.api_token))
-                .json(&json)
-                .send()
-                .await
-                .map_err(|e| eyre!(e))
-                .and_then(|r| r.error_for_status().map_err(|e| eyre!(e)));
+        // `in_current_span` keeps the caller's span (the pipeline's per-block span with its
+        // block number) on this task's logs, so submission failures are attributable to a block.
+        inflight.spawn(
+            async move {
+                let response = submit
+                    .client
+                    .post(url)
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", format!("Bearer {}", submit.api_token))
+                    .json(&json)
+                    .send()
+                    .await
+                    .map_err(|e| eyre!(e))
+                    .and_then(|r| r.error_for_status().map_err(|e| eyre!(e)));
 
-            if let Err(err) = response {
-                error!("Failed to POST to ethproofs {path}: {err}");
+                if let Err(err) = response {
+                    error!("Failed to POST to ethproofs {path}: {err}");
+                }
             }
-        });
+            .in_current_span(),
+        );
     }
 
     pub fn queued(&self, block_number: u64) {

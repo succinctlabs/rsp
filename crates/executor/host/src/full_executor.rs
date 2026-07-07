@@ -14,7 +14,7 @@ use serde::de::DeserializeOwned;
 use sp1_prover::SP1VerifyingKey;
 use sp1_sdk::{Elf, ProveRequest, Prover, ProvingKey, SP1ProofMode, SP1Stdin};
 use tokio::time::sleep;
-use tracing::{info, warn};
+use tracing::{info, warn, Instrument};
 
 use crate::{Config, ExecutionHooks, ExecutorComponents, HostError, HostExecutor};
 
@@ -87,8 +87,10 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         let elf = self.pk().elf().clone();
         let client = self.client();
         let execution_start = Instant::now();
+        // `in_current_span` keeps the caller's span (e.g. the pipeline's per-block span with
+        // its block number) on the logs of the spawned execution task.
         let (mut public_values, execution_report) =
-            tokio::spawn(async move { client.execute(elf, stdin).await })
+            tokio::spawn(async move { client.execute(elf, stdin).await }.in_current_span())
                 .await
                 .map_err(|err| eyre::eyre!("execution task failed: {err}"))?
                 .map_err(|err| eyre::eyre!("{err}"))?;
