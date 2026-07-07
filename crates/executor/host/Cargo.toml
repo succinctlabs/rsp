@@ -31,7 +31,6 @@ rsp-primitives = { workspace = true }
 
 # sp1
 sp1-sdk.workspace = true
-sp1-prover.workspace = true
 
 # reth
 reth-evm.workspace = true

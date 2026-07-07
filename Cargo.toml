@@ -54,9 +54,12 @@ rsp-provider = { path = "./crates/provider" }
 
 # sp1
 sp1-build = "=6.2.4"
-sp1-core-executor = { version = "=6.2.4", features = ["bigint-rug"] }
-sp1-prover = "=6.2.4"
-sp1-sdk = { version = "=6.2.4", features = ["profiling"] }
+# Only needed by bin/host for `SyscallCode` (the per-syscall CSV columns); not re-exported by
+# sp1-sdk. The `bigint-rug` (GMP) acceleration lives on `sp1-sdk` below so every binary gets it.
+sp1-core-executor = "=6.2.4"
+# `bigint-rug` routes GMP-backed bignum into the shared `sp1-curves` build (feature-unified across
+# the executor and prover), speeding up the elliptic-curve precompiles that Ethereum blocks lean on.
+sp1-sdk = { version = "=6.2.4", features = ["bigint-rug"] }
 
 # reth
 reth-primitives-traits = { version = "0.3.2", default-features = false }

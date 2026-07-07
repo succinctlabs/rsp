@@ -11,8 +11,7 @@ use eyre::bail;
 use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::io::{ClientExecutorInput, CommittedHeader};
 use serde::de::DeserializeOwned;
-use sp1_prover::SP1VerifyingKey;
-use sp1_sdk::{Elf, ProveRequest, Prover, ProvingKey, SP1ProofMode, SP1Stdin};
+use sp1_sdk::{Elf, ProveRequest, Prover, ProvingKey, SP1ProofMode, SP1Stdin, SP1VerifyingKey};
 use tokio::time::sleep;
 use tracing::{info, warn, Instrument};
 
