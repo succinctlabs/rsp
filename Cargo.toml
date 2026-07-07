@@ -53,13 +53,13 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "=6.2.4"
+sp1-build = "=6.3.1"
 # Only needed by bin/host for `SyscallCode` (the per-syscall CSV columns); not re-exported by
 # sp1-sdk. The `bigint-rug` (GMP) acceleration lives on `sp1-sdk` below so every binary gets it.
-sp1-core-executor = "=6.2.4"
+sp1-core-executor = "=6.3.1"
 # `bigint-rug` routes GMP-backed bignum into the shared `sp1-curves` build (feature-unified across
 # the executor and prover), speeding up the elliptic-curve precompiles that Ethereum blocks lean on.
-sp1-sdk = { version = "=6.2.4", features = ["bigint-rug"] }
+sp1-sdk = { version = "=6.3.1", features = ["bigint-rug"] }
 
 # reth
 reth-primitives-traits = { version = "0.3.2", default-features = false }
@@ -73,12 +73,14 @@ reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", 
 reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
 reth-errors = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
 reth-ethereum-consensus = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false }
-reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false, features = ["serde"] }
+reth-ethereum-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v2.2.0", default-features = false, features = [
+    "serde",
+] }
 
 # revm
 revm = { version = "38.0.0", features = [
     "serde",
-    "bn"
+    "bn",
 ], default-features = false }
 revm-bytecode = { version = "10.0.0", default-features = false }
 revm-state = { version = "11.0.0", default-features = false }
@@ -94,7 +96,9 @@ revm-inspectors = "0.32.0"
 # alloy
 alloy-chains = { version = "0.2.17", default-features = false }
 alloy-evm = { version = "0.34.0", default-features = false }
-alloy-primitives = { version = "1.5.6", default-features = false, features = ["map-foldhash"] }
+alloy-primitives = { version = "1.5.6", default-features = false, features = [
+    "map-foldhash",
+] }
 alloy-provider = { version = "2.0.4", default-features = false, features = [
     "reqwest",
     "reqwest-rustls-tls",
@@ -105,8 +109,13 @@ alloy-rpc-types = { version = "2.0.4", default-features = false, features = [
 alloy-rpc-types-debug = { version = "2.0.4", default-features = false }
 
 alloy-json-rpc = { version = "2.0.4", default-features = false }
-alloy-genesis = { version = "2.0.4", default-features = false, features = ["serde-bincode-compat"] }
-alloy-consensus = { version = "2.0.4", default-features = false, features = ["serde", "serde-bincode-compat"] }
+alloy-genesis = { version = "2.0.4", default-features = false, features = [
+    "serde-bincode-compat",
+] }
+alloy-consensus = { version = "2.0.4", default-features = false, features = [
+    "serde",
+    "serde-bincode-compat",
+] }
 alloy-network = { version = "2.0.4", default-features = false }
 alloy-transport = { version = "2.0.4", default-features = false }
 alloy-transport-http = { version = "2.0.4", features = [
