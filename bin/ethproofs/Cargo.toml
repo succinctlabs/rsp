@@ -3,6 +3,16 @@ version = "0.1.0"
 name = "ethproofs"
 edition = "2021"
 
+# The long-running proving service.
+[[bin]]
+name = "ethproofs"
+path = "src/main.rs"
+
+# Utility CLI for the ethproofs API (cluster management + VK generation).
+[[bin]]
+name = "ethproofs-cli"
+path = "src/bin/ethproofs-cli.rs"
+
 [dependencies]
 tokio.workspace = true
 tokio-stream = "0.1"
