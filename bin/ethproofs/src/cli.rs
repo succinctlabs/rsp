@@ -65,7 +65,7 @@ pub struct Args {
     /// Stop cleanly after this many blocks have been successfully proved, rather than running
     /// until the block subscription closes. Failed blocks do not count. Useful for bounded
     /// benchmark or test runs; the process then exits with success (no supervisor restart).
-    #[clap(long)]
+    #[clap(long, value_parser = clap::value_parser!(u64).range(1..))]
     pub max_blocks: Option<u64>,
 
     /// Directory to write each processed block's zkVM stdin to (`{stdin_dir}/{block}.bin`,
@@ -164,6 +164,15 @@ mod tests {
     fn zero_block_interval_is_rejected() {
         assert!(parse(&["--block-interval", "0"]).is_err());
         assert_eq!(parse(&["--block-interval", "1"]).unwrap().block_interval, 1);
+    }
+
+    /// `--max-blocks 0` is meaningless (the count is checked only after a success, so it would
+    /// prove one block and stop), so it is rejected at parse time; unset means "no limit".
+    #[test]
+    fn max_blocks_rejects_zero_and_defaults_to_unset() {
+        assert!(parse(&["--max-blocks", "0"]).is_err());
+        assert_eq!(parse(&["--max-blocks", "5"]).unwrap().max_blocks, Some(5));
+        assert_eq!(parse(&[]).unwrap().max_blocks, None);
     }
 
     /// The ethproofs service targets a self-hosted node, so the low-latency witness backend is
