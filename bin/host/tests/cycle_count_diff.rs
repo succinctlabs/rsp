@@ -32,6 +32,7 @@ async fn test_in_zkvm() {
         genesis: Genesis::Mainnet,
         rpc_url: None,
         cache_dir: None,
+        stdin_dir: None,
         custom_beneficiary: None,
         prove_mode: None,
         skip_client_execution: false,
