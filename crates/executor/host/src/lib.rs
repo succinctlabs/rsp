@@ -83,6 +83,9 @@ pub struct Config {
     pub genesis: Genesis,
     pub rpc_url: Option<Url>,
     pub cache_dir: Option<PathBuf>,
+    /// When set, the zkVM stdin of every processed block is written to `{stdin_dir}/{block}.bin`
+    /// (bincode) — a reproducible, prover-ready test corpus of real blocks.
+    pub stdin_dir: Option<PathBuf>,
     pub custom_beneficiary: Option<Address>,
     pub prove_mode: Option<SP1ProofMode>,
     pub skip_client_execution: bool,
@@ -97,6 +100,7 @@ impl Config {
             genesis: Genesis::Mainnet,
             rpc_url: None,
             cache_dir: None,
+            stdin_dir: None,
             custom_beneficiary: None,
             prove_mode: None,
             skip_client_execution: false,

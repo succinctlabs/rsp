@@ -61,17 +61,31 @@ pub trait PipelineExecutor {
     fn on_failed(&self, block_number: u64) -> impl Future<Output = eyre::Result<()>>;
 }
 
+/// Why [`run_pipeline`] returned.
+#[derive(Debug, PartialEq, Eq)]
+pub enum PipelineOutcome {
+    /// The block stream ended (e.g. the WS subscription closed) — the caller should treat this
+    /// as a failure and let its supervisor restart the service.
+    StreamEnded,
+    /// The configured `--max-blocks` limit was reached — a clean, intentional stop.
+    ReachedBlockLimit,
+}
+
 /// Drive blocks through a two-stage pipeline: fetch+witness -> process.
 ///
 /// The two stages run concurrently over a bounded channel, so the next block's witness is
 /// fetched while the current block is being processed (the fetch-ahead lever).
 ///
-/// Per-block errors are logged (and alerted) without tearing down the pipeline.
+/// Per-block errors are logged (and alerted) without tearing down the pipeline. When `max_blocks`
+/// is set, the pipeline stops cleanly after that many blocks have been *successfully* processed
+/// (returning [`PipelineOutcome::ReachedBlockLimit`]); failed blocks do not count toward it.
 pub async fn run_pipeline<E>(
     executor: E,
     mut blocks: impl Stream<Item = u64> + Unpin,
     alerting_client: Option<Arc<AlertingClient>>,
-) where
+    max_blocks: Option<u64>,
+) -> PipelineOutcome
+where
     E: PipelineExecutor,
 {
     let alerting = &alerting_client;
@@ -146,10 +160,13 @@ pub async fn run_pipeline<E>(
 
     // Stage 2: process the block — validate-execute and (when proving) prove, concurrently.
     let process = async move {
+        let mut proved = 0u64;
+        let mut reached_limit = false;
+
         while let Some(FetchedBlock { block_number, input, started_at, enqueued_at }) =
             fetch_rx.recv().await
         {
-            async {
+            let succeeded = async {
                 // Time spent buffered between the stages: sustained growth here means proving
                 // is the bottleneck and the pipeline is falling behind the sampled cadence.
                 crate::metrics::record_queue_wait(enqueued_at.elapsed());
@@ -159,16 +176,39 @@ pub async fn run_pipeline<E>(
                         let e2e_duration = started_at.elapsed();
                         crate::metrics::record_e2e_duration(e2e_duration);
                         tracing::info!(duration = ?e2e_duration, "Block fully processed");
+                        true
                     }
-                    Err(err) => report(executor, alerting, block_number, "process", err).await,
+                    Err(err) => {
+                        report(executor, alerting, block_number, "process", err).await;
+                        false
+                    }
                 }
             }
             .instrument(tracing::info_span!("process", block_number))
             .await;
+
+            if succeeded {
+                proved += 1;
+                if max_blocks.is_some_and(|max| proved >= max) {
+                    tracing::info!("Reached the configured block limit ({proved}); stopping");
+                    reached_limit = true;
+                    // Returning drops `fetch_rx`, so the fetch stage's next send fails and it
+                    // stops too, ending the pipeline.
+                    break;
+                }
+            }
         }
+
+        reached_limit
     };
 
-    tokio::join!(fetch, process);
+    let (_, reached_limit) = tokio::join!(fetch, process);
+
+    if reached_limit {
+        PipelineOutcome::ReachedBlockLimit
+    } else {
+        PipelineOutcome::StreamEnded
+    }
 }
 
 /// A fetched block flowing from the fetch stage to the process stage, carrying the timestamps
@@ -316,12 +356,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn max_blocks_stops_cleanly_after_that_many_successes() {
+        let executor = MockExecutor::default();
+        let events = executor.events.clone();
+
+        // Five blocks are available, but the pipeline is capped at 2.
+        let outcome = run_pipeline(executor, stream::iter([1, 2, 3, 4, 5]), None, Some(2)).await;
+
+        assert_eq!(outcome, PipelineOutcome::ReachedBlockLimit);
+
+        let events = events.lock().unwrap();
+        let processed = events.iter().filter(|e| e.starts_with("process_end:")).count();
+        assert_eq!(processed, 2, "should stop after exactly 2 successful blocks: {events:?}");
+    }
+
+    /// Failed blocks must not count toward the limit — the cap is on *proved* blocks.
+    #[tokio::test]
+    async fn max_blocks_counts_only_successful_blocks() {
+        let executor = MockExecutor { fail_process: [1].into(), ..Default::default() };
+        let events = executor.events.clone();
+
+        // Block 1 fails, so reaching a limit of 2 requires blocks 2 and 3 to succeed.
+        let outcome = run_pipeline(executor, stream::iter([1, 2, 3, 4]), None, Some(2)).await;
+
+        assert_eq!(outcome, PipelineOutcome::ReachedBlockLimit);
+
+        let events = events.lock().unwrap();
+        assert!(events.contains(&"failed:1".to_string()));
+        assert!(events.contains(&"process_end:2".to_string()));
+        assert!(events.contains(&"process_end:3".to_string()));
+    }
+
+    /// When the stream ends before any limit is hit, the outcome reflects that (so the caller can
+    /// treat it as a restart-worthy failure).
+    #[tokio::test]
+    async fn stream_ending_yields_stream_ended_outcome() {
+        let executor = MockExecutor::default();
+        let outcome = run_pipeline(executor, stream::iter([1, 2]), None, None).await;
+        assert_eq!(outcome, PipelineOutcome::StreamEnded);
+    }
+
+    #[tokio::test]
     async fn per_block_failures_do_not_tear_down_the_pipeline() {
         let executor =
             MockExecutor { fail_fetch: [2].into(), fail_process: [3].into(), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2, 3, 4]), None).await;
+        run_pipeline(executor, stream::iter([1, 2, 3, 4]), None, None).await;
 
         let events = events.lock().unwrap();
 
@@ -340,7 +421,7 @@ mod tests {
         let executor = MockExecutor { fail_fetch: [2].into(), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2]), None).await;
+        run_pipeline(executor, stream::iter([1, 2]), None, None).await;
 
         let events = events.lock().unwrap();
 
@@ -357,7 +438,7 @@ mod tests {
             MockExecutor { process_delay: Some(Duration::from_secs(60)), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2, 3, 4]), None).await;
+        run_pipeline(executor, stream::iter([1, 2, 3, 4]), None, None).await;
 
         let events = events.lock().unwrap();
 
@@ -374,7 +455,7 @@ mod tests {
         let executor = MockExecutor { stall_wait: [1].into(), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2]), None).await;
+        run_pipeline(executor, stream::iter([1, 2]), None, None).await;
 
         let events = events.lock().unwrap();
 
@@ -388,7 +469,7 @@ mod tests {
         let executor = MockExecutor { stall_fetch: [1].into(), ..Default::default() };
         let events = executor.events.clone();
 
-        run_pipeline(executor, stream::iter([1, 2]), None).await;
+        run_pipeline(executor, stream::iter([1, 2]), None, None).await;
 
         let events = events.lock().unwrap();
 

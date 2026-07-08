@@ -102,6 +102,7 @@ impl HostArgs {
             genesis,
             rpc_url,
             cache_dir: self.cache_dir.clone(),
+            stdin_dir: None,
             custom_beneficiary: self.custom_beneficiary,
             prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
             skip_client_execution: false,

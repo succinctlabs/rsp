@@ -5,7 +5,23 @@ This package builds two binaries:
 - **`ethproofs`** — the long-running proving service. Subscribes to blocks, executes and proves
   the sampled ones, and reports to the [ethproofs](https://ethproofs.org) API. See `--help`.
 - **`ethproofs-cli`** — utility commands for the ethproofs API (cluster management + verification
-  key generation).
+  key / ELF generation).
+
+## `ethproofs` service
+
+See `--help` for the full flag set. Beyond the core RPC/submission options, a few flags support
+bounded benchmark and test runs:
+
+- `--max-blocks <N>` — stop cleanly after `N` blocks have been **successfully proved** (failed
+  blocks don't count), then exit with success (no supervisor restart). Without it, the service
+  runs until the block subscription closes.
+- `--stdin-dir <DIR>` — write each processed block's zkVM stdin to `{DIR}/{block}.bin` (bincode),
+  building a reproducible, prover-ready test corpus of real blocks.
+
+At shutdown (including after `--max-blocks`) the service logs a **run summary** — count, mean,
+min, max of execution and proving durations, plus total cycles. Per-block proving-time
+distributions are also exported as Prometheus histograms (`rsp_ethproofs_proving_duration_seconds`)
+when `--metrics-addr` is set.
 
 ## `ethproofs-cli`
 
@@ -47,3 +63,12 @@ from this CLI. Upload `vk.bin` through the ethproofs website's admin verificatio
 documented `PATCH /clusters/{id}` `vk_path` field only stores a storage *path* to an
 already-uploaded key (exposed here as `cluster patch --vk-path`), so it is not a substitute for
 the upload.
+
+### Exporting the guest ELF
+
+```bash
+ethproofs-cli cluster gen-elf --output rsp-client.elf
+```
+
+Writes the raw compiled `rsp-client` guest program (the ELF proved by the service). No prover is
+needed — it just dumps the embedded bytes.

@@ -35,6 +35,8 @@ enum ClusterCommand {
     /// Generate the verification-key file for the `rsp-client` program, ready to upload as a
     /// cluster's VK via the ethproofs website.
     GenVk(GenVkArgs),
+    /// Write the raw `rsp-client` guest ELF to a file.
+    GenElf(GenElfArgs),
 }
 
 /// Endpoint + token shared by the API-backed commands.
@@ -127,6 +129,13 @@ struct GenVkArgs {
     output: PathBuf,
 }
 
+#[derive(Args)]
+struct GenElfArgs {
+    /// Where to write the guest ELF.
+    #[clap(long, default_value = "rsp-client.elf")]
+    output: PathBuf,
+}
+
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     dotenv::dotenv().ok();
@@ -138,9 +147,18 @@ async fn main() -> eyre::Result<()> {
             ClusterCommand::Create(args) => create_cluster(args).await?,
             ClusterCommand::Patch(args) => patch_cluster(args).await?,
             ClusterCommand::GenVk(args) => gen_vk(args).await?,
+            ClusterCommand::GenElf(args) => gen_elf(args)?,
         },
     }
 
+    Ok(())
+}
+
+fn gen_elf(args: GenElfArgs) -> eyre::Result<()> {
+    // `include_elf!` embeds the compiled guest program; no prover is needed to just dump it.
+    let elf = include_elf!("rsp-client").to_vec();
+    std::fs::write(&args.output, &elf)?;
+    println!("Wrote {} bytes to {}", elf.len(), args.output.display());
     Ok(())
 }
 
@@ -251,6 +269,15 @@ mod tests {
             panic!("expected gen-vk");
         };
         assert_eq!(args.output, PathBuf::from("vk.bin"));
+    }
+
+    #[test]
+    fn gen_elf_defaults_output_and_needs_no_credentials() {
+        let cli = parse(&["cluster", "gen-elf"]).unwrap();
+        let Command::Cluster(ClusterCommand::GenElf(args)) = cli.command else {
+            panic!("expected gen-elf");
+        };
+        assert_eq!(args.output, PathBuf::from("rsp-client.elf"));
     }
 
     #[test]

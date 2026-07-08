@@ -6,13 +6,14 @@ use cli::Args;
 use ethproofs::EthproofsClient;
 use eyre::bail;
 use metrics::{install_prometheus_exporter, MetricsHook};
-use pipeline::run_pipeline;
+use pipeline::{run_pipeline, PipelineOutcome};
 use rsp_host_executor::{
     alerting::AlertingClient, create_eth_block_execution_strategy_factory, EthExecutorComponents,
     FullExecutor,
 };
 use rsp_provider::create_provider;
 use sp1_sdk::{include_elf, ProverClient};
+use summary::ProvingSummary;
 use tokio::sync::{broadcast::error::RecvError, mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::{error, info, warn};
@@ -22,6 +23,7 @@ mod cli;
 mod ethproofs;
 mod metrics;
 mod pipeline;
+mod summary;
 
 /// How long to wait at shutdown for in-flight ethproofs submissions to complete, so a
 /// just-proved block's submission isn't aborted by the runtime teardown.
@@ -73,7 +75,10 @@ async fn main() -> eyre::Result<()> {
     }
     // Keep a handle so in-flight submissions can be drained before exiting.
     let submissions = ethproofs_client.clone();
-    let hooks = (ethproofs_client, MetricsHook::new());
+    // Accumulates timing for an end-of-run summary; a handle is kept for the summary log after
+    // the pipeline stops. Composed via nested tuples (the fan-out impl is for pairs).
+    let summary = ProvingSummary::new();
+    let hooks = (ethproofs_client, (MetricsHook::new(), summary.clone()));
     let alerting_client = args.pager_duty_integration_key().map(AlertingClient::new).map(Arc::new);
 
     let ws = WsConnect::new(args.ws_rpc_url);
@@ -143,13 +148,34 @@ async fn main() -> eyre::Result<()> {
         }
     });
 
-    run_pipeline(executor, UnboundedReceiverStream::new(block_rx), alerting_client).await;
+    let outcome = run_pipeline(
+        executor,
+        UnboundedReceiverStream::new(block_rx),
+        alerting_client,
+        args.max_blocks,
+    )
+    .await;
 
     // Give in-flight ethproofs submissions a chance to finish before the runtime tears down.
     submissions.drain_submissions(SUBMISSION_DRAIN_TIMEOUT).await;
 
-    // The pipeline only ends when the block stream does, i.e. the WS subscription closed for
-    // good. Exit with an error so exit-code-based supervision (systemd Restart=on-failure)
-    // restarts the service with a fresh connection.
-    bail!("the WS block subscription closed; exiting so the supervisor restarts the service");
+    // Log the aggregate timing summary of the run.
+    summary.log_summary();
+
+    match outcome {
+        // A bounded `--max-blocks` run finished its quota: a clean, intentional stop. Exit with
+        // success so exit-code-based supervision does not restart it.
+        PipelineOutcome::ReachedBlockLimit => {
+            info!("Reached the configured block limit; exiting cleanly");
+            Ok(())
+        }
+        // The pipeline otherwise only ends when the block stream does, i.e. the WS subscription
+        // closed for good. Exit with an error so exit-code-based supervision (systemd
+        // Restart=on-failure) restarts the service with a fresh connection.
+        PipelineOutcome::StreamEnded => {
+            bail!(
+                "the WS block subscription closed; exiting so the supervisor restarts the service"
+            )
+        }
+    }
 }

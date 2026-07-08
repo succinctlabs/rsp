@@ -68,6 +68,21 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         Ok(stdin)
     }
 
+    /// If `stdin_dir` is configured, persist a block's zkVM stdin as `{stdin_dir}/{block}.bin`
+    /// (bincode). This builds up a reproducible, prover-ready test corpus of real blocks; a no-op
+    /// when `stdin_dir` is unset.
+    fn save_stdin(&self, block_number: u64, stdin: &SP1Stdin) -> eyre::Result<()> {
+        let Some(dir) = self.config().stdin_dir.as_ref() else { return Ok(()) };
+
+        std::fs::create_dir_all(dir)?;
+        let path = dir.join(format!("{block_number}.bin"));
+        let mut file = std::fs::File::create(&path)?;
+        bincode::serialize_into(&mut file, stdin)?;
+
+        info!("Saved stdin to {}", path.display());
+        Ok(())
+    }
+
     /// Execute the program in the zkVM to validate it, firing `on_execution_end` with the
     /// measured execution duration.
     ///
@@ -160,6 +175,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
         hooks: &C::Hooks,
     ) -> eyre::Result<()> {
         let stdin = self.build_stdin(&client_input)?;
+        self.save_stdin(client_input.current_block.number, &stdin)?;
 
         match self.config().prove_mode {
             Some(prove_mode) => {
@@ -214,6 +230,7 @@ pub trait BlockExecutor<C: ExecutorComponents> {
     ) -> eyre::Result<()> {
         let stdin = self.build_stdin(&client_input)?;
         let block_number = client_input.current_block.number;
+        self.save_stdin(block_number, &stdin)?;
 
         let Some(prove_mode) = self.config().prove_mode else {
             // Execute-only (proving disabled) — still runs for validation and metrics.

@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use clap::Parser;
 use rsp_host_executor::{Config, StateBackend};
@@ -61,6 +61,17 @@ pub struct Args {
     /// those proofs within `--rpc.eth-proof-window` of the head (default 0).
     #[clap(long, default_value_t = StateBackend::ExecutionWitness)]
     pub state_backend: StateBackend,
+
+    /// Stop cleanly after this many blocks have been successfully proved, rather than running
+    /// until the block subscription closes. Failed blocks do not count. Useful for bounded
+    /// benchmark or test runs; the process then exits with success (no supervisor restart).
+    #[clap(long)]
+    pub max_blocks: Option<u64>,
+
+    /// Directory to write each processed block's zkVM stdin to (`{stdin_dir}/{block}.bin`,
+    /// bincode), building a reproducible, prover-ready test corpus. Disabled when unset.
+    #[clap(long)]
+    pub stdin_dir: Option<PathBuf>,
 }
 
 /// Treat an empty optional string arg as unset. Env-backed optional args go through this so an
@@ -76,6 +87,7 @@ impl Args {
             rpc_url: Some(self.http_rpc_url.clone()),
             prove_mode: (!self.execute_only).then_some(SP1ProofMode::Compressed),
             state_backend: self.state_backend,
+            stdin_dir: self.stdin_dir.clone(),
             // Note that `Config::mainnet()` leaves `skip_client_execution` off, which this
             // service requires: execution is the only source of the cycle count reported to
             // ethproofs (the local prover does not expose cycles from `prove` in SP1 v6).
