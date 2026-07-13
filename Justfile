@@ -60,9 +60,7 @@ bench-opcodes from to chain_id="1":
 clean:
     cargo clean
     cd bin/client && cargo clean
-    cd bin/client-op && cargo clean
 
 update:
     cargo update
     cd bin/client && cargo update
-    cd bin/client-op && cargo update

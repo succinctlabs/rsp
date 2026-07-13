@@ -246,6 +246,11 @@ pub trait BlockExecutor<C: ExecutorComponents> {
             info!("Client execution skipped");
             let (proof_bytes, proving_duration) =
                 self.prove_only(block_number, stdin, prove_mode, hooks).await?;
+            // Invariant: skipping execution while proving passes `cycle_count = None`, since the
+            // count comes only from the execution report. Hooks that require a cycle count (e.g.
+            // ethproofs submission, which rejects `None`) therefore do not support skip+prove; the
+            // ethproofs binary never skips execution (`Config::mainnet()` keeps
+            // `skip_client_execution = false`, and its CLI documents this as a requirement).
             hooks
                 .on_proving_end(
                     block_number,
