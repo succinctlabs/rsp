@@ -23,8 +23,9 @@ use mpt::{
 };
 
 /// Legacy pointer-based MPT node — used host-side to build the witness from RPC proofs before
-/// re-encoding into the arena codec. In the arena guest path it is not used (the guest only sees
-/// the arena form); in the legacy guest path the whole [`EthereumState`] is deserialized directly.
+/// re-encoding into the arena codec. In the arena guest path it is not used (the guest only
+/// sees the arena form); in the legacy guest path the whole [`EthereumState`] is deserialized
+/// directly.
 pub use mpt::MptNode;
 
 /// Ethereum state trie and account storage tries.
@@ -174,12 +175,12 @@ impl EthereumState {
     ///      [`ArenaTries::update`]'s no-storage-change fallback, then into the state-trie leaf,
     ///      then into the final state-trie root via the hashes-of-children chain.
     ///   2. The guest's `ClientExecutor::execute` compares the final state root against
-    ///      `input.current_block.header().state_root()` and returns `MismatchedStateRoot` on
-    ///      any disagreement (flagged with a `SOUNDNESS:` tag in
+    ///      `input.current_block.header().state_root()` and returns `MismatchedStateRoot` on any
+    ///      disagreement (flagged with a `SOUNDNESS:` tag in
     ///      `crates/executor/client/src/executor.rs`).
-    ///   3. The host can't forge an `input.current_block.header().state_root()` matching a
-    ///      tampered psr because the committed header is checked by the external verifier
-    ///      against the canonical chain.
+    ///   3. The host can't forge an `input.current_block.header().state_root()` matching a tampered
+    ///      psr because the committed header is checked by the external verifier against the
+    ///      canonical chain.
     ///
     /// Any divergence in psr therefore surfaces as a guest-side error and no proof is produced.
     /// The integration test `psr_tamper_changes_state_root` in this module is the executable
@@ -571,16 +572,15 @@ mod arena_integration_tests {
     /// its bytes. We rely on the executor's final `state_root != block.header.state_root`
     /// check to catch any tampering. This test makes that property executable: it
     ///
-    ///   1. Builds an `EthereumState` where one account has non-empty storage_root and
-    ///      another's state will be updated **without** touching its storage (the only path
-    ///      that consults psr).
+    ///   1. Builds an `EthereumState` where one account has non-empty storage_root and another's
+    ///      state will be updated **without** touching its storage (the only path that consults
+    ///      psr).
     ///   2. Encodes to arena witness, decodes, applies `update`, records the "honest" root.
-    ///   3. Re-encodes, **flips bits in the psr entry's storage_root** for the affected
-    ///      account, decodes the tampered blob, applies the same update, records the
-    ///      "tampered" root.
-    ///   4. Asserts that `honest_root != tampered_root` — i.e., any tamper in psr
-    ///      deterministically changes the computed state root, which the executor's
-    ///      `MismatchedStateRoot` check would surface as a hard error.
+    ///   3. Re-encodes, **flips bits in the psr entry's storage_root** for the affected account,
+    ///      decodes the tampered blob, applies the same update, records the "tampered" root.
+    ///   4. Asserts that `honest_root != tampered_root` — i.e., any tamper in psr deterministically
+    ///      changes the computed state root, which the executor's `MismatchedStateRoot` check would
+    ///      surface as a hard error.
     ///
     /// If anyone weakens or removes the executor's final check, the soundness chain breaks
     /// and this test (or its property) needs re-evaluation. See the `SOUNDNESS:` tag at
