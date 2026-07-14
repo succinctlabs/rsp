@@ -21,6 +21,9 @@ itertools = "0.13.0"
 rsp-mpt.workspace = true
 rsp-primitives.workspace = true
 
+# arena mpt (only used when the `arena` feature is enabled)
+bumpalo = { workspace = true, optional = true }
+
 # reth
 reth-consensus.workspace = true
 reth-consensus-common.workspace = true
@@ -51,3 +54,7 @@ alloy-rlp.workspace = true
 default = ["sha3-keccak"]
 sha3-keccak = ["alloy-primitives/sha3-keccak"]
 native-keccak = ["alloy-primitives/native-keccak"]
+# Select the arena-based MPT backend (zero-copy witness) instead of the default pointer-based
+# `EthereumState` MPT. Switches the witness codec, the guest stdin reading, and the trie backend
+# together (host + guest must agree). The arena MPT is not yet audited — opt-in only.
+arena = ["dep:bumpalo"]

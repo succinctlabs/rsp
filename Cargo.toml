@@ -42,6 +42,11 @@ hex-literal = "0.4.1"
 rayon = "1.10.0"
 rlp = "0.5.2"
 
+# arena mpt
+bumpalo = { version = "3.19.0", features = ["collections"] }
+smallvec = "1.13"
+bytes = "1"
+
 # workspace
 rsp-rpc-db = { path = "./crates/storage/rpc-db" }
 rsp-witness-db = { path = "./crates/storage/witness-db" }

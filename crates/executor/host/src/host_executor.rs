@@ -249,11 +249,18 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             state_root
         );
 
-        // Create the client input.
+        // Create the client input. The host always builds the pointer-based `EthereumState`;
+        // under the `arena` backend it is re-encoded into the flat arena-codec witness blob that
+        // the guest decodes zero-copy (the `parent_state` field is `Vec<u8>` in that config).
+        #[cfg(not(feature = "arena"))]
+        let parent_state = state;
+        #[cfg(feature = "arena")]
+        let parent_state = state.to_arena_witness();
+
         let client_input = ClientExecutorInput {
             current_block: C::Primitives::into_input_block(current_block),
             ancestor_headers,
-            parent_state: state,
+            parent_state,
             bytecodes: rpc_db.bytecodes(),
             genesis,
             custom_beneficiary,
