@@ -56,7 +56,7 @@ tokio = { workspace = true, features = ["test-util"] }
 sp1-build.workspace = true
 
 [features]
-default = ["cuda", "arena"]
+default = ["cuda"]
 cuda = ["sp1-sdk/cuda", "rsp-host-executor/cuda"]
 # Select the arena-based (unaudited) MPT backend for both the host witness emission and the
 # `rsp-client` guest ELF (build.rs forwards this to the guest). Default is the legacy MPT.
