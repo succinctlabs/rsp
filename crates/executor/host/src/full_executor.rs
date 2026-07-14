@@ -59,12 +59,18 @@ pub trait BlockExecutor<C: ExecutorComponents> {
     fn config(&self) -> &Config;
 
     /// Serialize a client input into zkVM stdin.
+    ///
+    /// Under the `arena` backend the witness blob (`client_input.parent_state`) is
+    /// `#[serde(skip)]`ped by bincode and sent as a *separate* stdin item, so the guest can decode
+    /// it zero-copy by borrowing the input region directly — see `bin/client/src/main.rs`.
     fn build_stdin(
         &self,
         client_input: &ClientExecutorInput<C::Primitives>,
     ) -> eyre::Result<SP1Stdin> {
         let mut stdin = SP1Stdin::new();
         stdin.write_vec(bincode::serialize(client_input)?);
+        #[cfg(feature = "arena")]
+        stdin.write_vec(client_input.parent_state.clone());
         Ok(stdin)
     }
 

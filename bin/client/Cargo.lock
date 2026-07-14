@@ -3755,6 +3755,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-rlp",
  "alloy-rpc-types",
+ "bumpalo",
  "itertools 0.13.0",
  "kzg-rs",
  "reth-chainspec",
@@ -3786,9 +3787,13 @@ dependencies = [
  "alloy-rlp",
  "alloy-rpc-types",
  "alloy-rpc-types-debug",
+ "bumpalo",
+ "bytes",
+ "reth-primitives-traits",
  "reth-trie",
  "rlp",
  "serde",
+ "smallvec",
  "thiserror 1.0.69",
 ]
 

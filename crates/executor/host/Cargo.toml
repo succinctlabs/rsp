@@ -68,3 +68,6 @@ dotenv = "0.15.0"
 [features]
 cuda = ["sp1-sdk/cuda"]
 alerting = ["dep:reqwest"]
+# Emit the arena-codec witness (zero-copy) instead of the default bincode `EthereumState`.
+# Must match how the `rsp-client` guest ELF is built (see the host binaries' build.rs).
+arena = ["rsp-client-executor/arena"]

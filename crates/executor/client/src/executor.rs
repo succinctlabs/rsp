@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use alloy_consensus::{BlockHeader, Header};
+use alloy_evm::Database;
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
 use reth_errors::BlockExecutionError;
@@ -19,7 +20,7 @@ use crate::{
     custom::{CustomCrypto, CustomEvmFactory},
     error::ClientError,
     into_primitives::FromInput,
-    io::{ClientExecutorInput, TrieDB, WitnessInput},
+    io::{ClientExecutorInput, WitnessInput},
     tracking::OpCodesTrackingBlockExecutor,
     BlockValidator,
 };
@@ -46,15 +47,29 @@ where
     C: ConfigureEvm,
     C::Primitives: FromInput + BlockValidator<CS>,
 {
+    // Under the `arena` backend `input` is only ever read (the tries live in a separate
+    // bump-scoped value), so the `mut` binding needed by the legacy in-place update is unused.
+    #[cfg_attr(feature = "arena", allow(unused_mut))]
     pub fn execute(
         &self,
         mut input: ClientExecutorInput<C::Primitives>,
     ) -> Result<Header, ClientError> {
         let sealed_headers = input.sealed_headers().collect::<Vec<_>>();
 
+        // Decode the arena witness into bump-scoped tries (zero-copy, hash-verifying). The bump
+        // and the decoded tries live for the whole function so the witness DB can borrow them;
+        // `tries` is mutated by the post-execution state update.
+        #[cfg(feature = "arena")]
+        let bump = bumpalo::Bump::new();
+        #[cfg(feature = "arena")]
+        let mut tries = input.tries(&bump).unwrap();
+
         // Initialize the witnessed database with verified storage proofs.
         let db = profile_report!(INIT_WITNESS_DB, {
+            #[cfg(not(feature = "arena"))]
             let trie_db = input.witness_db(&sealed_headers).unwrap();
+            #[cfg(feature = "arena")]
+            let trie_db = input.witness_db(&tries, &sealed_headers).unwrap();
             WrapDatabaseRef(trie_db)
         });
 
@@ -105,9 +120,25 @@ where
         );
 
         // Verify the state root.
+        //
+        // SOUNDNESS: this final state-root check is load-bearing for every host-controlled value
+        // that flows into the tries — not just the trie nodes (whose hashes are verified during
+        // decode), but also, on the arena backend, the untrusted `pre_state_storage_roots` cache
+        // consumed by `ArenaTries::update` (see the `SOUNDNESS:` docs on
+        // `EthereumState::to_arena_witness` / `ArenaTries`). A tampered witness input surfaces
+        // here as `MismatchedStateRoot` and no proof is produced.
         let state_root = profile_report!(COMPUTE_STATE_ROOT, {
-            input.parent_state.update(&executor_outcome.hash_state_slow::<KeccakKeyHasher>());
-            input.parent_state.state_root()
+            let post_state = executor_outcome.hash_state_slow::<KeccakKeyHasher>();
+            #[cfg(not(feature = "arena"))]
+            {
+                input.parent_state.update(&post_state);
+                input.parent_state.state_root()
+            }
+            #[cfg(feature = "arena")]
+            {
+                tries.update(&post_state);
+                tries.state_root()
+            }
         });
 
         if state_root != input.current_block.header().state_root() {
@@ -160,13 +191,15 @@ impl EthClientExecutor {
     }
 }
 
-enum BlockExecutor<'a, C> {
-    Basic(BasicBlockExecutor<C, WrapDatabaseRef<TrieDB<'a>>>),
-    OpcodeTracking(OpCodesTrackingBlockExecutor<C, WrapDatabaseRef<TrieDB<'a>>>),
+/// Dispatches block execution to either the basic or opcode-tracking executor. Generic over the
+/// revm database `DB`, so it is agnostic to which state-trie backend (legacy or arena) built it.
+enum BlockExecutor<C, DB> {
+    Basic(BasicBlockExecutor<C, DB>),
+    OpcodeTracking(OpCodesTrackingBlockExecutor<C, DB>),
 }
 
-impl<'a, C: ConfigureEvm> BlockExecutor<'a, C> {
-    fn new(strategy_factory: C, db: WrapDatabaseRef<TrieDB<'a>>, opcode_tracking: bool) -> Self {
+impl<C: ConfigureEvm, DB: Database> BlockExecutor<C, DB> {
+    fn new(strategy_factory: C, db: DB, opcode_tracking: bool) -> Self {
         if opcode_tracking {
             Self::OpcodeTracking(OpCodesTrackingBlockExecutor::new(strategy_factory, db))
         } else {
@@ -175,9 +208,10 @@ impl<'a, C: ConfigureEvm> BlockExecutor<'a, C> {
     }
 }
 
-impl<'a, C> Executor<WrapDatabaseRef<TrieDB<'a>>> for BlockExecutor<'a, C>
+impl<C, DB> Executor<DB> for BlockExecutor<C, DB>
 where
     C: ConfigureEvm,
+    DB: Database,
 {
     type Primitives = C::Primitives;
     type Error = BlockExecutionError;
@@ -226,7 +260,7 @@ where
         }
     }
 
-    fn into_state(self) -> revm::database::State<WrapDatabaseRef<TrieDB<'a>>> {
+    fn into_state(self) -> revm::database::State<DB> {
         match self {
             BlockExecutor::Basic(basic_block_executor) => basic_block_executor.into_state(),
             BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {

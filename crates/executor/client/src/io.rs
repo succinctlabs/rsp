@@ -6,16 +6,21 @@ use itertools::Itertools;
 use reth_errors::ProviderError;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_primitives_traits::{NodePrimitives, SealedHeader};
-use reth_trie::{TrieAccount, EMPTY_ROOT_HASH};
+use reth_trie::EMPTY_ROOT_HASH;
 use revm::{
     state::{AccountInfo, Bytecode},
     DatabaseRef,
 };
 use revm_primitives::{keccak256, Address, B256, U256};
-use rsp_mpt::EthereumState;
+use rsp_mpt::StateTries;
 use rsp_primitives::genesis::Genesis;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
+
+#[cfg(not(feature = "arena"))]
+use rsp_mpt::EthereumState;
+#[cfg(feature = "arena")]
+use {bumpalo::Bump, rsp_mpt::ArenaTries};
 
 use crate::error::ClientError;
 
@@ -71,7 +76,18 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     #[serde_as(as = "Vec<alloy_consensus::serde_bincode_compat::Header>")]
     pub ancestor_headers: Vec<Header>,
     /// Network state as of the parent block.
+    ///
+    /// - default (legacy) backend: the full [`EthereumState`] (pointer-based MPT), serialized
+    ///   inline via bincode.
+    /// - `arena` backend: the arena-codec witness blob, shipped as a *separate* SP1 stdin item and
+    ///   `#[serde(skip)]`ped here so bincode only handles the small header; the guest fills this
+    ///   field from `sp1_zkvm::io::read_vec()` before executing and decodes it zero-copy (see
+    ///   [`ArenaTries::decode`]).
+    #[cfg(not(feature = "arena"))]
     pub parent_state: EthereumState,
+    #[cfg(feature = "arena")]
+    #[serde(skip, default)]
+    pub parent_state: Vec<u8>,
     /// Account bytecodes.
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
@@ -89,18 +105,38 @@ impl<P: NodePrimitives> ClientExecutorInput<P> {
         &self.ancestor_headers[0]
     }
 
-    /// Creates a [`WitnessDb`].
-    pub fn witness_db(&self, sealed_headers: &[SealedHeader]) -> Result<TrieDB<'_>, ClientError> {
-        <Self as WitnessInput>::witness_db(self, sealed_headers)
+    /// Creates a [`TrieDB`] backed by the legacy pointer-based [`EthereumState`].
+    #[cfg(not(feature = "arena"))]
+    #[inline(always)]
+    pub fn witness_db(
+        &self,
+        sealed_headers: &[SealedHeader],
+    ) -> Result<TrieDB<'_, EthereumState>, ClientError> {
+        build_trie_db(&self.parent_state, self.state_anchor(), self.bytecodes(), sealed_headers)
+    }
+
+    /// Decodes the arena witness blob into bump-scoped tries (zero-copy, hash-verifying). The
+    /// bump and returned tries must outlive the [`TrieDB`] built from them by
+    /// [`Self::witness_db`].
+    #[cfg(feature = "arena")]
+    #[inline(always)]
+    pub fn tries<'a>(&'a self, bump: &'a Bump) -> Result<ArenaTries<'a>, ClientError> {
+        ArenaTries::decode(bump, &self.parent_state).map_err(|_| ClientError::MismatchedStateRoot)
+    }
+
+    /// Creates a [`TrieDB`] backed by the arena tries decoded via [`Self::tries`].
+    #[cfg(feature = "arena")]
+    #[inline(always)]
+    pub fn witness_db<'a, 'b>(
+        &'a self,
+        tries: &'a ArenaTries<'b>,
+        sealed_headers: &[SealedHeader],
+    ) -> Result<TrieDB<'a, ArenaTries<'b>>, ClientError> {
+        build_trie_db(tries, self.state_anchor(), self.bytecodes(), sealed_headers)
     }
 }
 
 impl<P: NodePrimitives> WitnessInput for ClientExecutorInput<P> {
-    #[inline(always)]
-    fn state(&self) -> &EthereumState {
-        &self.parent_state
-    }
-
     #[inline(always)]
     fn state_anchor(&self) -> B256 {
         self.parent_header().state_root()
@@ -132,16 +168,18 @@ impl From<Header> for CommittedHeader {
     }
 }
 
+/// Witness-backed database revm reads from during execution. Generic over the state-trie backend
+/// `T` (the legacy [`EthereumState`] or the arena [`ArenaTries`]) via the [`StateTries`] trait.
 #[derive(Debug)]
-pub struct TrieDB<'a> {
-    inner: &'a EthereumState,
+pub struct TrieDB<'a, T: StateTries> {
+    inner: &'a T,
     block_hashes: HashMap<u64, B256>,
     bytecode_by_hash: HashMap<B256, &'a Bytecode>,
 }
 
-impl<'a> TrieDB<'a> {
+impl<'a, T: StateTries> TrieDB<'a, T> {
     pub fn new(
-        inner: &'a EthereumState,
+        inner: &'a T,
         block_hashes: HashMap<u64, B256>,
         bytecode_by_hash: HashMap<B256, &'a Bytecode>,
     ) -> Self {
@@ -149,16 +187,13 @@ impl<'a> TrieDB<'a> {
     }
 }
 
-impl DatabaseRef for TrieDB<'_> {
+impl<T: StateTries> DatabaseRef for TrieDB<'_, T> {
     /// The database error type.
     type Error = ProviderError;
 
     /// Get basic account information.
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        let hashed_address = keccak256(address);
-        let hashed_address = hashed_address.as_slice();
-
-        let account_in_trie = self.inner.state_trie.get_rlp::<TrieAccount>(hashed_address).unwrap();
+        let account_in_trie = self.inner.account(keccak256(address));
 
         let account = account_in_trie.map(|account_in_trie| AccountInfo {
             balance: account_in_trie.balance,
@@ -178,19 +213,7 @@ impl DatabaseRef for TrieDB<'_> {
 
     /// Get storage value of address at index.
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        let hashed_address = keccak256(address);
-        let hashed_address = hashed_address.as_slice();
-
-        let storage_trie = self
-            .inner
-            .storage_tries
-            .get(hashed_address)
-            .expect("A storage trie must be provided for each account");
-
-        Ok(storage_trie
-            .get_rlp::<U256>(keccak256(index.to_be_bytes::<32>()).as_slice())
-            .expect("Can get from MPT")
-            .unwrap_or_default())
+        Ok(self.inner.storage_value(keccak256(address), keccak256(index.to_be_bytes::<32>())))
     }
 
     /// Get block hash by block number.
@@ -202,13 +225,61 @@ impl DatabaseRef for TrieDB<'_> {
     }
 }
 
-/// A trait for constructing [`WitnessDb`].
-pub trait WitnessInput {
-    /// Gets a reference to the state from which account info and storage slots are loaded.
-    fn state(&self) -> &EthereumState;
+/// Verifies the state/storage roots, ancestor headers and account bytecodes of a [`StateTries`]
+/// backend, and constructs the [`TrieDB`] revm reads against during execution.
+///
+/// NOTE: For some unknown reasons, calling this via a bare trait method (rather than from a method
+/// on the input type) causes a zkVM run to cost over 5M cycles more. The per-backend `witness_db`
+/// inherent methods on [`ClientExecutorInput`] preserve that call shape.
+#[inline(always)]
+fn build_trie_db<'a, T: StateTries>(
+    tries: &'a T,
+    state_anchor: B256,
+    bytecodes: impl Iterator<Item = &'a Bytecode>,
+    sealed_headers: &[SealedHeader],
+) -> Result<TrieDB<'a, T>, ClientError> {
+    if state_anchor != tries.state_root() {
+        return Err(ClientError::MismatchedStateRoot);
+    }
 
-    /// Gets the state trie root hash that the state referenced by
-    /// [state()](trait.WitnessInput#tymethod.state) must conform to.
+    for (hashed_address, storage_root) in tries.storage_roots() {
+        let account_storage_root =
+            tries.account(hashed_address).map_or(EMPTY_ROOT_HASH, |a| a.storage_root);
+        if account_storage_root != storage_root {
+            return Err(ClientError::MismatchedStorageRoot);
+        }
+    }
+
+    let bytecodes_by_hash =
+        bytecodes.map(|code| (code.hash_slow(), code)).collect::<HashMap<_, _>>();
+
+    // Verify and build block hashes
+    let mut block_hashes: HashMap<u64, B256> = HashMap::with_hasher(Default::default());
+    for (child_header, parent_header) in sealed_headers.iter().tuple_windows() {
+        if parent_header.number() != child_header.number() - 1 {
+            return Err(ClientError::InvalidHeaderBlockNumber(
+                parent_header.number() + 1,
+                child_header.number(),
+            ));
+        }
+
+        let parent_header_hash = parent_header.hash();
+        if parent_header_hash != child_header.parent_hash() {
+            return Err(ClientError::InvalidHeaderParentHash(
+                parent_header_hash,
+                child_header.parent_hash(),
+            ));
+        }
+
+        block_hashes.insert(parent_header.number(), child_header.parent_hash());
+    }
+
+    Ok(TrieDB::new(tries, block_hashes, bytecodes_by_hash))
+}
+
+/// A trait for the backend-independent inputs used to construct a [`TrieDB`].
+pub trait WitnessInput {
+    /// Gets the state trie root hash that the backing state must conform to.
     fn state_anchor(&self) -> B256;
 
     /// Gets an iterator over account bytecodes.
@@ -217,55 +288,4 @@ pub trait WitnessInput {
     /// Gets an iterator over references to a consecutive, reverse-chronological block headers
     /// starting from the current block header.
     fn sealed_headers(&self) -> impl Iterator<Item = SealedHeader>;
-
-    /// Creates a [`WitnessDb`] from a [`WitnessInput`] implementation. To do so, it verifies the
-    /// state root, ancestor headers and account bytecodes, and constructs the account and
-    /// storage values by reading against state tries.
-    ///
-    /// NOTE: For some unknown reasons, calling this trait method directly from outside of the type
-    /// implementing this trait causes a zkVM run to cost over 5M cycles more. To avoid this, define
-    /// a method inside the type that calls this trait method instead.
-    #[inline(always)]
-    fn witness_db(&self, sealed_headers: &[SealedHeader]) -> Result<TrieDB<'_>, ClientError> {
-        let state = self.state();
-
-        if self.state_anchor() != state.state_root() {
-            return Err(ClientError::MismatchedStateRoot);
-        }
-
-        for (hashed_address, storage_trie) in state.storage_tries.iter() {
-            let account =
-                state.state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice()).unwrap();
-            let storage_root = account.map_or(EMPTY_ROOT_HASH, |a| a.storage_root);
-            if storage_root != storage_trie.hash() {
-                return Err(ClientError::MismatchedStorageRoot);
-            }
-        }
-
-        let bytecodes_by_hash =
-            self.bytecodes().map(|code| (code.hash_slow(), code)).collect::<HashMap<_, _>>();
-
-        // Verify and build block hashes
-        let mut block_hashes: HashMap<u64, B256> = HashMap::with_hasher(Default::default());
-        for (child_header, parent_header) in sealed_headers.iter().tuple_windows() {
-            if parent_header.number() != child_header.number() - 1 {
-                return Err(ClientError::InvalidHeaderBlockNumber(
-                    parent_header.number() + 1,
-                    child_header.number(),
-                ));
-            }
-
-            let parent_header_hash = parent_header.hash();
-            if parent_header_hash != child_header.parent_hash() {
-                return Err(ClientError::InvalidHeaderParentHash(
-                    parent_header_hash,
-                    child_header.parent_hash(),
-                ));
-            }
-
-            block_hashes.insert(parent_header.number(), child_header.parent_hash());
-        }
-
-        Ok(TrieDB::new(state, block_hashes, bytecodes_by_hash))
-    }
 }

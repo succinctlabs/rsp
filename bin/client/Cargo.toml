@@ -17,6 +17,13 @@ sp1-zkvm = "=6.2.4"
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
 tracing = { version = "0.1", features = ["max_level_off", "release_max_level_off"] }
 
+[features]
+default = []
+# Arena-based MPT backend (zero-copy witness read as a separate stdin item). Must be built to
+# match a host emitting the arena witness (`rsp-host-executor/arena`). The host binaries' build.rs
+# forwards this feature to the guest when they are built with their own `arena` feature.
+arena = ["rsp-client-executor/arena"]
+
 [patch.crates-io]
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.0.0", package = "sha2" }
