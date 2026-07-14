@@ -30,18 +30,18 @@ trace-block block chain_id:
     TRACE_FILE=trace_$block_$chain_id.log cargo run --release --bin rsp -- --block-number "$block_number" --chain-id {{chain_id}}
     cargo prove --trace 
 
-# Recipe to run the rsp CLI on the latest block in a loop at the given interval and submit proving times to ETH proofs.
-run-eth-proofs cluster_id="1" block_interval="100":
-    #!/usr/bin/env bash
-
-    echo "Running rsp..."
-    SP1_PROVER=cuda rsp --eth-proofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
+# Recipe to run the ethproofs proving service, sampling every `block_interval`-th block.
+# Requires HTTP_RPC_URL and WS_RPC_URL — set them in bin/ethproofs/.env (the recipe runs from
+# that directory so dotenv picks the file up). Proofs are submitted to ethproofs only when
+# ETH_PROOFS_ENDPOINT and ETH_PROOFS_API_TOKEN are also set.
+run-ethproofs cluster_id="1" block_interval="100":
+    cd bin/ethproofs && cargo run --release --bin ethproofs -- --ethproofs-cluster-id {{cluster_id}} --block-interval {{block_interval}}
 
 # Usage:
-# just run-eth-proofs <cluster-id> <sleep-time>
+# just run-ethproofs <cluster-id> <block-interval>
 
 # Example:
-# just run-eth-proofs 5 600
+# just run-ethproofs 5 100
 
 bench-precompiles from to chain_id="1":
     #!/usr/bin/env bash
@@ -60,9 +60,7 @@ bench-opcodes from to chain_id="1":
 clean:
     cargo clean
     cd bin/client && cargo clean
-    cd bin/client-op && cargo clean
 
 update:
     cargo update
     cd bin/client && cargo update
-    cd bin/client-op && cargo update

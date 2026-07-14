@@ -22,14 +22,15 @@ bincode = "1.3.3"
 either = "1.13.0"
 
 # workspace
-rsp-rpc-db.workspace = true
+# `execution-witness` is on so both state backends are compiled in; which one is used is a
+# runtime choice (`StateBackend` in `Config`), not a cargo feature.
+rsp-rpc-db = { workspace = true, features = ["execution-witness"] }
 rsp-client-executor = { workspace = true }
 rsp-mpt = { workspace = true }
 rsp-primitives = { workspace = true }
 
 # sp1
 sp1-sdk.workspace = true
-sp1-prover.workspace = true
 
 # reth
 reth-evm.workspace = true
@@ -38,6 +39,7 @@ reth-ethereum-primitives.workspace = true
 reth-primitives-traits  = { workspace = true, features = ["secp256k1"] }
 reth-trie.workspace = true
 reth-errors.workspace = true
+reth-storage-errors.workspace = true
 reth-chainspec.workspace = true
 
 # revm
@@ -66,7 +68,3 @@ dotenv = "0.15.0"
 [features]
 cuda = ["sp1-sdk/cuda"]
 alerting = ["dep:reqwest"]
-execution-witness = [
-    "rsp-mpt/execution-witness",
-    "rsp-rpc-db/execution-witness",
-]

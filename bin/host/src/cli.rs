@@ -4,7 +4,7 @@ use alloy_chains::Chain;
 use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
-use rsp_host_executor::Config;
+use rsp_host_executor::{Config, StateBackend};
 use rsp_primitives::genesis::Genesis;
 use sp1_sdk::SP1ProofMode;
 use url::Url;
@@ -46,6 +46,12 @@ pub struct HostArgs {
     #[clap(long)]
     /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
+
+    /// How to fetch the state needed to execute the block: `proofs` (portable `eth_getProof`
+    /// path, works against any RPC provider) or `execution-witness` (a single
+    /// `debug_executionWitness` call; lowest latency but requires the node's `debug` namespace).
+    #[clap(long, default_value_t = StateBackend::Proofs)]
+    pub state_backend: StateBackend,
 }
 
 impl HostArgs {
@@ -96,10 +102,12 @@ impl HostArgs {
             genesis,
             rpc_url,
             cache_dir: self.cache_dir.clone(),
+            stdin_dir: None,
             custom_beneficiary: self.custom_beneficiary,
             prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
             skip_client_execution: false,
             opcode_tracking: self.opcode_tracking,
+            state_backend: self.state_backend,
         };
 
         Ok(config)

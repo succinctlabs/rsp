@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use alloy_network::Ethereum;
 use alloy_provider::Network;
-use eyre::{eyre, Ok};
+use eyre::Ok;
 use reth_chainspec::ChainSpec;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_evm::ConfigureEvm;
@@ -11,17 +11,12 @@ use reth_primitives_traits::NodePrimitives;
 use rsp_client_executor::{custom::CustomEvmFactory, BlockValidator, IntoInput, IntoPrimitives};
 use rsp_primitives::genesis::Genesis;
 use serde::de::DeserializeOwned;
-#[cfg(feature = "cuda")]
-use sp1_sdk::CudaProver;
-use sp1_sdk::{
-    env::EnvProver, CpuProver, ProveRequest, Prover, SP1ProofMode, SP1ProofWithPublicValues,
-    SP1Stdin,
-};
+use sp1_sdk::{env::EnvProver, Prover};
 
 use crate::ExecutionHooks;
 
 pub trait ExecutorComponents {
-    type Prover: Prover + MaybeProveWithCycles + 'static;
+    type Prover: Prover + 'static;
 
     type Network: Network;
 
@@ -40,58 +35,6 @@ pub trait ExecutorComponents {
     fn try_into_chain_spec(genesis: &Genesis) -> eyre::Result<Self::ChainSpec>;
 }
 
-pub trait MaybeProveWithCycles: Prover {
-    fn prove_with_cycles(
-        &self,
-        pk: &Self::ProvingKey,
-        stdin: SP1Stdin,
-        mode: SP1ProofMode,
-    ) -> impl std::future::Future<
-        Output = Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error>,
-    > + Send;
-}
-
-impl MaybeProveWithCycles for CpuProver {
-    async fn prove_with_cycles(
-        &self,
-        pk: &Self::ProvingKey,
-        stdin: SP1Stdin,
-        mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
-
-        Ok((proof, None))
-    }
-}
-
-#[cfg(feature = "cuda")]
-impl MaybeProveWithCycles for CudaProver {
-    async fn prove_with_cycles(
-        &self,
-        pk: &Self::ProvingKey,
-        stdin: SP1Stdin,
-        mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
-
-        // CudaProver in SP1 v6 no longer returns cycles directly
-        Ok((proof, None))
-    }
-}
-
-impl MaybeProveWithCycles for EnvProver {
-    async fn prove_with_cycles(
-        &self,
-        pk: &Self::ProvingKey,
-        stdin: SP1Stdin,
-        mode: SP1ProofMode,
-    ) -> Result<(SP1ProofWithPublicValues, Option<u64>), eyre::Error> {
-        let proof = self.prove(pk, stdin).mode(mode).await.map_err(|err| eyre!("{err}"))?;
-
-        Ok((proof, None))
-    }
-}
-
 #[derive(Debug, Default)]
 pub struct EthExecutorComponents<H, P = EnvProver> {
     phantom: PhantomData<(H, P)>,
@@ -100,7 +43,7 @@ pub struct EthExecutorComponents<H, P = EnvProver> {
 impl<H, P> ExecutorComponents for EthExecutorComponents<H, P>
 where
     H: ExecutionHooks,
-    P: Prover + MaybeProveWithCycles + 'static,
+    P: Prover + 'static,
 {
     type Prover = P;
 

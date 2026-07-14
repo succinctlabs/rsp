@@ -1,4 +1,4 @@
-use std::{env, fs::File, io::Write, sync::Arc};
+use std::{env, fs::File, io::Write, sync::Arc, time::Duration};
 
 use alloy_chains::Chain;
 use alloy_consensus::Block;
@@ -32,10 +32,12 @@ async fn test_in_zkvm() {
         genesis: Genesis::Mainnet,
         rpc_url: None,
         cache_dir: None,
+        stdin_dir: None,
         custom_beneficiary: None,
         prove_mode: None,
         skip_client_execution: false,
         opcode_tracking: false,
+        state_backend: Default::default(),
     };
 
     let rpc_url = Url::parse(env::var("RPC_1").unwrap().as_str()).expect("invalid rpc url");
@@ -80,6 +82,7 @@ impl ExecutionHooks for Hook {
         &self,
         executed_block: &Block<P::SignedTx>,
         execution_report: &ExecutionReport,
+        _execution_duration: Duration,
     ) -> eyre::Result<()> {
         match self {
             Hook::WithCurrentDev => {

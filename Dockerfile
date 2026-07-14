@@ -56,15 +56,16 @@ RUN cp /app/target/release/continuous /app/continuous
 #                             Ethproofs Builder                               #
 #                                                                             #
 ###############################################################################
-FROM builder as eth-proofs-builder
+FROM builder as ethproofs-builder
 
-# Build eth-proofs application
+# Build ethproofs application. The state-fetch backend is a runtime choice (--state-backend);
+# the binary defaults to the single-call `debug_executionWitness` path.
 COPY . .
-RUN cargo build --profile release --locked --bin eth-proofs
+RUN cargo build --profile release --locked --bin ethproofs
 
 # ARG is not resolved in COPY so we have to hack around it by copying the
 # binary to a temporary location
-RUN cp /app/target/release/eth-proofs /app/eth-proofs
+RUN cp /app/target/release/ethproofs /app/ethproofs
 
 ###############################################################################
 #                                                                             #
@@ -109,8 +110,8 @@ ENTRYPOINT ["/usr/local/bin/continuous"]
 #                            Ethproofs Runtime                                #
 #                                                                             #
 ###############################################################################
-FROM runtime as rsp-eth-proofs
+FROM runtime as rsp-ethproofs
 
-COPY --from=eth-proofs-builder /app/eth-proofs /usr/local/bin
+COPY --from=ethproofs-builder /app/ethproofs /usr/local/bin
 
-ENTRYPOINT ["/usr/local/bin/eth-proofs"]
+ENTRYPOINT ["/usr/local/bin/ethproofs"]
