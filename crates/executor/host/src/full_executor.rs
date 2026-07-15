@@ -43,7 +43,7 @@ where
         ));
     }
 
-    bail!("Either a RPC URL or a cache dir must be provided")
+    bail!("Either an RPC URL or a cache dir must be provided")
 }
 
 pub trait BlockExecutor<C: ExecutorComponents> {
