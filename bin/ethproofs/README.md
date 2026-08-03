@@ -23,6 +23,21 @@ min, max of execution and proving durations, plus total cycles. Per-block provin
 distributions are also exported as Prometheus histograms (`rsp_ethproofs_proving_duration_seconds`)
 when `--metrics-addr` is set.
 
+### Docker
+
+The repo-root `Dockerfile` builds the service image (target `rsp-ethproofs`). CI pushes it to
+GHCR on every push as `ghcr.io/succinctlabs/rsp:ethproofs-<short-sha>` (plus `ethproofs-latest`
+on `main` and `ethproofs-<tag>` on release tags) — see `.github/workflows/docker.yml`.
+
+Two compose files, both injecting `.env` from this directory into the container at runtime
+(start from `.env.example`):
+
+- `docker-compose.yml` — deployment shape: in-process GPU proving (`runtime: nvidia`), metrics
+  port published.
+- `docker-compose.dev.yml` — local hosted-prover shape: shares the host network so loopback
+  `NETWORK_RPC_URL`s (e.g. a local sp1-cluster gateway) are reachable from the container; no
+  GPU needed. Run with `docker compose -f docker-compose.dev.yml up --build`.
+
 ## `ethproofs-cli`
 
 Credentials are read from `--endpoint` / `--api-token`, defaulting to the `ETH_PROOFS_ENDPOINT`

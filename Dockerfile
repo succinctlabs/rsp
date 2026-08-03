@@ -30,9 +30,11 @@ RUN rustup toolchain install stable
 # Builds dependencies
 RUN cargo chef cook --profile release --recipe-path recipe.json
 
-# Install SP1
+# Install SP1. Keep this version in sync with the sp1up version in .github/workflows/pr.yml:
+# the toolchain compiles the guest ELF, and a skewed ELF means a skewed verification key
+# relative to the one registered with ethproofs.
 RUN curl -L https://sp1.succinct.xyz | bash && \
-    ~/.sp1/bin/sp1up -v v6.0.2 && \
+    ~/.sp1/bin/sp1up -v v6.3.1 && \
     ~/.sp1/bin/cargo-prove prove --version
 
 ###############################################################################
@@ -89,9 +91,9 @@ RUN apt-get update && apt-get install -y \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH=/root/.cargo/bin:$PATH
 
-# Install SP1
+# Install SP1 (kept in sync with the builder stage above)
 RUN curl -L https://sp1.succinct.xyz | bash && \
-    ~/.sp1/bin/sp1up -v v6.0.2 && \
+    ~/.sp1/bin/sp1up -v v6.3.1 && \
     ~/.sp1/bin/cargo-prove prove --version
 
 ###############################################################################

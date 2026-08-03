@@ -78,6 +78,11 @@ jobs:
             ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }}
             ${{ github.ref == 'refs/heads/main' && format('{0}:ethproofs-latest', env.GHCR_REPOSITORY) || '' }}
             ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:ethproofs-{1}', env.GHCR_REPOSITORY, needs.setup.outputs.TAG_NAME) || '' }}
+          # Links the GHCR package to this repo (shown on the package page; used by GHCR for
+          # repo-linked access and the public package listing).
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha,scope=ethproofs
           cache-to: type=gha,mode=max,scope=ethproofs
 

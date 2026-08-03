@@ -6,3 +6,8 @@
 !/crates
 !Cargo.lock
 !Cargo.toml
+!rust-toolchain.toml
+
+# never let env files (API tokens) into the build context, even under re-included
+# directories (e.g. bin/ethproofs/.env, which docker compose injects at runtime)
+**/.env
