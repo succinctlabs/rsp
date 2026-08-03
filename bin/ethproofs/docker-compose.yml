@@ -4,6 +4,11 @@ services:
       context: ../..
       target: rsp-ethproofs
     env_file: .env
+    # SP1's JIT native executor (the validation execute) allocates guest memory and trace
+    # rings as POSIX shared memory (`shm_open`), i.e. files in /dev/shm. Docker's default
+    # 64MB /dev/shm makes those writes SIGBUS (signal 7) on mainnet blocks; raise the cap.
+    # tmpfs is allocated lazily, so this reserves no RAM up front.
+    shm_size: 16gb
     # Publish the internal Prometheus metrics endpoint (must match METRICS_ADDR in .env).
     ports:
       - "9000:9000"

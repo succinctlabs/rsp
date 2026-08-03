@@ -68,8 +68,13 @@ FROM builder AS ethproofs-builder
 
 # Build ethproofs application. The state-fetch backend is a runtime choice (--state-backend);
 # the binary defaults to the single-call `debug_executionWitness` path.
+#
+# `--features arena` selects the arena MPT backend for host witness emission AND (via
+# build.rs forwarding CARGO_FEATURE_ARENA) for the guest ELF baked into this binary. This
+# changes the guest's verification key: the VK uploaded to the ethproofs cluster must come
+# from an arena build of the same SP1 toolchain version.
 COPY . .
-RUN cargo build --profile release --locked --bin ethproofs
+RUN cargo build --profile release --locked -p ethproofs --bin ethproofs --features arena
 
 # ARG is not resolved in COPY so we have to hack around it by copying the
 # binary to a temporary location

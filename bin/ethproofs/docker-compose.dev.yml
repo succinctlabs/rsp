@@ -3,13 +3,20 @@
 # so the container shares the host network namespace — loopback URLs in .env then reach the
 # host's services. Proving happens in the cluster, so the container needs no GPU access.
 #
-# Run with: docker compose -f docker-compose.dev.yml up --build
+# Run with: docker compose -f docker-compose.dev.yml up
 services:
   rsp:
-    build:
-      context: ../..
-      target: rsp-ethproofs
+    # The CI-built image (see .github/workflows/docker.yml). `up` pulls it only when absent
+    # locally (pull_policy defaults to `missing`); `docker compose pull` forces a re-fetch.
+    # Per-commit `ethproofs-<short-sha>` tags are immutable, so the cached copy never goes
+    # stale — unlike `ethproofs-latest`, which drifts behind CI without a `pull`.
+    image: ghcr.io/succinctlabs/rsp:ethproofs-169194e
     env_file: .env
+    # SP1's JIT native executor (the validation execute) allocates guest memory and trace
+    # rings as POSIX shared memory (`shm_open`), i.e. files in /dev/shm. Docker's default
+    # 64MB /dev/shm makes those writes SIGBUS (signal 7) on mainnet blocks; raise the cap.
+    # tmpfs is allocated lazily, so this reserves no RAM up front.
+    shm_size: 16gb
     # With host networking METRICS_ADDR is served directly on the host; a `ports:` mapping is
     # neither needed nor allowed. No restart policy on purpose: bounded runs (--max-blocks)
     # should exit instead of being relaunched forever.
