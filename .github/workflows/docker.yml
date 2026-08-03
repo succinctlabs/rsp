@@ -1,0 +1,88 @@
+name: "Build and Push Docker to GHCR"
+
+# Builds the ethproofs service image (Dockerfile target `rsp-ethproofs`) on every push and
+# pushes it to GHCR, mirroring the sp1-cluster docker workflow: a per-commit
+# `ethproofs-<short-sha>` tag, plus `ethproofs-latest` on main and `ethproofs-<tag>` on tags.
+on:
+  push:
+    paths-ignore:
+      - "book/**"
+      - "**/*.md"
+
+env:
+  GHCR_REPOSITORY: ghcr.io/${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      SHORT_SHA: ${{ steps.short_sha.outputs.SHORT_SHA }}
+      TAG_NAME: ${{ steps.tag_name.outputs.TAG_NAME }}
+    steps:
+      - name: Generate short SHA
+        id: short_sha
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-7`" >> $GITHUB_OUTPUT
+      - name: Extract tag name
+        id: tag_name
+        run: echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+  build-ethproofs:
+    needs: setup
+    runs-on:
+      [
+        "runs-on",
+        "runner=32cpu-linux-x64",
+        "run-id=${{ github.run_id }}",
+        "spot=false",
+        "disk=large",
+      ]
+    steps:
+      - name: Cleanup disk space
+        run: |
+          df -h
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log into GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push ethproofs image to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          target: rsp-ethproofs
+          push: true
+          tags: |
+            ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }}
+            ${{ github.ref == 'refs/heads/main' && format('{0}:ethproofs-latest', env.GHCR_REPOSITORY) || '' }}
+            ${{ startsWith(github.ref, 'refs/tags/') && format('{0}:ethproofs-{1}', env.GHCR_REPOSITORY, needs.setup.outputs.TAG_NAME) || '' }}
+          cache-from: type=gha,scope=ethproofs
+          cache-to: type=gha,mode=max,scope=ethproofs
+
+      # Pulls the image just pushed to GHCR and checks the binary starts (clap prints help and
+      # exits 0). Catches broken runtime images (missing shared libraries, bad entrypoint) that
+      # a successful build alone would not.
+      - name: Smoke test image
+        run: docker run --rm ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }} --help

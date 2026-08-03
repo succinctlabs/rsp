@@ -1,0 +1,16 @@
+# Local/dev variant of docker-compose.yml for the hosted-prover setup: with SP1_PROVER=hosted
+# the SP1 SDK dials a local sp1-cluster gateway (NETWORK_RPC_URL, e.g. http://127.0.0.1:50061),
+# so the container shares the host network namespace — loopback URLs in .env then reach the
+# host's services. Proving happens in the cluster, so the container needs no GPU access.
+#
+# Run with: docker compose -f docker-compose.dev.yml up --build
+services:
+  rsp:
+    build:
+      context: ../..
+      target: rsp-ethproofs
+    env_file: .env
+    # With host networking METRICS_ADDR is served directly on the host; a `ports:` mapping is
+    # neither needed nor allowed. No restart policy on purpose: bounded runs (--max-blocks)
+    # should exit instead of being relaunched forever.
+    network_mode: host
