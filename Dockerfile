@@ -1,10 +1,16 @@
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for native build scripts in the dependency tree (pr.yml's
+# runners preinstall or install these, so only the Docker build needs them spelled out):
+# protobuf-compiler for sp1-prover-types (prost codegen for the network prover's gRPC protos),
+# cmake for aws-lc-sys (rustls' crypto provider), m4 for gmp-mpfr-sys (bigint-rug GMP build).
 RUN apt-get update && apt-get -y upgrade && apt-get install -y \
+    cmake \
     libclang-dev \
+    m4 \
     pkg-config \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
 # Builds a cargo-chef plan
@@ -42,7 +48,7 @@ RUN curl -L https://sp1.succinct.xyz | bash && \
 #                             Continuous Builder                              #
 #                                                                             #
 ###############################################################################
-FROM builder as continuous-builder
+FROM builder AS continuous-builder
 
 # Build continuous application
 COPY . .
@@ -58,7 +64,7 @@ RUN cp /app/target/release/continuous /app/continuous
 #                             Ethproofs Builder                               #
 #                                                                             #
 ###############################################################################
-FROM builder as ethproofs-builder
+FROM builder AS ethproofs-builder
 
 # Build ethproofs application. The state-fetch backend is a runtime choice (--state-backend);
 # the binary defaults to the single-call `debug_executionWitness` path.
@@ -101,7 +107,7 @@ RUN curl -L https://sp1.succinct.xyz | bash && \
 #                            Continuous Runtime                               #
 #                                                                             #
 ###############################################################################
-FROM runtime as rsp-continuous
+FROM runtime AS rsp-continuous
 
 COPY --from=continuous-builder /app/continuous /usr/local/bin
 
@@ -112,7 +118,7 @@ ENTRYPOINT ["/usr/local/bin/continuous"]
 #                            Ethproofs Runtime                                #
 #                                                                             #
 ###############################################################################
-FROM runtime as rsp-ethproofs
+FROM runtime AS rsp-ethproofs
 
 COPY --from=ethproofs-builder /app/ethproofs /usr/local/bin
 

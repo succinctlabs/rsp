@@ -14,3 +14,7 @@ services:
     # neither needed nor allowed. No restart policy on purpose: bounded runs (--max-blocks)
     # should exit instead of being relaunched forever.
     network_mode: host
+    # Flags without an env-var fallback (--max-blocks, --block-interval, --execute-only,
+    # --state-backend, --stdin-dir) are appended to the entrypoint here, or per-run via
+    # `docker compose -f docker-compose.dev.yml run --rm rsp <flags>`.
+    command: ["--block-interval", "10"]
