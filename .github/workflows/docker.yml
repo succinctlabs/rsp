@@ -90,4 +90,6 @@ jobs:
       # exits 0). Catches broken runtime images (missing shared libraries, bad entrypoint) that
       # a successful build alone would not.
       - name: Smoke test image
-        run: docker run --rm ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }} --help
+        run: |
+          docker run --rm ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }} --help
+          docker run --rm --entrypoint ethproofs-cli ${{ env.GHCR_REPOSITORY }}:ethproofs-${{ needs.setup.outputs.SHORT_SHA }} --help

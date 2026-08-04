@@ -73,12 +73,17 @@ FROM builder AS ethproofs-builder
 # build.rs forwarding CARGO_FEATURE_ARENA) for the guest ELF baked into this binary. This
 # changes the guest's verification key: the VK uploaded to the ethproofs cluster must come
 # from an arena build of the same SP1 toolchain version.
+# `ethproofs-cli` is built in the SAME invocation (same features) so its embedded guest ELF
+# is byte-identical to the service's: `cluster gen-vk` run from this image is the only
+# trustworthy source of the VK to upload — a host-side gen-vk can silently embed a stale
+# guest ELF from the local target dir.
 COPY . .
-RUN cargo build --profile release --locked -p ethproofs --bin ethproofs --features arena
+RUN cargo build --profile release --locked -p ethproofs --bin ethproofs --bin ethproofs-cli --features arena
 
 # ARG is not resolved in COPY so we have to hack around it by copying the
 # binary to a temporary location
-RUN cp /app/target/release/ethproofs /app/ethproofs
+RUN cp /app/target/release/ethproofs /app/ethproofs && \
+    cp /app/target/release/ethproofs-cli /app/ethproofs-cli
 
 ###############################################################################
 #                                                                             #
@@ -126,5 +131,6 @@ ENTRYPOINT ["/usr/local/bin/continuous"]
 FROM runtime AS rsp-ethproofs
 
 COPY --from=ethproofs-builder /app/ethproofs /usr/local/bin
+COPY --from=ethproofs-builder /app/ethproofs-cli /usr/local/bin
 
 ENTRYPOINT ["/usr/local/bin/ethproofs"]
