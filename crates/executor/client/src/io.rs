@@ -232,7 +232,7 @@ impl<T: StateTries> DatabaseRef for TrieDB<'_, T> {
 /// on the input type) causes a zkVM run to cost over 5M cycles more. The per-backend `witness_db`
 /// inherent methods on [`ClientExecutorInput`] preserve that call shape.
 #[inline(always)]
-fn build_trie_db<'a, T: StateTries>(
+pub fn build_trie_db<'a, T: StateTries>(
     tries: &'a T,
     state_anchor: B256,
     bytecodes: impl Iterator<Item = &'a Bytecode>,
