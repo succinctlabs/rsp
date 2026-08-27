@@ -70,7 +70,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.4.0
+          sp1up -v v6.5.0
 
       # This step is necessary to generate the ELF files.
       - name: "Build"
@@ -103,7 +103,7 @@ jobs:
 
       - name: "Install SP1 toolchain"
         run: |
-          sp1up -v v6.4.0
+          sp1up -v v6.5.0
 
       - name: "Set up test fixture"
         run: |
