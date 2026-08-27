@@ -50,6 +50,7 @@ madato = "0.7.0"
 # Select the arena-based (unaudited) MPT backend for both the host witness emission and the
 # `rsp-client` guest ELF (build.rs forwards this to the guest). Default is the legacy MPT.
 arena = ["rsp-host-executor/arena", "rsp-client-executor/arena"]
+cycle-tracking = ["sp1-sdk/profiling"]
 
 [build-dependencies]
 sp1-build.workspace = true
