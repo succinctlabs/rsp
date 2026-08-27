@@ -54,8 +54,7 @@ jobs:
       - name: "Checkout base branch"
         run: |
           git fetch origin ${{ github.event.pull_request.base.ref }}
-          # Use the same benchmark harness and profiling-only feature for both revisions.
-          git checkout origin/${{ github.event.pull_request.base.ref }} -- . ':(exclude)bin/host/cycle_stats.json' ':(exclude)bin/host/Cargo.toml' ':(exclude)bin/host/tests/cycle_count_diff.rs'
+          git checkout origin/${{ github.event.pull_request.base.ref }} -- . ':(exclude)bin/host/cycle_stats.json'
 
       - name: "Run tests on base branch"
         id: tests-report
