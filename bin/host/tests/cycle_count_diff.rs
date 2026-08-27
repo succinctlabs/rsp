@@ -20,6 +20,22 @@ use sp1_sdk::{include_elf, CpuProver, ExecutionReport};
 use thousands::Separable;
 use url::Url;
 
+fn required_cycle_count(report: &ExecutionReport, label: &str) -> eyre::Result<u64> {
+    report.cycle_tracker.get(label).copied().ok_or_else(|| {
+        eyre::eyre!(
+            "missing required cycle counter `{label}`; run this test with `--features cycle-tracking`"
+        )
+    })
+}
+
+fn format_diff_percentage(initial: u64, current: u64) -> String {
+    if initial == 0 {
+        "N/A".to_string()
+    } else {
+        format!("{:.2}", (current as f64 - initial as f64) / initial as f64 * 100.0)
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn test_in_zkvm() {
     // Intialize the environment variables.
@@ -88,41 +104,31 @@ impl ExecutionHooks for Hook {
             Hook::WithCurrentDev => {
                 let stats = Stats {
                     total_cycle_count: execution_report.total_instruction_count(),
-                    deserialize_inputs: execution_report
-                        .cycle_tracker
-                        .get(DESERIALZE_INPUTS)
-                        .copied()
-                        .unwrap_or(0),
-                    initialize_witness_db_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(INIT_WITNESS_DB)
-                        .copied()
-                        .unwrap_or(0),
-                    recover_senders_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(RECOVER_SENDERS)
-                        .copied()
-                        .unwrap_or(0),
-                    header_validation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(VALIDATE_HEADER)
-                        .copied()
-                        .unwrap_or(0),
-                    block_execution_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(BLOCK_EXECUTION)
-                        .copied()
-                        .unwrap_or(0),
-                    block_validation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(VALIDATE_EXECUTION)
-                        .copied()
-                        .unwrap_or(0),
-                    state_root_computation_cycles_count: execution_report
-                        .cycle_tracker
-                        .get(COMPUTE_STATE_ROOT)
-                        .copied()
-                        .unwrap_or(0),
+                    deserialize_inputs: required_cycle_count(execution_report, DESERIALZE_INPUTS)?,
+                    initialize_witness_db_cycles_count: required_cycle_count(
+                        execution_report,
+                        INIT_WITNESS_DB,
+                    )?,
+                    recover_senders_cycles_count: required_cycle_count(
+                        execution_report,
+                        RECOVER_SENDERS,
+                    )?,
+                    header_validation_cycles_count: required_cycle_count(
+                        execution_report,
+                        VALIDATE_HEADER,
+                    )?,
+                    block_execution_cycles_count: required_cycle_count(
+                        execution_report,
+                        BLOCK_EXECUTION,
+                    )?,
+                    block_validation_cycles_count: required_cycle_count(
+                        execution_report,
+                        VALIDATE_EXECUTION,
+                    )?,
+                    state_root_computation_cycles_count: required_cycle_count(
+                        execution_report,
+                        COMPUTE_STATE_ROOT,
+                    )?,
                     syscall_count: execution_report.total_syscall_count(),
                     prover_gas: execution_report.gas().unwrap_or_default(),
                 };
@@ -135,12 +141,8 @@ impl ExecutionHooks for Hook {
                     serde_json::from_reader::<_, Stats>(File::open("cycle_stats.json")?)?;
                 let mut output_file = File::options().create(true).append(true).open(path)?;
 
-                let diff_percentage =
-                    |initial: f64, current: f64| (initial - current) / initial * -100_f64;
-
                 let row = |label: &str, initial: u64, current: u64| {
                     let mut r = TableRow::new();
-                    let diff = format!("{:.2}", diff_percentage(initial as f64, current as f64,));
 
                     r.insert(format!("Block {}", executed_block.number), label.to_string());
                     r.insert("Base Branch".to_string(), initial.separate_with_commas());
@@ -149,7 +151,7 @@ impl ExecutionHooks for Hook {
                         "Diff".to_string(),
                         (current as i64 - initial as i64).separate_with_commas(),
                     );
-                    r.insert("Diff (%)".to_string(), diff);
+                    r.insert("Diff (%)".to_string(), format_diff_percentage(initial, current));
                     r
                 };
 
@@ -162,65 +164,37 @@ impl ExecutionHooks for Hook {
                         ),
                         row(
                             "Inputs deserialization",
-                            execution_report
-                                .cycle_tracker
-                                .get(DESERIALZE_INPUTS)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, DESERIALZE_INPUTS)?,
                             current_dev_stats.deserialize_inputs,
                         ),
                         row(
                             "Initialize Witness DB",
-                            execution_report
-                                .cycle_tracker
-                                .get(INIT_WITNESS_DB)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, INIT_WITNESS_DB)?,
                             current_dev_stats.initialize_witness_db_cycles_count,
                         ),
                         row(
                             "Recover Senders",
-                            execution_report
-                                .cycle_tracker
-                                .get(RECOVER_SENDERS)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, RECOVER_SENDERS)?,
                             current_dev_stats.recover_senders_cycles_count,
                         ),
                         row(
                             "Header Validation",
-                            execution_report
-                                .cycle_tracker
-                                .get(VALIDATE_HEADER)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, VALIDATE_HEADER)?,
                             current_dev_stats.header_validation_cycles_count,
                         ),
                         row(
                             "Block Execution",
-                            execution_report
-                                .cycle_tracker
-                                .get(BLOCK_EXECUTION)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, BLOCK_EXECUTION)?,
                             current_dev_stats.block_execution_cycles_count,
                         ),
                         row(
                             "Block Validation",
-                            execution_report
-                                .cycle_tracker
-                                .get(VALIDATE_EXECUTION)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, VALIDATE_EXECUTION)?,
                             current_dev_stats.block_validation_cycles_count,
                         ),
                         row(
                             "State Root Computation",
-                            execution_report
-                                .cycle_tracker
-                                .get(COMPUTE_STATE_ROOT)
-                                .copied()
-                                .unwrap_or_default(),
+                            required_cycle_count(execution_report, COMPUTE_STATE_ROOT)?,
                             current_dev_stats.state_root_computation_cycles_count,
                         ),
                         row(
@@ -261,4 +235,17 @@ struct Stats {
     pub state_root_computation_cycles_count: u64,
     pub syscall_count: u64,
     pub prover_gas: u64,
+}
+
+#[test]
+fn missing_required_cycle_count_is_an_error() {
+    let error = required_cycle_count(&ExecutionReport::default(), DESERIALZE_INPUTS).unwrap_err();
+
+    assert!(error.to_string().contains(DESERIALZE_INPUTS));
+}
+
+#[test]
+fn zero_baseline_percentage_is_not_available() {
+    assert_eq!(format_diff_percentage(0, 0), "N/A");
+    assert_eq!(format_diff_percentage(100, 105), "5.00");
 }
