@@ -19,7 +19,8 @@ pub use mpt::Error;
 pub mod arena;
 
 use mpt::{
-    mpt_from_proof, parse_proof, proofs_to_tries, resolve_nodes, transition_proofs_to_tries,
+    mpt_from_proof, node_from_digest, parse_proof, proofs_to_tries, resolve_nodes,
+    transition_proofs_to_tries, EMPTY_ROOT,
 };
 
 /// Legacy pointer-based MPT node — used host-side to build the witness from RPC proofs before
@@ -106,7 +107,13 @@ impl EthereumState {
                         .cloned()
                         .unwrap_or_else(|| HashedStorage::new(false));
                     let storage_root = {
-                        let storage_trie = self.storage_tries.entry(*hashed_address).or_default();
+                        let storage_trie =
+                            self.storage_tries.entry(*hashed_address).or_insert_with(|| {
+                                node_from_digest(account_storage_root_or_empty(
+                                    &self.state_trie,
+                                    hashed_address,
+                                ))
+                            });
 
                         if state_storage.wiped {
                             storage_trie.clear();
@@ -224,6 +231,15 @@ impl EthereumState {
         }
         blob
     }
+}
+
+/// The `storage_root` in the account leaf of `hashed_address`, or the empty root if the account
+/// does not exist.
+fn account_storage_root_or_empty(state_trie: &MptNode, hashed_address: &B256) -> B256 {
+    state_trie
+        .get_rlp::<TrieAccount>(hashed_address.as_slice())
+        .expect("updated account leaf must be resolved")
+        .map_or(EMPTY_ROOT, |account| account.storage_root)
 }
 
 /// Decoded arena tries — the guest-side equivalent of [`EthereumState`] for the `arena` path.
@@ -705,6 +721,131 @@ mod arena_integration_tests {
         // psr count + start offset
         let num_psr = read_u32(blob, &mut pos);
         (pos, num_psr)
+    }
+}
+
+#[cfg(test)]
+mod update_tests {
+    use alloy_primitives::{keccak256, B256, U256};
+    use reth_primitives_traits::Account;
+    use reth_trie::{HashedPostState, HashedStorage, TrieAccount, EMPTY_ROOT_HASH};
+
+    use super::*;
+
+    fn slot(i: u64) -> B256 {
+        keccak256(i.to_be_bytes())
+    }
+
+    fn leaf(nonce: u64, balance: u64, storage_root: B256) -> TrieAccount {
+        TrieAccount { nonce, balance: U256::from(balance), storage_root, code_hash: keccak256([]) }
+    }
+
+    /// A state trie holding a contract with ten storage slots and an EOA with empty storage,
+    /// returned with the contract's hashed address and storage root. `include_contract_trie`
+    /// selects whether `storage_tries` carries the contract's trie.
+    fn fixture(include_contract_trie: bool) -> (EthereumState, B256, B256) {
+        let mut storage = MptNode::default();
+        for i in 0..10u64 {
+            storage.insert_rlp(slot(i).as_slice(), U256::from(i + 1)).unwrap();
+        }
+        let storage_root = storage.hash();
+        let contract = keccak256([1u8; 20]);
+
+        let mut state_trie = MptNode::default();
+        state_trie.insert_rlp(contract.as_slice(), leaf(1, 1000, storage_root)).unwrap();
+        state_trie
+            .insert_rlp(keccak256([2u8; 20]).as_slice(), leaf(0, 0, EMPTY_ROOT_HASH))
+            .unwrap();
+
+        let mut storage_tries = HashMap::with_hasher(Default::default());
+        if include_contract_trie {
+            storage_tries.insert(contract, storage);
+        }
+        (EthereumState { state_trie, storage_tries }, contract, storage_root)
+    }
+
+    fn post(hashed_address: B256, nonce: u64, balance: u64) -> HashedPostState {
+        let mut post_state = HashedPostState::default();
+        post_state.accounts.insert(
+            hashed_address,
+            Some(Account { nonce, balance: U256::from(balance), bytecode_hash: None }),
+        );
+        post_state
+    }
+
+    fn storage_root_of(state: &EthereumState, hashed_address: B256) -> B256 {
+        state
+            .state_trie
+            .get_rlp::<TrieAccount>(hashed_address.as_slice())
+            .unwrap()
+            .unwrap()
+            .storage_root
+    }
+
+    /// An account whose storage is not in the diff keeps the `storage_root` already in its leaf,
+    /// with or without its storage trie in `storage_tries`.
+    #[test]
+    fn untouched_storage_keeps_its_root() {
+        let (mut with_trie, contract, contract_root) = fixture(true);
+        let (mut without_trie, _, _) = fixture(false);
+        let post_state = post(contract, 2, 2000);
+
+        with_trie.update(&post_state);
+        without_trie.update(&post_state);
+
+        assert_eq!(storage_root_of(&without_trie, contract), contract_root);
+        assert_eq!(without_trie.state_root(), with_trie.state_root());
+        let placeholder = &without_trie.storage_tries[&contract];
+        assert!(placeholder.is_digest());
+        assert_eq!(placeholder.hash(), contract_root);
+    }
+
+    #[test]
+    #[should_panic(expected = "NodeNotResolved")]
+    fn slot_write_without_a_supplied_trie_panics() {
+        let (mut state, contract, _) = fixture(false);
+        let mut post_state = post(contract, 2, 2000);
+        post_state
+            .storages
+            .insert(contract, HashedStorage::from_iter(false, [(slot(99), U256::from(7u64))]));
+        state.update(&post_state);
+    }
+
+    #[test]
+    fn empty_storage_takes_slot_writes_without_a_supplied_trie() {
+        let (mut state, _, _) = fixture(true);
+        let created = keccak256([3u8; 20]);
+        let eoa = keccak256([2u8; 20]);
+        let slots = [(slot(1), U256::from(11u64)), (slot(2), U256::from(22u64))];
+        let mut expected = MptNode::default();
+        for (key, value) in &slots {
+            expected.insert_rlp(key.as_slice(), *value).unwrap();
+        }
+
+        let mut post_state = post(created, 1, 0);
+        post_state
+            .accounts
+            .insert(eoa, Some(Account { nonce: 1, balance: U256::ZERO, bytecode_hash: None }));
+        post_state.storages.insert(created, HashedStorage::from_iter(false, slots));
+        post_state.storages.insert(eoa, HashedStorage::from_iter(false, slots));
+        state.update(&post_state);
+
+        assert_eq!(storage_root_of(&state, created), expected.hash());
+        assert_eq!(storage_root_of(&state, eoa), expected.hash());
+    }
+
+    #[test]
+    fn wiped_storage_is_rebuilt_from_its_diff() {
+        let (mut state, contract, _) = fixture(false);
+        let mut post_state = post(contract, 2, 2000);
+        post_state
+            .storages
+            .insert(contract, HashedStorage::from_iter(true, [(slot(42), U256::from(1u64))]));
+        state.update(&post_state);
+
+        let mut expected = MptNode::default();
+        expected.insert_rlp(slot(42).as_slice(), U256::from(1u64)).unwrap();
+        assert_eq!(storage_root_of(&state, contract), expected.hash());
     }
 }
 

@@ -1258,7 +1258,7 @@ fn add_orphaned_leafs(
 }
 
 /// Creates a new MPT node from a digest.
-fn node_from_digest(digest: B256) -> MptNode {
+pub(crate) fn node_from_digest(digest: B256) -> MptNode {
     match digest {
         EMPTY_ROOT | B256::ZERO => MptNode::default(),
         _ => MptNodeData::Digest(digest).into(),
