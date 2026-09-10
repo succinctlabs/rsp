@@ -6,7 +6,8 @@ use smallvec::SmallVec;
 pub(crate) type Nibbles = SmallVec<[u8; 64]>;
 
 // Hex-prefix (HP) encoding flags for MPT paths
-pub(crate) const HP_FLAG_ODD: u8 = 0x10; // path has odd number of nibbles; low nibble of first byte is data
+pub(crate) const HP_FLAG_ODD: u8 = 0x10; // path has odd number of nibbles; low nibble of first byte
+                                         // is data
 #[allow(dead_code)]
 pub(crate) const HP_FLAG_LEAF: u8 = 0x20; // node is a leaf (vs extension)
 
