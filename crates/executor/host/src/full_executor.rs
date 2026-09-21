@@ -5,6 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use either::Either;
 use eyre::bail;
@@ -420,11 +421,8 @@ where
         block_number: u64,
     ) -> eyre::Result<ClientExecutorInput<C::Primitives>> {
         let client_input_from_cache = self.config.cache_dir.as_ref().and_then(|cache_dir| {
-            match try_load_input_from_cache::<C::Primitives>(
-                cache_dir,
-                self.config.chain.id(),
-                block_number,
-            ) {
+            match try_load_input_from_cache::<C::Primitives>(cache_dir, block_number, &self.config)
+            {
                 Ok(client_input) => client_input,
                 Err(e) => {
                     warn!("Failed to load input from cache: {}", e);
@@ -554,8 +552,8 @@ where
     async fn execute(&self, block_number: u64) -> eyre::Result<()> {
         let client_input = try_load_input_from_cache::<C::Primitives>(
             &self.cache_dir,
-            self.config.chain.id(),
             block_number,
+            &self.config,
         )?
         .ok_or(eyre::eyre!("No cached input found"))?;
 
@@ -590,18 +588,72 @@ where
 
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
     cache_dir: &Path,
-    chain_id: u64,
     block_number: u64,
+    config: &Config,
 ) -> eyre::Result<Option<ClientExecutorInput<P>>> {
-    let cache_path = cache_dir.join(format!("input/{chain_id}/{block_number}.bin"));
+    let cache_path = cache_dir.join(format!("input/{}/{block_number}.bin", config.chain.id()));
 
     if cache_path.exists() {
         // TODO: prune the cache if invalid instead
         let mut cache_file = std::fs::File::open(cache_path)?;
-        let client_input = bincode::deserialize_from(&mut cache_file)?;
+        let client_input: ClientExecutorInput<P> = bincode::deserialize_from(&mut cache_file)?;
+        validate_cached_input(
+            client_input.current_block.header.number,
+            &client_input.genesis,
+            client_input.custom_beneficiary,
+            block_number,
+            config,
+        )?;
 
         Ok(Some(client_input))
     } else {
         Ok(None)
+    }
+}
+
+fn validate_cached_input(
+    cached_block_number: u64,
+    cached_genesis: &rsp_primitives::genesis::Genesis,
+    cached_beneficiary: Option<Address>,
+    requested_block_number: u64,
+    config: &Config,
+) -> eyre::Result<()> {
+    eyre::ensure!(
+        cached_block_number == requested_block_number,
+        "cached block mismatch: found {cached_block_number}, expected {requested_block_number}"
+    );
+    eyre::ensure!(
+        cached_genesis == &config.genesis,
+        "cached genesis does not match configured genesis"
+    );
+    eyre::ensure!(
+        cached_beneficiary == config.custom_beneficiary,
+        "cached beneficiary does not match configured beneficiary"
+    );
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_primitives::Address;
+    use rsp_primitives::genesis::Genesis;
+
+    use super::{validate_cached_input, Config};
+
+    #[test]
+    fn accepts_matching_cached_input_configuration() {
+        validate_cached_input(10, &Genesis::Mainnet, None, 10, &Config::mainnet()).unwrap();
+    }
+
+    #[test]
+    fn rejects_cached_input_configuration_mismatch() {
+        let config = Config::mainnet();
+
+        assert!(validate_cached_input(11, &Genesis::Mainnet, None, 10, &config).is_err());
+        assert!(validate_cached_input(10, &Genesis::Sepolia, None, 10, &config).is_err());
+        assert!(
+            validate_cached_input(10, &Genesis::Mainnet, Some(Address::ZERO), 10, &config).is_err()
+        );
     }
 }
