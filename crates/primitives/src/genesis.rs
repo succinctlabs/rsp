@@ -17,7 +17,6 @@ use serde_with::serde_as;
 
 use crate::error::ChainSpecError;
 
-pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
 pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/11155420.json");
 
 #[serde_as]
@@ -27,7 +26,6 @@ pub enum Genesis {
     Mainnet,
     Sepolia,
     Holesky,
-    Linea,
     Custom(#[serde_as(as = "alloy_genesis::serde_bincode_compat::ChainConfig")] ChainConfig),
 }
 
@@ -37,7 +35,6 @@ impl Hash for Genesis {
             Genesis::Mainnet => 1.hash(state),
             Genesis::Sepolia => 11155111.hash(state),
             Genesis::Holesky => 17000.hash(state),
-            Genesis::Linea => 59144.hash(state),
             Self::Custom(config) => {
                 let buf = serde_json::to_vec(config).unwrap();
                 buf.hash(state);
@@ -67,7 +64,6 @@ impl TryFrom<u64> for Genesis {
         match value {
             1 => Ok(Genesis::Mainnet),
             17000 => Ok(Genesis::Holesky),
-            59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
             id => Err(ChainSpecError::ChainNotSupported(id)),
         }
@@ -131,7 +127,6 @@ impl TryFrom<&Genesis> for ChainSpec {
                 };
                 Ok(holesky)
             }
-            Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
             Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
                 config: config.clone(),
                 ..Default::default()
@@ -145,7 +140,15 @@ mod tests {
 
     use alloy_eips::eip7840::BlobParams;
 
-    use crate::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
+    use crate::{
+        error::ChainSpecError,
+        genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON},
+    };
+
+    #[test]
+    fn linea_chain_id_is_not_builtin() {
+        assert!(matches!(Genesis::try_from(59144), Err(ChainSpecError::ChainNotSupported(59144))));
+    }
 
     #[test]
     fn test_custom_genesis_bincode_roundtrip() {

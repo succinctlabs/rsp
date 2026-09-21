@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::ConfigureEvm;
-use revm_primitives::{address, Address};
+use revm_primitives::Address;
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
@@ -20,17 +20,6 @@ use url::Url;
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
     run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864, None).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_linea() {
-    run_eth_e2e(
-        &Genesis::Linea,
-        "RPC_59144",
-        5600000,
-        Some(address!("8f81e2e3f8b46467523463835f965ffe476e1c9e")),
-    )
-    .await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
