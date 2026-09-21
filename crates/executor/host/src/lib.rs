@@ -4,7 +4,6 @@ use alloy_chains::Chain;
 pub use error::Error as HostError;
 use reth_chainspec::ChainSpec;
 use reth_evm_ethereum::EthEvmConfig;
-use revm_primitives::Address;
 use rsp_client_executor::custom::CustomEvmFactory;
 use rsp_primitives::genesis::Genesis;
 use sp1_sdk::SP1ProofMode;
@@ -30,11 +29,10 @@ pub use host_executor::{EthHostExecutor, HostExecutor};
 
 pub fn create_eth_block_execution_strategy_factory(
     genesis: &Genesis,
-    custom_beneficiary: Option<Address>,
 ) -> EthEvmConfig<ChainSpec, CustomEvmFactory> {
     let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
-    EthEvmConfig::new_with_evm_factory(chain_spec, CustomEvmFactory::new(custom_beneficiary))
+    EthEvmConfig::new_with_evm_factory(chain_spec, CustomEvmFactory)
 }
 
 /// How the host fetches the state needed to execute a block.
@@ -86,7 +84,6 @@ pub struct Config {
     /// When set, the zkVM stdin of every processed block is written to `{stdin_dir}/{block}.bin`
     /// (bincode) — a reproducible, prover-ready test corpus of real blocks.
     pub stdin_dir: Option<PathBuf>,
-    pub custom_beneficiary: Option<Address>,
     pub prove_mode: Option<SP1ProofMode>,
     pub skip_client_execution: bool,
     pub opcode_tracking: bool,
@@ -101,7 +98,6 @@ impl Config {
             rpc_url: None,
             cache_dir: None,
             stdin_dir: None,
-            custom_beneficiary: None,
             prove_mode: None,
             skip_client_execution: false,
             opcode_tracking: false,

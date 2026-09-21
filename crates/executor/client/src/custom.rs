@@ -21,23 +21,11 @@ use revm::{
     precompile::{Crypto, PrecompileHalt, PrecompileSpecId, Precompiles},
     Context, Inspector,
 };
-use revm_primitives::{hardfork::SpecId, Address};
+use revm_primitives::hardfork::SpecId;
 use std::fmt::Debug;
 
-#[derive(Debug, Clone)]
-pub struct CustomEvmFactory {
-    // Some chains uses Clique consensus, which is not implemented in Reth.
-    // The main difference for execution is the block beneficiary: Reth will
-    // credit the block reward to the beneficiary address, whereas in Clique,
-    // the reward is credited to the signer.
-    custom_beneficiary: Option<Address>,
-}
-
-impl CustomEvmFactory {
-    pub fn new(custom_beneficiary: Option<Address>) -> Self {
-        Self { custom_beneficiary }
-    }
-}
+#[derive(Debug, Clone, Default)]
+pub struct CustomEvmFactory;
 
 impl EvmFactory for CustomEvmFactory {
     type Evm<DB: Database, I: revm::Inspector<Self::Context<DB>>> = EthEvm<DB, I, PrecompilesMap>;
@@ -59,12 +47,8 @@ impl EvmFactory for CustomEvmFactory {
     fn create_evm<DB: Database>(
         &self,
         db: DB,
-        mut input: EvmEnv,
+        input: EvmEnv,
     ) -> Self::Evm<DB, revm::inspector::NoOpInspector> {
-        if let Some(custom_beneficiary) = self.custom_beneficiary {
-            input.block_env.beneficiary = custom_beneficiary;
-        }
-
         #[allow(unused_mut)]
         let mut precompiles = PrecompilesMap::from_static(Precompiles::new(
             PrecompileSpecId::from_spec_id(input.cfg_env.spec),
@@ -115,13 +99,9 @@ impl EvmFactory for CustomEvmFactory {
     fn create_evm_with_inspector<DB: Database, I: revm::Inspector<Self::Context<DB>>>(
         &self,
         db: DB,
-        mut input: EvmEnv,
+        input: EvmEnv,
         inspector: I,
     ) -> Self::Evm<DB, I> {
-        if let Some(custom_beneficiary) = self.custom_beneficiary {
-            input.block_env.beneficiary = custom_beneficiary;
-        }
-
         EthEvm::new(self.create_evm(db, input).into_inner().with_inspector(inspector), true)
     }
 }
@@ -153,6 +133,26 @@ impl<CTX, INTR: InterpreterTypes> Inspector<CTX, INTR> for OpCodeTrackingInspect
 
         #[cfg(target_os = "zkvm")]
         println!("cycle-tracker-report-end: opcode-{}", self.current);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_evm::{Evm, EvmEnv, EvmFactory};
+    use revm::{context::BlockEnv, database_interface::EmptyDB};
+    use revm_primitives::{hardfork::SpecId, Address};
+
+    use super::CustomEvmFactory;
+
+    #[test]
+    fn preserves_header_beneficiary() {
+        let header_beneficiary = Address::repeat_byte(0x11);
+        let mut env = EvmEnv::<SpecId, BlockEnv>::default();
+        env.block_env.beneficiary = header_beneficiary;
+
+        let evm = CustomEvmFactory.create_evm(EmptyDB::default(), env);
+
+        assert_eq!(evm.block().beneficiary, header_beneficiary);
     }
 }
 

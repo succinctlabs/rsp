@@ -12,6 +12,4 @@ The genesis JSON file requires only the chain ID and hardfork block/timestamps. 
 
 :::
 
-## Chains using the Clique consensus
-
-If you want to run RSP on a chain using the Clique consensus (for instance Linea), you will have to specify the the block beneficiary as the `--custom-beneficiary` CLI argument, as Clique is not implemented in reth.
+The custom chain must use the Ethereum execution rules implemented by Reth.

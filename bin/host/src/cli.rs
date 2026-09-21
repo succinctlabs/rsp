@@ -1,7 +1,6 @@
 use std::{fs, path::PathBuf};
 
 use alloy_chains::Chain;
-use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
 use rsp_host_executor::{Config, StateBackend};
@@ -22,10 +21,6 @@ pub struct HostArgs {
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
     pub genesis_path: Option<PathBuf>,
-
-    /// The custom beneficiary address, used with Clique consensus.
-    #[clap(long)]
-    pub custom_beneficiary: Option<Address>,
 
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
@@ -103,7 +98,6 @@ impl HostArgs {
             rpc_url,
             cache_dir: self.cache_dir.clone(),
             stdin_dir: None,
-            custom_beneficiary: self.custom_beneficiary,
             prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
             skip_client_execution: false,
             opcode_tracking: self.opcode_tracking,
