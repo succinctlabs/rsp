@@ -6315,7 +6315,6 @@ dependencies = [
  "alloy-consensus",
  "alloy-genesis",
  "alloy-network",
- "alloy-primitives",
  "alloy-provider",
  "clap",
  "csv",

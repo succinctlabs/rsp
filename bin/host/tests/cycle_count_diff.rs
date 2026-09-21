@@ -49,7 +49,6 @@ async fn test_in_zkvm() {
         rpc_url: None,
         cache_dir: None,
         stdin_dir: None,
-        custom_beneficiary: None,
         prove_mode: None,
         skip_client_execution: false,
         opcode_tracking: false,
@@ -59,7 +58,7 @@ async fn test_in_zkvm() {
     let rpc_url = Url::parse(env::var("RPC_1").unwrap().as_str()).expect("invalid rpc url");
     let elf = include_elf!("rsp-client").to_vec();
     let block_execution_strategy_factory =
-        create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
+        create_eth_block_execution_strategy_factory(&config.genesis);
 
     let provider = RootProvider::<Ethereum>::new_http(rpc_url);
     let client = Arc::new(CpuProver::new().await);

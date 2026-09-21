@@ -14,7 +14,6 @@ use reth_primitives_traits::{Block, BlockBody, NodePrimitives, SealedHeader};
 use reth_storage_errors::provider::ProviderError;
 use reth_trie::{HashedPostState, KeccakKeyHasher};
 use revm::{database::CacheDB, DatabaseRef};
-use revm_primitives::Address;
 use rsp_client_executor::{
     custom::CustomEvmFactory, io::ClientExecutorInput, BlockValidator, IntoInput, IntoPrimitives,
 };
@@ -33,12 +32,9 @@ pub struct HostExecutor<C: ConfigureEvm, CS> {
 }
 
 impl EthHostExecutor {
-    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
+    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
         Self {
-            evm_config: EthEvmConfig::new_with_evm_factory(
-                chain_spec.clone(),
-                CustomEvmFactory::new(custom_beneficiary),
-            ),
+            evm_config: EthEvmConfig::new_with_evm_factory(chain_spec.clone(), CustomEvmFactory),
             chain_spec,
         }
     }
@@ -57,7 +53,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         block_number: u64,
         provider: &P,
         genesis: Genesis,
-        custom_beneficiary: Option<Address>,
         opcode_tracking: bool,
         state_backend: StateBackend,
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
@@ -94,15 +89,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
                     previous_block.header().state_root(),
                 );
 
-                self.execute_with_db(
-                    rpc_db,
-                    rpc_block,
-                    current_block,
-                    genesis,
-                    custom_beneficiary,
-                    opcode_tracking,
-                )
-                .await
+                self.execute_with_db(rpc_db, rpc_block, current_block, genesis, opcode_tracking)
+                    .await
             }
             StateBackend::ExecutionWitness => {
                 let rpc_db = rsp_rpc_db::ExecutionWitnessRpcDb::new(
@@ -112,15 +100,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
                 )
                 .await?;
 
-                self.execute_with_db(
-                    rpc_db,
-                    rpc_block,
-                    current_block,
-                    genesis,
-                    custom_beneficiary,
-                    opcode_tracking,
-                )
-                .await
+                self.execute_with_db(rpc_db, rpc_block, current_block, genesis, opcode_tracking)
+                    .await
             }
         }
     }
@@ -133,7 +114,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         rpc_block: N::BlockResponse,
         current_block: <C::Primitives as NodePrimitives>::Block,
         genesis: Genesis,
-        custom_beneficiary: Option<Address>,
         opcode_tracking: bool,
     ) -> Result<ClientExecutorInput<C::Primitives>, HostError>
     where
@@ -263,7 +243,6 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             parent_state,
             bytecodes: rpc_db.bytecodes(),
             genesis,
-            custom_beneficiary,
             opcode_tracking,
         };
         tracing::info!("successfully generated client input");

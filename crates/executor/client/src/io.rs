@@ -92,8 +92,6 @@ pub struct ClientExecutorInput<P: NodePrimitives> {
     pub bytecodes: Vec<Bytecode>,
     /// The genesis block, as a json string.
     pub genesis: Genesis,
-    /// The genesis block, as a json string.
-    pub custom_beneficiary: Option<Address>,
     /// Whether to track the cycle count of opcodes.
     pub opcode_tracking: bool,
 }
