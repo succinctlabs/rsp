@@ -14,7 +14,6 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
 use revm::{database::WrapDatabaseRef, install_crypto};
-use revm_primitives::Address;
 
 use crate::{
     custom::{CustomCrypto, CustomEvmFactory},
@@ -178,14 +177,11 @@ where
 }
 
 impl EthClientExecutor {
-    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
+    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
         install_crypto(CustomCrypto::default());
 
         Self {
-            evm_config: EthEvmConfig::new_with_evm_factory(
-                chain_spec.clone(),
-                CustomEvmFactory::new(custom_beneficiary),
-            ),
+            evm_config: EthEvmConfig::new_with_evm_factory(chain_spec.clone(), CustomEvmFactory),
             chain_spec,
         }
     }

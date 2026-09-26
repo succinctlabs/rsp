@@ -33,10 +33,7 @@ pub fn main() {
     });
 
     // Execute the block.
-    let executor = EthClientExecutor::eth(
-        Arc::new((&input.genesis).try_into().unwrap()),
-        input.custom_beneficiary,
-    );
+    let executor = EthClientExecutor::eth(Arc::new((&input.genesis).try_into().unwrap()));
     let header = executor.execute(input).expect("failed to execute client");
 
     // Commit the block header.

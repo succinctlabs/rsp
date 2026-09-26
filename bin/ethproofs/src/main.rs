@@ -60,7 +60,7 @@ async fn main() -> eyre::Result<()> {
 
     let elf = include_elf!("rsp-client").to_vec();
     let block_execution_strategy_factory =
-        create_eth_block_execution_strategy_factory(&config.genesis, None);
+        create_eth_block_execution_strategy_factory(&config.genesis);
 
     // Report to ethproofs and collect internal metrics, side by side. ethproofs submission is
     // disabled unless both the endpoint and API token are configured, so the service can run
