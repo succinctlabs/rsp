@@ -4,7 +4,7 @@ use alloy_consensus::{Block, Header, TxEnvelope};
 use alloy_network::{Ethereum, Network};
 use reth_chainspec::{ChainSpec, EthChainSpec, NamedChain};
 use reth_consensus::HeaderValidator;
-use reth_consensus_common::validation::validate_body_against_header;
+use reth_consensus_common::validation::validate_block_pre_execution;
 use reth_errors::ConsensusError;
 use reth_ethereum_consensus::EthBeaconConsensus;
 use reth_ethereum_primitives::EthPrimitives;
@@ -85,7 +85,7 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
     ) -> Result<(), ConsensusError> {
         Self::validate_header(recovered.sealed_header(), chain_spec.clone())?;
 
-        validate_body_against_header(recovered.body(), recovered.header())?;
+        validate_block_pre_execution(recovered.sealed_block(), &chain_spec)?;
 
         Ok(())
     }
@@ -140,5 +140,50 @@ fn handle_custom_chains(
             }
         }
         _ => Err(err),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use alloy_consensus::{Block, BlockBody, Header, EMPTY_OMMER_ROOT_HASH, EMPTY_ROOT_HASH};
+    use alloy_primitives::B256;
+    use reth_chainspec::ChainSpecBuilder;
+    use reth_consensus::ConsensusError;
+    use reth_ethereum_primitives::EthPrimitives;
+    use reth_primitives_traits::{proofs, RecoveredBlock};
+
+    use super::BlockValidator;
+
+    #[test]
+    fn rejects_blob_gas_mismatch_before_execution() {
+        let header = Header {
+            ommers_hash: EMPTY_OMMER_ROOT_HASH,
+            transactions_root: EMPTY_ROOT_HASH,
+            gas_limit: 30_000_000,
+            base_fee_per_gas: Some(1),
+            withdrawals_root: Some(proofs::calculate_withdrawals_root(&[])),
+            blob_gas_used: Some(131_072),
+            excess_blob_gas: Some(0),
+            parent_beacon_block_root: Some(B256::ZERO),
+            ..Default::default()
+        };
+        let block = RecoveredBlock::new_unhashed(
+            Block {
+                header,
+                body: BlockBody {
+                    transactions: vec![],
+                    ommers: vec![],
+                    withdrawals: Some(Default::default()),
+                },
+            },
+            vec![],
+        );
+        let chain_spec = Arc::new(ChainSpecBuilder::mainnet().cancun_activated().build());
+
+        let error = EthPrimitives::validate_block(&block, chain_spec).unwrap_err();
+
+        assert!(matches!(error, ConsensusError::BlobGasUsedDiff(_)));
     }
 }
