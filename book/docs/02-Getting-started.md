@@ -14,7 +14,7 @@ and the command `rsp` will be installed.
 
 ## Running the CLI
 
-For the supported chains (Ethereum Mainnet and Sepolia, OP Stack Mainnet, and Linea Mainnet), the host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
+For the built-in chains (Ethereum Mainnet, Sepolia, and Holesky), the host CLI automatically identifies the underlying chain type using the RPC (with the `eth_chainId` call). Simply supply a block number and an RPC URL:
 
 ```console
 rsp --block-number 18884864 --rpc-url <RPC>

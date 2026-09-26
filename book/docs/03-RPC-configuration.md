@@ -4,12 +4,11 @@
 
 Set the RPC endpoint using the `--rpc-url` argument or the `RPC_URL` environment variable. Alternatively, set multiple `RPC_XXX` variables and use the `--chain-id XXX` argument to select the target endpoint.
 
-We supports the following chains:
+We support the following built-in chains:
 
 * Ethereum Mainnet (1)
-* Optimism Mainnet (10)
-* Linea (59144)
 * Sepolia (11155111)
+* Holesky (17000)
 
 RSP can be run on other custom chains. See the [Custom chains](./Advanced/Custom-chains) page for more details.
 
