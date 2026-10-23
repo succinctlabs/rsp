@@ -59,13 +59,13 @@ rsp-provider = { path = "./crates/provider" }
 
 
 # sp1
-sp1-build = "=6.8.1"
+sp1-build = "=6.10.0"
 # Only needed by bin/host for `SyscallCode` (the per-syscall CSV columns); not re-exported by
 # sp1-sdk. The `bigint-rug` (GMP) acceleration lives on `sp1-sdk` below so every binary gets it.
-sp1-core-executor = "=6.8.1"
+sp1-core-executor = "=6.10.0"
 # `bigint-rug` routes GMP-backed bignum into the shared `sp1-curves` build (feature-unified across
 # the executor and prover), speeding up the elliptic-curve precompiles that Ethereum blocks lean on.
-sp1-sdk = { version = "=6.8.1", features = ["bigint-rug"] }
+sp1-sdk = { version = "=6.10.0", features = ["bigint-rug"] }
 
 # reth
 reth-primitives-traits = { version = "0.3.2", default-features = false }
@@ -134,7 +134,7 @@ alloy-serde = "2.0.4"
 alloy-rlp = "0.3.12"
 alloy-trie = "0.9.3"
 
-kzg-rs = "0.2.8"
+kzg-rs = "0.2.9"
 
 
 [workspace.lints]
@@ -146,8 +146,9 @@ rustdoc.all = "warn"
 
 [patch.crates-io]
 # Precompile patches
-sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.0.0", package = "sha2" }
-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.0.0", package = "substrate-bn-succinct-rs" }
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.10.0", package = "sha2" }
+bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.1-sp1-6.10.0", package = "substrate-bn-succinct-rs" }
+substrate-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.10.0-substrate-bn" }
 sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha3-0.11.0-sp1-6.0.0" }
-k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.0.0" }
-p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.0.0" }
+k256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-k256-13.4-sp1-6.10.0" }
+p256 = { git = "https://github.com/sp1-patches/elliptic-curves", tag = "patch-p256-13.2-sp1-6.10.0" }
