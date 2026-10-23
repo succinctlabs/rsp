@@ -2,6 +2,8 @@
 version = "0.1.0"
 name = "rsp"
 edition = "2021"
+license.workspace = true
+publish.workspace = true
 
 [dependencies]
 tokio.workspace = true
@@ -44,7 +46,7 @@ alloy-network.workspace = true
 rsp-client-executor.workspace = true
 serde_json = "1.0"
 thousands = "0.2.0"
-madato = "0.7.0"
+madato = { version = "0.7.0", default-features = false }
 
 [features]
 # Select the arena-based (unaudited) MPT backend for both the host witness emission and the

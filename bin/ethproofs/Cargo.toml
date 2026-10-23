@@ -2,6 +2,8 @@
 version = "0.1.0"
 name = "ethproofs"
 edition = "2021"
+license.workspace = true
+publish.workspace = true
 
 # The long-running proving service.
 [[bin]]
