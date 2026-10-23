@@ -17,6 +17,7 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
+publish = false
 authors = ["puma314", "jtguibas", "rkrasiuk"]
 repository = "https://github.com/moongate-forks/minimal-reth"
 homepage = "https://github.com/moongate-forks/minimal-reth"

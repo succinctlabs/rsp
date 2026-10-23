@@ -1,0 +1,58 @@
+[graph]
+all-features = true
+
+[advisories]
+ignore = [
+  { id = "RUSTSEC-2021-0139", reason = "ansi_term, through tracing-forest's ansi feature in SP1. SP1 dropping that feature removes it." },
+  { id = "RUSTSEC-2021-0141", reason = "dotenv, a direct dependency of rsp, continuous, ethproofs and rsp-host-executor. Switching to dotenvy removes it." },
+  { id = "RUSTSEC-2024-0320", reason = "yaml-rust, through madato, a dev dependency of rsp. The latest madato release still uses it." },
+  { id = "RUSTSEC-2024-0363", reason = "sqlx 0.7, a direct dependency of continuous. Upgrading sqlx to 0.8.1 removes it." },
+  { id = "RUSTSEC-2024-0384", reason = "instant, through reqwest-retry 0.6 in ethproofs. Upgrading reqwest-retry removes it." },
+  { id = "RUSTSEC-2024-0436", reason = "paste, through several crates, including alloy-primitives and ark-ff. Each one must drop it first." },
+  { id = "RUSTSEC-2025-0119", reason = "number_prefix, through indicatif 0.17 in SP1. SP1 must upgrade indicatif first." },
+  { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile, through tonic 0.12 in sp1-prover. SP1 must upgrade tonic first." },
+  { id = "RUSTSEC-2025-0141", reason = "bincode, used by ethproofs, rsp-host-executor and most SP1 crates. Both must move to a maintained serializer." },
+  { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2, through alloy-sol-macro 1.6.0 and dynasm 3 in sp1-jit. Needs alloy-sol-macro 1.6.1 and SP1 on dynasm 5.1." },
+  { id = "RUSTSEC-2026-0344", reason = "ruzstd 0.8, through object 0.37's default features in sp1-core-executor. SP1 dropping them or moving to object 0.40 removes it." },
+]
+
+[licenses]
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "MPL-2.0",
+  "Unicode-3.0",
+  "Zlib",
+]
+exceptions = [
+  { allow = ["CC0-1.0"], crate = "aurora-engine-modexp" },
+  { allow = ["CC0-1.0"], crate = "secp256k1" },
+  { allow = ["CC0-1.0"], crate = "secp256k1-sys" },
+  { allow = ["CC0-1.0"], crate = "tiny-keccak" },
+  { allow = ["Unlicense"], crate = "async_io_stream" },
+  { allow = ["Unlicense"], crate = "pharos" },
+  { allow = ["Unlicense"], crate = "ws_stream_wasm" },
+  # The workspace turns on sp1-sdk's `bigint-rug` feature, so every binary links GMP.
+  { allow = ["LGPL-3.0-or-later"], crate = "rug" },
+  { allow = ["LGPL-3.0-or-later"], crate = "gmp-mpfr-sys" },
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "allow"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+required-git-spec = "tag"
+allow-org = { github = ["paradigmxyz", "sp1-patches"] }
