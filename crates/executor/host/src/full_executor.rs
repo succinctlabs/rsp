@@ -1,5 +1,6 @@
 use std::{
     fmt::{Debug, Formatter},
+    io::{BufReader, BufWriter, Seek, Write},
     path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, Instant},
@@ -431,11 +432,7 @@ where
         });
 
         let client_input = match client_input_from_cache {
-            Some(mut client_input_from_cache) => {
-                // Override opcode tracking from cache by the setting provided by the user
-                client_input_from_cache.opcode_tracking = self.config.opcode_tracking;
-                client_input_from_cache
-            }
+            Some(client_input) => client_input,
             None => {
                 let rpc_chain_id = self.provider.get_chain_id().await?;
                 eyre::ensure!(
@@ -455,15 +452,7 @@ where
                     .await?;
 
                 if let Some(ref cache_dir) = self.config.cache_dir {
-                    let input_folder = cache_dir.join(format!("input/{}", self.config.chain.id()));
-                    if !input_folder.exists() {
-                        std::fs::create_dir_all(&input_folder)?;
-                    }
-
-                    let input_path = input_folder.join(format!("{block_number}.bin"));
-                    let mut cache_file = std::fs::File::create(input_path)?;
-
-                    bincode::serialize_into(&mut cache_file, &client_input)?;
+                    cache_client_input(cache_dir, self.config.chain.id(), &client_input)?;
                 }
 
                 client_input
@@ -589,28 +578,79 @@ where
     }
 }
 
+fn cache_path(cache_dir: &Path, chain_id: u64, block_number: u64) -> PathBuf {
+    #[cfg(feature = "arena")]
+    let filename = format!("{block_number}.arena.bin");
+    #[cfg(not(feature = "arena"))]
+    let filename = format!("{block_number}.bin");
+    cache_dir.join("input").join(chain_id.to_string()).join(filename)
+}
+
+fn cache_client_input<P: NodePrimitives>(
+    cache_dir: &Path,
+    chain_id: u64,
+    client_input: &ClientExecutorInput<P>,
+) -> eyre::Result<()> {
+    let input_path = cache_path(cache_dir, chain_id, client_input.current_block.header.number);
+    let dir = input_path.parent().expect("cache file has a parent");
+    std::fs::create_dir_all(dir)?;
+    let mut builder = tempfile::Builder::new();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        builder.permissions(std::fs::Permissions::from_mode(0o666));
+    }
+    let mut temp = builder.tempfile_in(dir)?;
+    match input_path.metadata() {
+        Ok(metadata) => temp.as_file().set_permissions(metadata.permissions())?,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+        Err(err) => return Err(err.into()),
+    }
+    {
+        let mut writer = BufWriter::new(temp.as_file_mut());
+        bincode::serialize_into(&mut writer, client_input)?;
+        #[cfg(feature = "arena")]
+        bincode::serialize_into(&mut writer, &client_input.parent_state)?;
+        writer.flush()?;
+    }
+    temp.persist(&input_path)?;
+    info!("Cached input at {}", input_path.display());
+    Ok(())
+}
+
 fn try_load_input_from_cache<P: NodePrimitives + DeserializeOwned>(
     cache_dir: &Path,
     block_number: u64,
     config: &Config,
 ) -> eyre::Result<Option<ClientExecutorInput<P>>> {
-    let cache_path = cache_dir.join(format!("input/{}/{block_number}.bin", config.chain.id()));
+    let cache_path = cache_path(cache_dir, config.chain.id(), block_number);
 
-    if cache_path.exists() {
-        // TODO: prune the cache if invalid instead
-        let mut cache_file = std::fs::File::open(cache_path)?;
-        let client_input: ClientExecutorInput<P> = bincode::deserialize_from(&mut cache_file)?;
-        validate_cached_input(
-            client_input.current_block.header.number,
-            &client_input.genesis,
-            block_number,
-            config,
-        )?;
-
-        Ok(Some(client_input))
-    } else {
-        Ok(None)
+    let file = match std::fs::File::open(&cache_path) {
+        Ok(file) => file,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => return Err(err.into()),
+    };
+    let len = file.metadata()?.len();
+    let mut reader = BufReader::new(file);
+    let mut client_input: ClientExecutorInput<P> = bincode::deserialize_from(&mut reader)?;
+    #[cfg(feature = "arena")]
+    {
+        client_input.parent_state = bincode::deserialize_from(&mut reader)?;
     }
+    eyre::ensure!(
+        reader.stream_position()? == len,
+        "incompatible cached input at {}; regenerate it with RPC",
+        cache_path.display()
+    );
+    validate_cached_input(
+        client_input.current_block.header.number,
+        &client_input.genesis,
+        block_number,
+        config,
+    )?;
+
+    client_input.opcode_tracking = config.opcode_tracking;
+    Ok(Some(client_input))
 }
 
 fn validate_cached_input(
@@ -636,6 +676,48 @@ mod tests {
     use rsp_primitives::genesis::Genesis;
 
     use super::{validate_cached_input, Config};
+
+    #[test]
+    fn cache_roundtrip_preserves_the_selected_backend_and_rejects_trailing_data() {
+        use reth_ethereum_primitives::EthPrimitives;
+        use rsp_client_executor::io::EthClientExecutorInput;
+        use std::io::Write;
+
+        let state = rsp_mpt::EthereumState {
+            state_trie: Default::default(),
+            storage_tries: Default::default(),
+        };
+        let input = EthClientExecutorInput {
+            current_block: Default::default(),
+            ancestor_headers: vec![],
+            #[cfg(feature = "arena")]
+            parent_state: state.to_arena_witness(),
+            #[cfg(not(feature = "arena"))]
+            parent_state: state,
+            bytecodes: vec![],
+            genesis: Genesis::Mainnet,
+            opcode_tracking: true,
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let config = Config { opcode_tracking: true, ..Config::mainnet() };
+        let block = input.current_block.header.number;
+        super::cache_client_input(dir.path(), config.chain.id(), &input).unwrap();
+        let read = || super::try_load_input_from_cache::<EthPrimitives>(dir.path(), block, &config);
+        assert_eq!(read().unwrap().unwrap(), input);
+        let plain = super::try_load_input_from_cache::<EthPrimitives>(
+            dir.path(),
+            block,
+            &Config::mainnet(),
+        )
+        .unwrap()
+        .unwrap();
+        assert!(!plain.opcode_tracking);
+
+        let path = super::cache_path(dir.path(), config.chain.id(), block);
+        let mut file = std::fs::OpenOptions::new().append(true).open(path).unwrap();
+        file.write_all(&[0]).unwrap();
+        assert!(read().unwrap_err().to_string().contains("incompatible cached input"));
+    }
 
     #[test]
     fn accepts_matching_cached_input_configuration() {

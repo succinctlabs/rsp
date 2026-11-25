@@ -6406,6 +6406,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp1-sdk",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",

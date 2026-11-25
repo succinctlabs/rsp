@@ -12,6 +12,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+tempfile.workspace = true
 tokio = { workspace = true, features = ["time", "rt"] }
 thiserror.workspace = true
 tracing.workspace = true
