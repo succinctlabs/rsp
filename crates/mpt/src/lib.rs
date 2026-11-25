@@ -165,33 +165,8 @@ impl EthereumState {
     /// [psr: per entry { hashed_address:32 | storage_root:32 } sorted by hashed_address]
     /// ```
     ///
-    /// The trailing `psr` section is the **pre-state storage_root cache**: for every revealed
-    /// account in `state_trie`, the `storage_root` field of its account leaf. Sorted by
-    /// hashed_address so the guest's [`ArenaTries::update`] coordinated walk is O(N+M).
-    ///
-    /// Why we ship this: canonical witness mode omits storage tries for accounts whose state
-    /// changes but whose storage isn't touched in the block. Without the cache, the guest has
-    /// to walk the state trie to recover each affected account's pre-existing storage_root —
-    /// O(depth) per fallback. With the cache, it's a single linear scan across the whole
-    /// update. See [`ArenaTries::update`] for the consumer side.
-    ///
-    /// SOUNDNESS: the psr section is **not separately hash-committed**. The host can put any
-    /// value (or omit entries, or include spurious ones). The cache is sound because:
-    ///
-    ///   1. Every cached `storage_root` flows into a `state_account.storage_root` in
-    ///      [`ArenaTries::update`]'s no-storage-change fallback, then into the state-trie leaf,
-    ///      then into the final state-trie root via the hashes-of-children chain.
-    ///   2. The guest's `ClientExecutor::execute` compares the final state root against
-    ///      `input.current_block.header().state_root()` and returns `MismatchedStateRoot` on any
-    ///      disagreement (flagged with a `SOUNDNESS:` tag in
-    ///      `crates/executor/client/src/executor.rs`).
-    ///   3. The host can't forge an `input.current_block.header().state_root()` matching a tampered
-    ///      psr because the committed header is checked by the external verifier against the
-    ///      canonical chain.
-    ///
-    /// Any divergence in psr therefore surfaces as a guest-side error and no proof is produced.
-    /// The integration test `psr_tamper_changes_state_root` in this module is the executable
-    /// regression check for this property.
+    /// The trailing root cache is emitted for compatibility with older readers.
+    /// Current readers derive storage roots from the account leaves in the state trie.
     pub fn to_arena_witness(&self) -> Vec<u8> {
         fn put_u32(blob: &mut Vec<u8>, v: usize) {
             blob.extend_from_slice(&(v as u32).to_le_bytes());
@@ -213,11 +188,7 @@ impl EthereumState {
             put_trie(&mut blob, node);
         }
 
-        // Pre-state storage_root cache: walk every revealed account leaf, RLP-decode it to
-        // pull the `storage_root` field, push `(hashed_address, storage_root)` into a Vec, sort
-        // lex by hashed_address. The walk + decode is host CPU only (not proven), so its cost
-        // is irrelevant — the gain is in the guest where this section replaces ~250
-        // `state_trie.get_rlp::<TrieAccount>` calls per block.
+        // Preserve the existing wire format for consumers that read this section.
         let mut psr: Vec<(B256, B256)> = Vec::new();
         self.state_trie.for_each_leaves(|key, mut value| {
             let account = TrieAccount::decode(&mut value).unwrap();
@@ -250,19 +221,6 @@ pub struct ArenaTries<'a> {
     bump: &'a bumpalo::Bump,
     pub state_trie: arena::Mpt<'a>,
     pub storage_tries: HashMap<B256, arena::Mpt<'a>>,
-    /// Pre-state `storage_root` per revealed account, sorted by `hashed_address`. Stored
-    /// zero-copy as a packed slice (`[hashed_address:32 | storage_root:32]*`). Consumed by
-    /// `update` to skip the per-account state-trie walk on the canonical-mode "state changed
-    /// but storage untouched" path. See [`EthereumState::to_arena_witness`] for the producer.
-    ///
-    /// SOUNDNESS: this slice is **untrusted host input** — there is no separate Merkle
-    /// commitment over its contents. Soundness derives entirely from the final state-root
-    /// check in `ClientExecutor::execute`: any tampered value propagates into the
-    /// `state_account.storage_root` of a state-trie leaf, then into the trie root, and the
-    /// resulting mismatch surfaces as `MismatchedStateRoot`. See the `SOUNDNESS:` tag in
-    /// `crates/executor/client/src/executor.rs` and the regression test
-    /// `psr_tamper_changes_state_root` in this crate's tests.
-    pre_state_storage_roots: &'a [u8],
 }
 
 /// Wire-format constant: bytes per `(hashed_address, storage_root)` entry in the psr section.
@@ -298,16 +256,20 @@ impl<'a> ArenaTries<'a> {
             storage_tries.insert(key, trie);
         }
 
-        // Pre-state storage_root cache: zero-copy slice into the blob, sorted by hashed_address.
-        let psr_count = read_u32(blob, &mut pos);
-        let psr_end = pos + psr_count * PSR_ENTRY;
-        let pre_state_storage_roots: &'a [u8] = &blob[pos..psr_end];
+        // Check the legacy section's framing, but never use it as account state.
+        let count = read_u32(blob, &mut pos);
+        let len = count.checked_mul(PSR_ENTRY).ok_or(alloy_rlp::Error::InputTooShort)?;
+        blob[pos..].get(..len).ok_or(alloy_rlp::Error::InputTooShort)?;
 
-        Ok(ArenaTries { bump, state_trie, storage_tries, pre_state_storage_roots })
+        Ok(ArenaTries { bump, state_trie, storage_tries })
     }
 }
 
 impl ArenaTries<'_> {
+    fn account_storage_root(&self, hashed_address: B256) -> B256 {
+        self.account(hashed_address).map_or(EMPTY_ROOT, |account| account.storage_root)
+    }
+
     /// Mutates state based on diffs provided in [`HashedPostState`] (mirrors
     /// [`EthereumState::update`] on the arena tries).
     ///
@@ -315,9 +277,7 @@ impl ArenaTries<'_> {
     /// ascending, inserts/updates before deletes, at both storage and state-trie levels). This
     /// order is what the `Canonical` `ExecutionWitnessMode` assumes when emitting siblings;
     /// legacy mode tolerates any order (its sibling set is a superset), so the single
-    /// implementation works for both witness shapes. Falls back to reading the pre-existing
-    /// storage_root from the psr cache when the witness omits the storage trie (canonical mode
-    /// for storage-untouched accounts).
+    /// implementation works for both witness shapes.
     pub fn update(&mut self, post_state: &HashedPostState) {
         type AcctRef<'a> = (
             &'a B256,
@@ -335,21 +295,20 @@ impl ArenaTries<'_> {
         let mut slot_inserts: Vec<(B256, U256)> = Vec::with_capacity(32);
         let mut slot_deletes: Vec<B256> = Vec::with_capacity(32);
 
-        // Coordinated walk through pre_state_storage_roots: both lists are sorted by
-        // hashed_address, so a single monotonic cursor across the entire update() makes the
-        // fallback lookup O(1) amortized instead of O(trie_depth) per missing-storage-change
-        // account.
-        let psr = self.pre_state_storage_roots;
-        let psr_count = psr.len() / PSR_ENTRY;
-        let mut psr_idx: usize = 0;
-
         // Pass 1: storage tries + state-trie inserts/updates (sorted).
         for entry in &accounts_sorted {
             let hashed_address: &B256 = entry.0;
             let Some(account) = entry.1 else { continue };
-            let storage_change: Option<&reth_trie::HashedStorage> = entry.2;
+            let storage_change = entry.2.filter(|ss| ss.wiped || !ss.storage.is_empty());
 
             let storage_root = if let Some(ss) = storage_change {
+                if !ss.wiped && !self.storage_tries.contains_key(hashed_address) {
+                    assert_eq!(
+                        self.account_storage_root(*hashed_address),
+                        EMPTY_ROOT,
+                        "nonempty account storage must be witnessed"
+                    );
+                }
                 // Storage touched — apply two-pass canonical update to the storage trie.
                 let storage_trie = self
                     .storage_tries
@@ -380,31 +339,7 @@ impl ArenaTries<'_> {
 
                 storage_trie.hash()
             } else {
-                // Storage NOT touched — read the pre-existing storage_root from the sorted
-                // psr slice. Advance `psr_idx` until the key is >= hashed_address; if it
-                // matches, use the cached storage_root; otherwise the account is new and its
-                // storage_root is EMPTY (which is also what arena::Mpt::new(bump).hash() would
-                // produce, matching the host's `to_arena_witness` for unrevealed accounts).
-                //
-                // SOUNDNESS: `psr` is host-controlled and not hash-committed. A tampered value
-                // here flows into `state_account.storage_root` below, into the state-trie leaf,
-                // and into the final state root — caught by the executor's
-                // `MismatchedStateRoot` check. See the field doc + executor `SOUNDNESS:` tag.
-                let target = hashed_address.as_slice();
-                let mut found = reth_trie::EMPTY_ROOT_HASH;
-                while psr_idx < psr_count {
-                    let off = psr_idx * PSR_ENTRY;
-                    let key = &psr[off..off + 32];
-                    if key < target {
-                        psr_idx += 1;
-                    } else {
-                        if key == target {
-                            found = B256::from_slice(&psr[off + 32..off + 64]);
-                        }
-                        break;
-                    }
-                }
-                found
+                self.account_storage_root(*hashed_address)
             };
 
             let state_account = TrieAccount {
@@ -498,10 +433,12 @@ impl StateTries for ArenaTries<'_> {
     }
 
     fn storage_value(&self, hashed_address: B256, hashed_slot: B256) -> U256 {
-        // Missing storage trie => zero for any slot: either canonical mode dropped an
-        // empty-storage_root trie, or the account is newly created this block. A genuinely
-        // missing non-empty trie surfaces later as `MismatchedStateRoot`.
         let Some(storage_trie) = self.storage_tries.get(&hashed_address) else {
+            assert_eq!(
+                self.account_storage_root(hashed_address),
+                EMPTY_ROOT,
+                "nonempty account storage must be witnessed"
+            );
             return U256::ZERO;
         };
         storage_trie
@@ -581,147 +518,6 @@ mod arena_integration_tests {
         let arena = tries.state_trie.get_rlp::<TrieAccount>(addr_hash.as_slice()).unwrap();
         assert_eq!(legacy, arena, "account lookup mismatch");
     }
-
-    /// Soundness regression test for the `pre_state_storage_roots` cache.
-    ///
-    /// The psr cache is **untrusted host input** — there's no separate Merkle commitment over
-    /// its bytes. We rely on the executor's final `state_root != block.header.state_root`
-    /// check to catch any tampering. This test makes that property executable: it
-    ///
-    ///   1. Builds an `EthereumState` where one account has non-empty storage_root and another's
-    ///      state will be updated **without** touching its storage (the only path that consults
-    ///      psr).
-    ///   2. Encodes to arena witness, decodes, applies `update`, records the "honest" root.
-    ///   3. Re-encodes, **flips bits in the psr entry's storage_root** for the affected account,
-    ///      decodes the tampered blob, applies the same update, records the "tampered" root.
-    ///   4. Asserts that `honest_root != tampered_root` — i.e., any tamper in psr deterministically
-    ///      changes the computed state root, which the executor's `MismatchedStateRoot` check would
-    ///      surface as a hard error.
-    ///
-    /// If anyone weakens or removes the executor's final check, the soundness chain breaks
-    /// and this test (or its property) needs re-evaluation. See the `SOUNDNESS:` tag at
-    /// `crates/executor/client/src/executor.rs`.
-    #[test]
-    fn psr_tamper_changes_state_root() {
-        // --- Set up: state_trie with two distinguishable accounts ---
-        // `victim_hash` has non-empty storage_root and will be updated this block WITHOUT a
-        // storage change → goes through psr fallback. `bystander_hash` is a second account
-        // so the state_trie is non-trivial and the psr section has multiple entries.
-        let mut storage = MptNode::default();
-        for i in 0..10u64 {
-            storage.insert_rlp(keccak256(i.to_be_bytes()).as_slice(), U256::from(i + 1)).unwrap();
-        }
-        let storage_root = storage.hash();
-        assert_ne!(storage_root, EMPTY_ROOT_HASH, "test setup expects non-empty storage_root");
-
-        let victim_hash = keccak256([1u8; 20]);
-        let bystander_hash = keccak256([2u8; 20]);
-
-        let mut state_trie = MptNode::default();
-        state_trie
-            .insert_rlp(
-                victim_hash.as_slice(),
-                TrieAccount {
-                    nonce: 1,
-                    balance: U256::from(1000u64),
-                    storage_root,
-                    code_hash: keccak256([]),
-                },
-            )
-            .unwrap();
-        state_trie
-            .insert_rlp(
-                bystander_hash.as_slice(),
-                TrieAccount {
-                    nonce: 0,
-                    balance: U256::ZERO,
-                    storage_root: EMPTY_ROOT_HASH,
-                    code_hash: keccak256([]),
-                },
-            )
-            .unwrap();
-
-        let mut storage_tries = HashMap::with_hasher(Default::default());
-        storage_tries.insert(victim_hash, storage);
-        let state = EthereumState { state_trie, storage_tries };
-
-        // --- The post-state change we'll apply: bump victim's nonce + balance, but no slot
-        //     writes (so post_state.storages has no entry for victim → psr fallback path). ---
-        let mut post_state = HashedPostState::default();
-        post_state.accounts.insert(
-            victim_hash,
-            Some(reth_primitives_traits::Account {
-                nonce: 2,
-                balance: U256::from(2000u64),
-                bytecode_hash: None,
-            }),
-        );
-
-        // --- 1. Honest path: encode, decode, update, capture root ---
-        let honest_blob = state.to_arena_witness();
-        let bump_honest = Bump::new();
-        let mut honest_tries = ArenaTries::decode(&bump_honest, &honest_blob).unwrap();
-        honest_tries.update(&post_state);
-        let honest_root = honest_tries.state_root();
-
-        // --- 2. Tampered path: same blob, but flip every byte of victim's psr storage_root ---
-        let mut tampered_blob = honest_blob.clone();
-        let (psr_start, psr_count) = locate_psr_section(&tampered_blob);
-        let mut found = false;
-        for i in 0..psr_count {
-            let off = psr_start + i * 64;
-            if &tampered_blob[off..off + 32] == victim_hash.as_slice() {
-                // Flip every byte of the cached storage_root — guarantees a different value.
-                for b in &mut tampered_blob[off + 32..off + 64] {
-                    *b ^= 0xff;
-                }
-                found = true;
-                break;
-            }
-        }
-        assert!(found, "expected victim's hashed_address to appear in the psr section");
-
-        let bump_tampered = Bump::new();
-        let mut tampered_tries = ArenaTries::decode(&bump_tampered, &tampered_blob).unwrap();
-        tampered_tries.update(&post_state);
-        let tampered_root = tampered_tries.state_root();
-
-        // --- 3. The whole soundness argument in one line ---
-        assert_ne!(
-            honest_root, tampered_root,
-            "psr tamper failed to change the computed state root — SOUNDNESS BROKEN. \
-             The executor's `MismatchedStateRoot` check is the only thing that catches a \
-             lying host; if tampering doesn't propagate to the root, the proof would pass with \
-             a forged storage_root. Investigate before shipping.",
-        );
-    }
-
-    /// Re-parse the arena-witness header just enough to find `(psr_start, psr_count)`.
-    /// Mirrors the wire format documented on [`EthereumState::to_arena_witness`].
-    fn locate_psr_section(blob: &[u8]) -> (usize, usize) {
-        let read_u32 = |b: &[u8], pos: &mut usize| -> usize {
-            let v = u32::from_le_bytes(b[*pos..*pos + 4].try_into().unwrap()) as usize;
-            *pos += 4;
-            v
-        };
-
-        let mut pos = 0usize;
-        // state_trie
-        let _state_nodes = read_u32(blob, &mut pos);
-        let state_len = read_u32(blob, &mut pos);
-        pos += state_len;
-        // storage_tries
-        let num_storage = read_u32(blob, &mut pos);
-        for _ in 0..num_storage {
-            pos += 32; // hashed_address
-            let _nodes = read_u32(blob, &mut pos);
-            let len = read_u32(blob, &mut pos);
-            pos += len;
-        }
-        // psr count + start offset
-        let num_psr = read_u32(blob, &mut pos);
-        (pos, num_psr)
-    }
 }
 
 #[cfg(test)]
@@ -782,6 +578,62 @@ mod update_tests {
             .storage_root
     }
 
+    fn update_both(state: &mut EthereumState, post_state: &HashedPostState) {
+        let witness = state.to_arena_witness();
+        let bump = bumpalo::Bump::new();
+        let mut arena = ArenaTries::decode(&bump, &witness).unwrap();
+        arena.update(post_state);
+        state.update(post_state);
+        assert_eq!(arena.state_root(), state.state_root());
+    }
+
+    #[test]
+    fn arena_reads_zero_for_proven_empty_or_absent_accounts() {
+        let (state, _, _) = fixture(false);
+        let witness = state.to_arena_witness();
+        let bump = bumpalo::Bump::new();
+        let arena = ArenaTries::decode(&bump, &witness).unwrap();
+        for address in [keccak256([2u8; 20]), keccak256([3u8; 20])] {
+            assert_eq!(arena.storage_value(address, slot(0)), U256::ZERO);
+        }
+    }
+
+    #[test]
+    fn arena_requires_storage_for_reads_and_partial_updates() {
+        let (state, contract, _) = fixture(false);
+        let witness = state.to_arena_witness();
+        let bump = bumpalo::Bump::new();
+        let mut arena = ArenaTries::decode(&bump, &witness).unwrap();
+        let mut post_state = post(contract, 2, 2000);
+        post_state
+            .storages
+            .insert(contract, HashedStorage::from_iter(false, [(slot(1), U256::ONE)]));
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            || arena.storage_value(contract, slot(1))
+        ))
+        .is_err());
+        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(
+            || arena.update(&post_state)
+        ))
+        .is_err());
+    }
+
+    #[test]
+    fn arena_preserves_the_leaf_root_without_the_legacy_cache() {
+        let (mut state, contract, _) = fixture(true);
+        let mut witness = state.to_arena_witness();
+        // This fixture has two revealed accounts. Supply an empty legacy cache instead.
+        witness.truncate(witness.len() - 2 * PSR_ENTRY - 4);
+        witness.extend_from_slice(&0u32.to_le_bytes());
+        let bump = bumpalo::Bump::new();
+        let mut arena = ArenaTries::decode(&bump, &witness).unwrap();
+        let mut post_state = post(contract, 2, 2000);
+        post_state.storages.insert(contract, HashedStorage::new(false));
+        state.update(&post_state);
+        arena.update(&post_state);
+        assert_eq!(arena.state_root(), state.state_root());
+    }
+
     /// An account whose storage is not in the diff keeps the `storage_root` already in its leaf,
     /// with or without its storage trie in `storage_tries`.
     #[test]
@@ -790,8 +642,8 @@ mod update_tests {
         let (mut without_trie, _, _) = fixture(false);
         let post_state = post(contract, 2, 2000);
 
-        with_trie.update(&post_state);
-        without_trie.update(&post_state);
+        update_both(&mut with_trie, &post_state);
+        update_both(&mut without_trie, &post_state);
 
         assert_eq!(storage_root_of(&without_trie, contract), contract_root);
         assert_eq!(without_trie.state_root(), with_trie.state_root());
@@ -828,7 +680,7 @@ mod update_tests {
             .insert(eoa, Some(Account { nonce: 1, balance: U256::ZERO, bytecode_hash: None }));
         post_state.storages.insert(created, HashedStorage::from_iter(false, slots));
         post_state.storages.insert(eoa, HashedStorage::from_iter(false, slots));
-        state.update(&post_state);
+        update_both(&mut state, &post_state);
 
         assert_eq!(storage_root_of(&state, created), expected.hash());
         assert_eq!(storage_root_of(&state, eoa), expected.hash());
@@ -841,7 +693,7 @@ mod update_tests {
         post_state
             .storages
             .insert(contract, HashedStorage::from_iter(true, [(slot(42), U256::from(1u64))]));
-        state.update(&post_state);
+        update_both(&mut state, &post_state);
 
         let mut expected = MptNode::default();
         expected.insert_rlp(slot(42).as_slice(), U256::from(1u64)).unwrap();
