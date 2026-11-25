@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use alloy_consensus::Header;
+use alloy_primitives::b256;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::ConfigureEvm;
@@ -26,7 +28,17 @@ async fn test_e2e_sepolia() {
     run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324).await;
 }
 
-async fn run_eth_e2e(genesis: &Genesis, env_var_key: &str, block_number: u64) {
+#[tokio::test(flavor = "multi_thread")]
+async fn test_e2e_sepolia_deposit() {
+    // This block contains one validator deposit. Post-execution validation checks its requests.
+    let header = run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 7_838_305).await;
+    assert_eq!(
+        header.hash_slow(),
+        b256!("ea358d1c41871011be3a5dd06c3a44df3ce9cb7456d3f916d96c085f938b365b")
+    );
+}
+
+async fn run_eth_e2e(genesis: &Genesis, env_var_key: &str, block_number: u64) -> Header {
     let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     // Setup the host executor.
@@ -42,7 +54,7 @@ async fn run_eth_e2e(genesis: &Genesis, env_var_key: &str, block_number: u64) {
         block_number,
         genesis,
     )
-    .await;
+    .await
 }
 
 async fn run_e2e<C, CS, N>(
@@ -51,7 +63,8 @@ async fn run_e2e<C, CS, N>(
     env_var_key: &str,
     block_number: u64,
     genesis: &Genesis,
-) where
+) -> Header
+where
     C: ConfigureEvm,
     C::Primitives: FromInput
         + IntoPrimitives<N>
@@ -88,11 +101,13 @@ async fn run_e2e<C, CS, N>(
         .expect("failed to execute host");
 
     // Execute the client.
-    client_executor.execute(client_input.clone()).expect("failed to execute client");
+    let header = client_executor.execute(client_input.clone()).expect("failed to execute client");
 
     // Save the client input to a buffer.
     let buffer = bincode::serialize(&client_input).unwrap();
 
     // Load the client input from a buffer.
     let _: ClientExecutorInput<C::Primitives> = bincode::deserialize(&buffer).unwrap();
+
+    header
 }

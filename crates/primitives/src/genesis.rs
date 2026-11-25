@@ -132,7 +132,7 @@ impl TryFrom<&Genesis> for ChainSpec {
                     genesis_header: Default::default(),
                     paris_block_and_final_difficulty: Default::default(),
                     hardforks: EthereumHardfork::sepolia().into(),
-                    deposit_contract: Default::default(),
+                    deposit_contract: reth_chainspec::SEPOLIA.deposit_contract,
                     base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
                     prune_delete_limit: 10000,
                     blob_params: BlobScheduleBlobParams::default().with_scheduled([

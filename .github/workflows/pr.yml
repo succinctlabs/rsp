@@ -105,11 +105,17 @@ jobs:
         run: |
           sp1up -v v6.10.0
 
-      - name: "Set up test fixture"
-        run: |
-          git clone https://github.com/succinctlabs/rsp-tests --branch 2025-09-30 --depth 1 ../rsp-tests
-          cd ../rsp-tests/
-          docker compose up -d
+      - name: "Checkout test fixture"
+        uses: actions/checkout@v4
+        with:
+          repository: succinctlabs/rsp-tests
+          ref: 7934945cec78959bd40da7e0ffb55d6487af71b5
+          path: rsp-tests
+          persist-credentials: false
+
+      - name: "Start test fixture"
+        working-directory: rsp-tests
+        run: docker compose up -d
 
       - name: "Use local test fixture"
         run: |
