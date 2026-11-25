@@ -8480,7 +8480,7 @@ dependencies = [
 [[package]]
 name = "substrate-bn"
 version = "0.6.0"
-source = "git+https://github.com/sp1-patches/bn?tag=patch-0.6.0-sp1-6.10.0-substrate-bn#ab4d0085567695967cf34c23b3090f1ae02a03d1"
+source = "git+https://github.com/sp1-patches/bn?tag=patch-0.6.0-sp1-6.10.0-substrate-bn-r1#2bc7d524f4e799031701dd7e31c1d7b0011cdfc4"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -8495,8 +8495,9 @@ dependencies = [
 
 [[package]]
 name = "substrate-bn-succinct-rs"
-version = "0.6.1"
-source = "git+https://github.com/sp1-patches/bn?tag=patch-0.6.1-sp1-6.10.0#fc9efa1af3daf77f9c7b549fc192778958e7fe30"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e96045ac8bc2bc3b1dbb0d3c94adc4913d61e52400cd9ba03a8e90cc52fc1753"
 dependencies = [
  "bytemuck",
  "byteorder",
