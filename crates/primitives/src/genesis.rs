@@ -6,29 +6,61 @@ use std::{
 use alloy_eips::{eip7840::BlobParams, BlobScheduleBlobParams};
 use alloy_genesis::ChainConfig;
 use reth_chainspec::{
-    holesky::{HOLESKY_BPO1_TIMESTAMP, HOLESKY_BPO2_TIMESTAMP},
     mainnet::{MAINNET_BPO1_TIMESTAMP, MAINNET_BPO2_TIMESTAMP},
     sepolia::{SEPOLIA_BPO1_TIMESTAMP, SEPOLIA_BPO2_TIMESTAMP},
     BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork,
     MAINNET_PRUNE_DELETE_LIMIT,
 };
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::error::ChainSpecError;
 
-pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
 pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/11155420.json");
 
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "StoredGenesis<'de>")]
 #[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
     Sepolia,
+    Custom(ChainConfig),
+}
+
+// Bincode stores the variant index. Keep retired indices reserved for old input files.
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "Genesis")]
+#[allow(clippy::large_enum_variant)]
+enum StoredGenesis<'a> {
+    Mainnet,
+    Sepolia,
     Holesky,
     Linea,
-    Custom(#[serde_as(as = "alloy_genesis::serde_bincode_compat::ChainConfig")] ChainConfig),
+    Custom(alloy_genesis::serde_bincode_compat::ChainConfig<'a>),
+}
+
+impl Serialize for Genesis {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Mainnet => StoredGenesis::Mainnet,
+            Self::Sepolia => StoredGenesis::Sepolia,
+            Self::Custom(config) => StoredGenesis::Custom(config.into()),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl TryFrom<StoredGenesis<'_>> for Genesis {
+    type Error = ChainSpecError;
+
+    fn try_from(stored: StoredGenesis<'_>) -> Result<Self, Self::Error> {
+        match stored {
+            StoredGenesis::Mainnet => Ok(Self::Mainnet),
+            StoredGenesis::Sepolia => Ok(Self::Sepolia),
+            StoredGenesis::Holesky => Err(ChainSpecError::ChainNotSupported(17000)),
+            StoredGenesis::Linea => Err(ChainSpecError::ChainNotSupported(59144)),
+            StoredGenesis::Custom(config) => Ok(Self::Custom(config.into())),
+        }
+    }
 }
 
 impl Hash for Genesis {
@@ -36,8 +68,6 @@ impl Hash for Genesis {
         match self {
             Genesis::Mainnet => 1.hash(state),
             Genesis::Sepolia => 11155111.hash(state),
-            Genesis::Holesky => 17000.hash(state),
-            Genesis::Linea => 59144.hash(state),
             Self::Custom(config) => {
                 let buf = serde_json::to_vec(config).unwrap();
                 buf.hash(state);
@@ -66,8 +96,6 @@ impl TryFrom<u64> for Genesis {
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(Genesis::Mainnet),
-            17000 => Ok(Genesis::Holesky),
-            59144 => Ok(Genesis::Linea),
             11155111 => Ok(Genesis::Sepolia),
             id => Err(ChainSpecError::ChainNotSupported(id)),
         }
@@ -114,24 +142,6 @@ impl TryFrom<&Genesis> for ChainSpec {
                 };
                 Ok(sepolia)
             }
-            Genesis::Holesky => {
-                let holesky = ChainSpec {
-                    chain: Chain::holesky(),
-                    genesis: Default::default(),
-                    genesis_header: Default::default(),
-                    paris_block_and_final_difficulty: Default::default(),
-                    hardforks: EthereumHardfork::holesky().into(),
-                    deposit_contract: Default::default(),
-                    base_fee_params: BaseFeeParamsKind::Constant(BaseFeeParams::ethereum()),
-                    prune_delete_limit: 10000,
-                    blob_params: BlobScheduleBlobParams::default().with_scheduled([
-                        (HOLESKY_BPO1_TIMESTAMP, BlobParams::bpo1()),
-                        (HOLESKY_BPO2_TIMESTAMP, BlobParams::bpo2()),
-                    ]),
-                };
-                Ok(holesky)
-            }
-            Genesis::Linea => Ok(ChainSpec::from_genesis(genesis_from_json(LINEA_GENESIS_JSON)?)),
             Genesis::Custom(config) => Ok(ChainSpec::from_genesis(alloy_genesis::Genesis {
                 config: config.clone(),
                 ..Default::default()
@@ -145,7 +155,30 @@ mod tests {
 
     use alloy_eips::eip7840::BlobParams;
 
-    use crate::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
+    use crate::{
+        error::ChainSpecError,
+        genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON},
+    };
+
+    #[test]
+    fn retired_chains_are_rejected_by_id_and_by_stored_tag() {
+        for (tag, id) in [(2_u32, 17000), (3, 59144)] {
+            assert!(
+                matches!(Genesis::try_from(id), Err(ChainSpecError::ChainNotSupported(n)) if n == id)
+            );
+            let error = bincode::deserialize::<Genesis>(&tag.to_le_bytes()).unwrap_err();
+            assert!(error.to_string().contains(&ChainSpecError::ChainNotSupported(id).to_string()));
+        }
+    }
+
+    #[test]
+    fn reads_custom_genesis_written_before_chain_retirement() {
+        // Written by RSP 1196d33 from {"chainId":424242}.
+        let old = include_bytes!("../tests/fixtures/custom-genesis.bin");
+        let genesis: Genesis = bincode::deserialize(old).unwrap();
+        assert_eq!(genesis, r#"{"chainId":424242}"#.parse().unwrap());
+        assert_eq!(bincode::serialize(&genesis).unwrap().as_slice(), old);
+    }
 
     #[test]
     fn test_custom_genesis_bincode_roundtrip() {

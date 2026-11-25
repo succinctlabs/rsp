@@ -3867,7 +3867,6 @@ dependencies = [
  "reth-trie",
  "serde",
  "serde_json",
- "serde_with",
  "thiserror 1.0.69",
 ]
 

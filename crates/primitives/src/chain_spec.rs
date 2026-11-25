@@ -7,24 +7,14 @@ pub fn mainnet() -> Result<ChainSpec, ChainSpecError> {
     (&Genesis::Mainnet).try_into()
 }
 
-/// Returns the [ChainSpec] for Linea Mainnet.
-pub fn linea_mainnet() -> Result<ChainSpec, ChainSpecError> {
-    (&Genesis::Linea).try_into()
-}
-
 /// Returns the [ChainSpec] for Sepolia testnet.
 pub fn sepolia() -> Result<ChainSpec, ChainSpecError> {
     (&Genesis::Sepolia).try_into()
 }
 
-/// Returns the [ChainSpec] for Sepolia testnet.
-pub fn holesky() -> Result<ChainSpec, ChainSpecError> {
-    (&Genesis::Holesky).try_into()
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::chain_spec::{linea_mainnet, sepolia};
+    use crate::chain_spec::sepolia;
 
     use super::mainnet;
 
@@ -33,13 +23,6 @@ mod tests {
         let chain_spec = mainnet().unwrap();
 
         assert_eq!(1, chain_spec.chain.id(), "the chain id must be 1 for Ethereum mainnet");
-    }
-
-    #[test]
-    pub fn test_linea_mainnet_chain_spec() {
-        let chain_spec = linea_mainnet().unwrap();
-
-        assert_eq!(59144, chain_spec.chain.id(), "the chain id must be 59144 for Linea");
     }
 
     #[test]

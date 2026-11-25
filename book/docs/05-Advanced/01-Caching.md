@@ -14,4 +14,6 @@ rsp --block-number 18884864 --chain-id 1 --cache-dir /path/to/cache
 
 A valid cache hit works even if `RPC_1` points to an unavailable endpoint. On a cache miss, the host checks the endpoint's chain ID before fetching the block. Passing `--rpc-url` explicitly requests a chain ID check at startup.
 
-Default and arena builds store separate files. After upgrading from a build with the custom beneficiary option, regenerate each required block from RPC before taking the cache offline. Older arena cache files also need regeneration because they omitted the witness.
+Default and arena builds store separate files. Removing built-in Holesky and Linea support preserves the bincode tag used by custom genesis inputs.
+
+Regenerate inputs when upgrading from a build with the custom beneficiary option. Earlier arena caches also require regeneration because they omitted the witness. Keep the old directory and use an archive RPC to populate a new one. For custom chains, pass the original `--genesis-path` when recording and replaying. Before switching directories, run each required block offline and compare its block hash with the chain.
