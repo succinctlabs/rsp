@@ -36,19 +36,20 @@ sp1-sdk.workspace = true
 
 # reth
 reth-evm.workspace = true
-reth-evm-ethereum.workspace = true
+reth-evm-ethereum = { workspace = true, features = ["std"] }
 reth-ethereum-primitives.workspace = true
 reth-primitives-traits  = { workspace = true, features = ["secp256k1"] }
-reth-trie.workspace = true
+reth-execution-types.workspace = true
 reth-errors.workspace = true
 reth-storage-errors.workspace = true
 reth-chainspec.workspace = true
 
 # revm
-revm.workspace = true
+evm2.workspace = true
 revm-primitives.workspace = true
 
 # alloy
+alloy-eips.workspace = true
 alloy-chains.workspace = true
 alloy-consensus.workspace = true
 alloy-primitives.workspace = true

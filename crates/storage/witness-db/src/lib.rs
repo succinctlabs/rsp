@@ -2,7 +2,7 @@
 
 use alloy_primitives::B256;
 use reth_storage_errors::provider::ProviderError;
-use revm_database_interface::DatabaseRef;
+use revm_database_interface::{DatabaseRef, ErasedError};
 use revm_primitives::{Address, HashMap, U256};
 use revm_state::{AccountInfo, Bytecode};
 use serde::{Deserialize, Serialize};
@@ -19,25 +19,33 @@ pub struct WitnessDb {
 }
 
 impl DatabaseRef for WitnessDb {
-    type Error = ProviderError;
+    type Error = ErasedError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        // Even absent accounts are loaded as `None`, so if an entry is missing from `HashMap` we
-        // need to panic. Otherwise it would be interpreted by `revm` as an uninitialized account.
-        Ok(Some(self.accounts.get(&address).cloned().unwrap()))
+        self.accounts.get(&address).cloned().map(Some).ok_or_else(|| {
+            ErasedError::new(ProviderError::TrieWitnessError(format!("Missing account {address}")))
+        })
     }
 
-    fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
-        unimplemented!()
+    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+        Err(ErasedError::new(ProviderError::TrieWitnessError(format!(
+            "WitnessDb does not support code lookup by hash: {code_hash}"
+        ))))
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        // Absence of storage trie or slot must be treated as an error here. Otherwise it's possible
-        // to trick `revm` into believing a slot is `0` when it's not.
-        Ok(*self.storage.get(&address).unwrap().get(&index).unwrap())
+        self.storage.get(&address).and_then(|slots| slots.get(&index)).copied().ok_or_else(|| {
+            ErasedError::new(ProviderError::TrieWitnessError(format!(
+                "Missing storage slot {index} for {address}"
+            )))
+        })
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        Ok(*self.block_hashes.get(&number).unwrap())
+        self.block_hashes.get(&number).copied().ok_or_else(|| {
+            ErasedError::new(ProviderError::TrieWitnessError(format!(
+                "Missing block hash for {number}"
+            )))
+        })
     }
 }

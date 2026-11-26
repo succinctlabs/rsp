@@ -1,15 +1,17 @@
 use std::marker::PhantomData;
 
 use alloy_consensus::Header;
-use alloy_primitives::{map::HashMap, Address, B256};
+use alloy_primitives::{keccak256, map::HashMap, Address, B256, U256};
 use alloy_provider::{ext::DebugApi, Network, Provider};
 use alloy_rlp::Decodable;
 use alloy_trie::TrieAccount;
 use async_trait::async_trait;
+use evm2::{
+    block::bundle_state::BundleState,
+    bytecode::Bytecode,
+    evm::{AccountInfo, DatabaseRef},
+};
 use reth_storage_errors::ProviderError;
-use revm_database::{BundleState, DatabaseRef};
-use revm_primitives::{keccak256, ruint::aliases::U256, StorageKey, StorageValue};
-use revm_state::{AccountInfo, Bytecode};
 use rsp_mpt::EthereumState;
 
 use crate::{RpcDb, RpcDbError};
@@ -38,7 +40,7 @@ impl<P: Provider<N> + Clone, N: Network> ExecutionWitnessRpcDb<P, N> {
         let codes = execution_witness
             .codes
             .iter()
-            .map(|encoded| (keccak256(encoded), Bytecode::new_raw(encoded.clone())))
+            .map(|encoded| (keccak256(encoded), Bytecode::from_stored(encoded.clone())))
             .collect();
 
         let ancestor_headers = execution_witness
@@ -57,7 +59,7 @@ impl<P: Provider<N> + Clone, N: Network> ExecutionWitnessRpcDb<P, N> {
 impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P, N> {
     type Error = ProviderError;
 
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn get_account(&self, address: &Address) -> Result<Option<AccountInfo>, Self::Error> {
         let hash = keccak256(address);
         if let Some(mut bytes) = self
             .state
@@ -66,13 +68,8 @@ impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P
             .map_err(|err| ProviderError::TrieWitnessError(err.to_string()))?
         {
             let account = TrieAccount::decode(&mut bytes)?;
-            let account_info = AccountInfo {
-                balance: account.balance,
-                nonce: account.nonce,
-                code_hash: account.code_hash,
-                account_id: None,
-                code: None,
-            };
+            let account_info =
+                AccountInfo::new(account.balance, account.nonce, account.code_hash, None);
 
             Ok(Some(account_info))
         } else {
@@ -80,21 +77,17 @@ impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P
         }
     }
 
-    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
+    fn get_code_by_hash(&self, code_hash: &B256) -> Result<Bytecode, Self::Error> {
         self.codes
-            .get(&code_hash)
+            .get(code_hash)
             .ok_or_else(|| {
                 ProviderError::TrieWitnessError(format!("Code not found for {code_hash}"))
             })
             .cloned()
     }
 
-    fn storage_ref(
-        &self,
-        address: Address,
-        index: StorageKey,
-    ) -> Result<StorageValue, Self::Error> {
-        let slot = B256::from(index);
+    fn get_storage(&self, address: &Address, index: &U256) -> Result<U256, Self::Error> {
+        let slot = B256::from(*index);
         let hashed_address = keccak256(address);
         let hashed_slot = keccak256(slot);
         if let Some(mut value) = self
@@ -109,7 +102,10 @@ impl<P: Provider<N> + Clone, N: Network> DatabaseRef for ExecutionWitnessRpcDb<P
         }
     }
 
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+    fn get_block_hash(&self, number: &U256) -> Result<B256, Self::Error> {
+        let number = u64::try_from(*number).map_err(|_| {
+            ProviderError::TrieWitnessError(format!("Invalid block number {number}"))
+        })?;
         let header = self.ancestor_headers.get(&number).ok_or_else(|| {
             ProviderError::TrieWitnessError(format!("Header {number} not found in the ancestors"))
         })?;
@@ -128,8 +124,8 @@ where
         Ok(self.state.clone())
     }
 
-    fn bytecodes(&self) -> Vec<Bytecode> {
-        self.codes.values().cloned().collect()
+    fn bytecodes(&self) -> Vec<revm_state::Bytecode> {
+        self.codes.values().map(crate::cached_bytecode).collect()
     }
 
     async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError> {
