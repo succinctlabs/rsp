@@ -203,7 +203,7 @@ impl EthereumState {
             let account = TrieAccount::decode(&mut value).unwrap();
             psr.push((B256::from_slice(key), account.storage_root));
         });
-        psr.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+        psr.sort_unstable_by_key(|entry| entry.0);
         put_u32(&mut blob, psr.len());
         for (hashed_address, storage_root) in &psr {
             blob.extend_from_slice(hashed_address.as_slice());
@@ -348,7 +348,7 @@ impl ArenaTries<'_> {
                         }
                     }
                 }
-                slot_inserts.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+                slot_inserts.sort_unstable_by_key(|entry| entry.0);
                 slot_deletes.sort_unstable();
 
                 for (k, v) in &slot_inserts {

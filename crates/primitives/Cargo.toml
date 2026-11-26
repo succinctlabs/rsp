@@ -21,6 +21,8 @@ reth-trie.workspace = true
 # alloy
 alloy-eips.workspace = true
 alloy-genesis.workspace = true
+alloy-primitives.workspace = true
+alloy-serde.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]

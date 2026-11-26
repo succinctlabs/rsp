@@ -52,5 +52,7 @@ allow-wildcard-paths = true
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+# Reth v2.11 pins this source to unify evm2 with reth-core.
+allow-git = ["https://github.com/DaniPopes/evm2"]
 required-git-spec = "tag"
 allow-org = { github = ["paradigmxyz", "sp1-patches"] }

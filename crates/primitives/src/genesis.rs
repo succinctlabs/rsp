@@ -15,10 +15,12 @@ use serde::{Deserialize, Serialize, Serializer};
 
 use crate::error::ChainSpecError;
 
+mod legacy_config;
+
 pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/11155420.json");
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-#[serde(try_from = "StoredGenesis<'de>")]
+#[serde(try_from = "StoredGenesis")]
 #[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
@@ -30,12 +32,13 @@ pub enum Genesis {
 #[derive(Serialize, Deserialize)]
 #[serde(rename = "Genesis")]
 #[allow(clippy::large_enum_variant)]
-enum StoredGenesis<'a> {
+enum StoredGenesis {
     Mainnet,
     Sepolia,
     Holesky,
     Linea,
-    Custom(alloy_genesis::serde_bincode_compat::ChainConfig<'a>),
+    Custom(#[serde(with = "legacy_config::LegacyConfig")] ChainConfig),
+    CustomJson(String),
 }
 
 impl Serialize for Genesis {
@@ -43,22 +46,28 @@ impl Serialize for Genesis {
         match self {
             Self::Mainnet => StoredGenesis::Mainnet,
             Self::Sepolia => StoredGenesis::Sepolia,
-            Self::Custom(config) => StoredGenesis::Custom(config.into()),
+            Self::Custom(config) if config.bogota_time.is_none() => {
+                StoredGenesis::Custom(config.clone())
+            }
+            Self::Custom(config) => StoredGenesis::CustomJson(
+                serde_json::to_string(config).map_err(serde::ser::Error::custom)?,
+            ),
         }
         .serialize(serializer)
     }
 }
 
-impl TryFrom<StoredGenesis<'_>> for Genesis {
+impl TryFrom<StoredGenesis> for Genesis {
     type Error = ChainSpecError;
 
-    fn try_from(stored: StoredGenesis<'_>) -> Result<Self, Self::Error> {
+    fn try_from(stored: StoredGenesis) -> Result<Self, Self::Error> {
         match stored {
             StoredGenesis::Mainnet => Ok(Self::Mainnet),
             StoredGenesis::Sepolia => Ok(Self::Sepolia),
             StoredGenesis::Holesky => Err(ChainSpecError::ChainNotSupported(17000)),
             StoredGenesis::Linea => Err(ChainSpecError::ChainNotSupported(59144)),
-            StoredGenesis::Custom(config) => Ok(Self::Custom(config.into())),
+            StoredGenesis::Custom(config) => Ok(Self::Custom(config)),
+            StoredGenesis::CustomJson(json) => Ok(Self::Custom(serde_json::from_str(&json)?)),
         }
     }
 }
@@ -178,6 +187,14 @@ mod tests {
         let genesis: Genesis = bincode::deserialize(old).unwrap();
         assert_eq!(genesis, r#"{"chainId":424242}"#.parse().unwrap());
         assert_eq!(bincode::serialize(&genesis).unwrap().as_slice(), old);
+    }
+
+    #[test]
+    fn preserves_bogota_time_in_custom_genesis() {
+        let genesis: Genesis = r#"{"chainId":424242,"bogotaTime":1234}"#.parse().unwrap();
+        let bytes = bincode::serialize(&genesis).unwrap();
+        assert_eq!(&bytes[..4], &5_u32.to_le_bytes());
+        assert_eq!(bincode::deserialize::<Genesis>(&bytes).unwrap(), genesis);
     }
 
     #[test]

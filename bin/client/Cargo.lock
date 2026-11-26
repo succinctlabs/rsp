@@ -4120,7 +4120,9 @@ version = "0.1.0"
 dependencies = [
  "alloy-eips 2.6.1",
  "alloy-genesis",
+ "alloy-primitives",
  "alloy-rpc-types",
+ "alloy-serde 2.6.1",
  "reth-chainspec",
  "reth-primitives-traits",
  "reth-trie-common",
