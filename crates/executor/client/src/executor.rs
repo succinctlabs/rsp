@@ -1,27 +1,21 @@
 use std::sync::Arc;
 
 use alloy_consensus::{BlockHeader, Header};
-use alloy_evm::Database;
+use evm2::install_crypto;
 use itertools::Itertools;
 use reth_chainspec::ChainSpec;
-use reth_errors::BlockExecutionError;
-use reth_evm::{
-    execute::{BasicBlockExecutor, Executor},
-    ConfigureEvm, OnStateHook,
-};
+use reth_evm::ConfigureEvm;
 use reth_evm_ethereum::EthEvmConfig;
-use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
-use reth_trie::KeccakKeyHasher;
-use revm::{database::WrapDatabaseRef, install_crypto};
 use revm_primitives::Address;
+use rsp_mpt::StateTries;
 
 use crate::{
     custom::{CustomCrypto, CustomEvmFactory},
     error::ClientError,
     into_primitives::FromInput,
     io::{ClientExecutorInput, WitnessInput},
-    tracking::OpCodesTrackingBlockExecutor,
+    tracking::execute_block,
     BlockValidator,
 };
 
@@ -39,6 +33,8 @@ pub type EthClientExecutor = ClientExecutor<EthEvmConfig<ChainSpec, CustomEvmFac
 #[derive(Debug, Clone)]
 pub struct ClientExecutor<C: ConfigureEvm, CS> {
     evm_config: C,
+    // Reth exposes the generic factory accessor only on builds with std.
+    block_factory: fn(&C) -> &C::BlockExecutorFactory,
     chain_spec: Arc<CS>,
 }
 
@@ -70,10 +66,8 @@ where
             let trie_db = input.witness_db(&sealed_headers).unwrap();
             #[cfg(feature = "arena")]
             let trie_db = input.witness_db(&tries, &sealed_headers).unwrap();
-            WrapDatabaseRef(trie_db)
+            trie_db
         });
-
-        let block_executor = BlockExecutor::new(self.evm_config.clone(), db, input.opcode_tracking);
 
         let block = profile_report!(RECOVER_SENDERS, {
             C::Primitives::from_input_block(input.current_block.clone())
@@ -99,8 +93,15 @@ where
             }
         });
 
-        let execution_output =
-            profile_report!(BLOCK_EXECUTION, { block_executor.execute(&block) })?;
+        let (execution_output, bal_hash) = profile_report!(BLOCK_EXECUTION, {
+            execute_block(
+                &self.evm_config,
+                (self.block_factory)(&self.evm_config),
+                db,
+                &block,
+                input.opcode_tracking,
+            )
+        })?;
 
         // Validate the block post execution.
         profile_report!(VALIDATE_EXECUTION, {
@@ -108,35 +109,20 @@ where
                 &block,
                 self.chain_spec.clone(),
                 &execution_output,
+                bal_hash,
             )
         })?;
 
-        // Convert the output to an execution outcome.
-        let executor_outcome = ExecutionOutcome::new(
-            execution_output.state,
-            vec![execution_output.result.receipts],
-            input.current_block.header().number(),
-            vec![execution_output.result.requests],
-        );
-
-        // Verify the state root.
-        //
-        // SOUNDNESS: this final state-root check is load-bearing for every host-controlled value
-        // that flows into the tries — not just the trie nodes (whose hashes are verified during
-        // decode), but also, on the arena backend, the untrusted `pre_state_storage_roots` cache
-        // consumed by `ArenaTries::update` (see the `SOUNDNESS:` docs on
-        // `EthereumState::to_arena_witness` / `ArenaTries`). A tampered witness input surfaces
-        // here as `MismatchedStateRoot` and no proof is produced.
+        // Verify the state root after applying the block changes.
         let state_root = profile_report!(COMPUTE_STATE_ROOT, {
-            let post_state = executor_outcome.hash_state_slow::<KeccakKeyHasher>();
             #[cfg(not(feature = "arena"))]
             {
-                input.parent_state.update(&post_state);
+                input.parent_state.update_from_bundle(&execution_output.state);
                 input.parent_state.state_root()
             }
             #[cfg(feature = "arena")]
             {
-                tries.update(&post_state);
+                tries.update_from_bundle(&execution_output.state);
                 tries.state_root()
             }
         });
@@ -145,35 +131,7 @@ where
             return Err(ClientError::MismatchedStateRoot);
         }
 
-        // Derive the block header.
-        // Note: the receipts root and gas used are verified by `validate_block_post_execution`.
-        let header = Header {
-            parent_hash: input.current_block.header().parent_hash(),
-            ommers_hash: input.current_block.header().ommers_hash(),
-            beneficiary: input.current_block.header().beneficiary(),
-            state_root,
-            transactions_root: input.current_block.header().transactions_root(),
-            receipts_root: input.current_block.header().receipts_root(),
-            logs_bloom: input.current_block.logs_bloom,
-            difficulty: input.current_block.header().difficulty(),
-            number: input.current_block.header().number(),
-            gas_limit: input.current_block.header().gas_limit(),
-            gas_used: input.current_block.header().gas_used(),
-            timestamp: input.current_block.header().timestamp(),
-            extra_data: input.current_block.header().extra_data().clone(),
-            mix_hash: input.current_block.header().mix_hash().unwrap(),
-            nonce: input.current_block.header().nonce().unwrap(),
-            base_fee_per_gas: input.current_block.header().base_fee_per_gas(),
-            withdrawals_root: input.current_block.header().withdrawals_root(),
-            blob_gas_used: input.current_block.header().blob_gas_used(),
-            excess_blob_gas: input.current_block.header().excess_blob_gas(),
-            parent_beacon_block_root: input.current_block.header().parent_beacon_block_root(),
-            requests_hash: input.current_block.header().requests_hash(),
-            block_access_list_hash: None,
-            slot_number: None,
-        };
-
-        Ok(header)
+        Ok(input.current_block.header)
     }
 }
 
@@ -186,95 +144,8 @@ impl EthClientExecutor {
                 chain_spec.clone(),
                 CustomEvmFactory::new(custom_beneficiary),
             ),
+            block_factory: |config| &config.executor_factory,
             chain_spec,
-        }
-    }
-}
-
-/// Dispatches block execution to either the basic or opcode-tracking executor. Generic over the
-/// revm database `DB`, so it is agnostic to which state-trie backend (legacy or arena) built it.
-enum BlockExecutor<C, DB> {
-    Basic(BasicBlockExecutor<C, DB>),
-    OpcodeTracking(OpCodesTrackingBlockExecutor<C, DB>),
-}
-
-impl<C: ConfigureEvm, DB: Database> BlockExecutor<C, DB> {
-    fn new(strategy_factory: C, db: DB, opcode_tracking: bool) -> Self {
-        if opcode_tracking {
-            Self::OpcodeTracking(OpCodesTrackingBlockExecutor::new(strategy_factory, db))
-        } else {
-            Self::Basic(BasicBlockExecutor::new(strategy_factory, db))
-        }
-    }
-}
-
-impl<C, DB> Executor<DB> for BlockExecutor<C, DB>
-where
-    C: ConfigureEvm,
-    DB: Database,
-{
-    type Primitives = C::Primitives;
-    type Error = BlockExecutionError;
-
-    fn execute_one(
-        &mut self,
-        block: &reth_primitives_traits::RecoveredBlock<
-            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Block,
-        >,
-    ) -> Result<
-        reth_execution_types::BlockExecutionResult<
-            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Receipt,
-        >,
-        Self::Error,
-    > {
-        match self {
-            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.execute_one(block),
-            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
-                op_codes_tracking_block_executor.execute_one(block)
-            }
-        }
-    }
-
-    fn execute_one_with_state_hook<H>(
-        &mut self,
-        block: &reth_primitives_traits::RecoveredBlock<
-            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Block,
-        >,
-        state_hook: H,
-    ) -> Result<
-        reth_execution_types::BlockExecutionResult<
-            <Self::Primitives as reth_primitives_traits::NodePrimitives>::Receipt,
-        >,
-        Self::Error,
-    >
-    where
-        H: OnStateHook + 'static,
-    {
-        match self {
-            BlockExecutor::Basic(basic_block_executor) => {
-                basic_block_executor.execute_one_with_state_hook(block, state_hook)
-            }
-            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
-                op_codes_tracking_block_executor.execute_one_with_state_hook(block, state_hook)
-            }
-        }
-    }
-
-    fn into_state(self) -> revm::database::State<DB> {
-        match self {
-            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.into_state(),
-            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
-                op_codes_tracking_block_executor.into_state()
-            }
-        }
-    }
-
-    fn size_hint(&self) -> usize {
-        match self {
-            BlockExecutor::Basic(basic_block_executor) => basic_block_executor.size_hint(),
-            BlockExecutor::OpcodeTracking(op_codes_tracking_block_executor) => {
-                op_codes_tracking_block_executor.size_hint()
-            }
         }
     }
 }

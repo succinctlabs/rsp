@@ -1,2 +1,2 @@
 mod block_executor;
-pub use block_executor::OpCodesTrackingBlockExecutor;
+pub(crate) use block_executor::execute_block;

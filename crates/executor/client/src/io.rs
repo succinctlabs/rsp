@@ -2,15 +2,13 @@ use std::iter::once;
 
 use alloy_consensus::{Block, BlockHeader, Header};
 use alloy_primitives::map::HashMap;
+use evm2::evm::{AccountInfo, Database};
 use itertools::Itertools;
 use reth_errors::ProviderError;
 use reth_ethereum_primitives::EthPrimitives;
 use reth_primitives_traits::{NodePrimitives, SealedHeader};
 use reth_trie::EMPTY_ROOT_HASH;
-use revm::{
-    state::{AccountInfo, Bytecode},
-    DatabaseRef,
-};
+use revm::state::Bytecode;
 use revm_primitives::{keccak256, Address, B256, U256};
 use rsp_mpt::StateTries;
 use rsp_primitives::genesis::Genesis;
@@ -168,7 +166,7 @@ impl From<Header> for CommittedHeader {
     }
 }
 
-/// Witness-backed database revm reads from during execution. Generic over the state-trie backend
+/// Witness-backed database evm2 reads from during execution. Generic over the state-trie backend
 /// `T` (the legacy [`EthereumState`] or the arena [`ArenaTries`]) via the [`StateTries`] trait.
 #[derive(Debug)]
 pub struct TrieDB<'a, T: StateTries> {
@@ -187,46 +185,35 @@ impl<'a, T: StateTries> TrieDB<'a, T> {
     }
 }
 
-impl<T: StateTries> DatabaseRef for TrieDB<'_, T> {
-    /// The database error type.
+impl<T: StateTries> Database for TrieDB<'_, T> {
     type Error = ProviderError;
 
-    /// Get basic account information.
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        let account_in_trie = self.inner.account(keccak256(address));
-
-        let account = account_in_trie.map(|account_in_trie| AccountInfo {
-            balance: account_in_trie.balance,
-            nonce: account_in_trie.nonce,
-            code_hash: account_in_trie.code_hash,
-            account_id: None,
-            code: None,
-        });
-
-        Ok(account)
+    fn get_account(&mut self, address: &Address) -> Result<Option<AccountInfo>, Self::Error> {
+        Ok(self.inner.account(keccak256(address)).map(|account| {
+            AccountInfo::new(account.balance, account.nonce, account.code_hash, None)
+        }))
     }
 
-    /// Get account code by its hash.
-    fn code_by_hash_ref(&self, hash: B256) -> Result<Bytecode, Self::Error> {
-        Ok(self.bytecode_by_hash.get(&hash).map(|code| (*code).clone()).unwrap())
+    fn get_code_by_hash(&mut self, hash: &B256) -> Result<evm2::bytecode::Bytecode, Self::Error> {
+        let code = self.bytecode_by_hash.get(hash).ok_or_else(|| {
+            ProviderError::TrieWitnessError(format!("Missing bytecode for {hash}"))
+        })?;
+        Ok(evm2::bytecode::Bytecode::from_stored(code.original_bytes()))
     }
 
-    /// Get storage value of address at index.
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        Ok(self.inner.storage_value(keccak256(address), keccak256(index.to_be_bytes::<32>())))
+    fn get_storage(&mut self, address: &Address, key: &U256) -> Result<U256, Self::Error> {
+        Ok(self.inner.storage_value(keccak256(address), keccak256(key.to_be_bytes::<32>())))
     }
 
-    /// Get block hash by block number.
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        Ok(*self
-            .block_hashes
-            .get(&number)
-            .expect("A block hash must be provided for each block number"))
+    fn get_block_hash(&mut self, number: &U256) -> Result<B256, Self::Error> {
+        u64::try_from(*number).ok().and_then(|n| self.block_hashes.get(&n).copied()).ok_or_else(
+            || ProviderError::TrieWitnessError(format!("Missing ancestor at block {number}")),
+        )
     }
 }
 
 /// Verifies the state/storage roots, ancestor headers and account bytecodes of a [`StateTries`]
-/// backend, and constructs the [`TrieDB`] revm reads against during execution.
+/// backend, and constructs the [`TrieDB`] evm2 reads against during execution.
 ///
 /// NOTE: For some unknown reasons, calling this via a bare trait method (rather than from a method
 /// on the input type) causes a zkVM run to cost over 5M cycles more. The per-backend `witness_db`
