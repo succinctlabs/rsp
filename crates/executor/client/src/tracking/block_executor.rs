@@ -8,6 +8,8 @@ use reth_evm::{BlockExecutor, BlockExecutorFactory, ConfigureEvm, Evm};
 use reth_execution_types::BlockExecutionOutput;
 use reth_primitives_traits::{BlockTy, ReceiptTy, RecoveredBlock};
 
+type OutputWithBalHash<R> = (BlockExecutionOutput<R>, Option<B256>);
+
 /// Execute a single witnessed block on the guest, including the pre- and post-block system calls.
 pub(crate) fn execute_block<C: ConfigureEvm>(
     config: &C,
@@ -15,7 +17,7 @@ pub(crate) fn execute_block<C: ConfigureEvm>(
     db: impl Database,
     block: &RecoveredBlock<BlockTy<C::Primitives>>,
     track_opcodes: bool,
-) -> Result<(BlockExecutionOutput<ReceiptTy<C::Primitives>>, Option<B256>), BlockExecutionError> {
+) -> Result<OutputWithBalHash<ReceiptTy<C::Primitives>>, BlockExecutionError> {
     let env = config.evm_env(block.header()).map_err(BlockExecutionError::other)?;
     let ctx = config.context_for_block(block.sealed_block()).map_err(BlockExecutionError::other)?;
     let mut evm = factory.evm_with_env(Db::new(db), env);
