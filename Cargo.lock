@@ -6315,7 +6315,6 @@ dependencies = [
  "alloy-consensus",
  "alloy-genesis",
  "alloy-network",
- "alloy-primitives",
  "alloy-provider",
  "clap",
  "csv",
@@ -6407,6 +6406,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sp1-sdk",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -6447,7 +6447,6 @@ dependencies = [
  "reth-trie",
  "serde",
  "serde_json",
- "serde_with",
  "thiserror 1.0.69",
 ]
 

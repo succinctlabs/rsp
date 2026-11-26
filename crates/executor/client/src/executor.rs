@@ -14,7 +14,6 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives_traits::Block;
 use reth_trie::KeccakKeyHasher;
 use revm::{database::WrapDatabaseRef, install_crypto};
-use revm_primitives::Address;
 
 use crate::{
     custom::{CustomCrypto, CustomEvmFactory},
@@ -119,14 +118,7 @@ where
             vec![execution_output.result.requests],
         );
 
-        // Verify the state root.
-        //
-        // SOUNDNESS: this final state-root check is load-bearing for every host-controlled value
-        // that flows into the tries — not just the trie nodes (whose hashes are verified during
-        // decode), but also, on the arena backend, the untrusted `pre_state_storage_roots` cache
-        // consumed by `ArenaTries::update` (see the `SOUNDNESS:` docs on
-        // `EthereumState::to_arena_witness` / `ArenaTries`). A tampered witness input surfaces
-        // here as `MismatchedStateRoot` and no proof is produced.
+        // Verify the state root after applying the block to the authenticated prestate.
         let state_root = profile_report!(COMPUTE_STATE_ROOT, {
             let post_state = executor_outcome.hash_state_slow::<KeccakKeyHasher>();
             #[cfg(not(feature = "arena"))]
@@ -178,14 +170,11 @@ where
 }
 
 impl EthClientExecutor {
-    pub fn eth(chain_spec: Arc<ChainSpec>, custom_beneficiary: Option<Address>) -> Self {
+    pub fn eth(chain_spec: Arc<ChainSpec>) -> Self {
         install_crypto(CustomCrypto::default());
 
         Self {
-            evm_config: EthEvmConfig::new_with_evm_factory(
-                chain_spec.clone(),
-                CustomEvmFactory::new(custom_beneficiary),
-            ),
+            evm_config: EthEvmConfig::new_with_evm_factory(chain_spec.clone(), CustomEvmFactory),
             chain_spec,
         }
     }

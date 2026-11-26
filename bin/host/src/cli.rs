@@ -1,7 +1,6 @@
 use std::{fs, path::PathBuf};
 
 use alloy_chains::Chain;
-use alloy_primitives::Address;
 use alloy_provider::{network::AnyNetwork, Provider, RootProvider};
 use clap::Parser;
 use rsp_host_executor::{Config, StateBackend};
@@ -22,10 +21,6 @@ pub struct HostArgs {
     /// The path to the genesis json file to use for the execution.
     #[clap(long)]
     pub genesis_path: Option<PathBuf>,
-
-    /// The custom beneficiary address, used with Clique consensus.
-    #[clap(long)]
-    pub custom_beneficiary: Option<Address>,
 
     /// Whether to generate a proof or just execute the block.
     #[clap(long)]
@@ -56,34 +51,23 @@ pub struct HostArgs {
 
 impl HostArgs {
     pub async fn as_config(&self) -> eyre::Result<Config> {
-        // We don't need RPC when using cache with known chain ID, so we leave it as `Option<Url>`
-        // here and decide on whether to panic later.
-        //
-        // On the other hand chain ID is always needed.
-        let (rpc_url, chain_id) = match (self.provider.rpc_url.clone(), self.provider.chain_id) {
-            (Some(rpc_url), Some(chain_id)) => (Some(rpc_url), chain_id),
-            (None, Some(chain_id)) => {
-                match std::env::var(format!("RPC_{chain_id}")) {
-                    Ok(rpc_env_var) => {
-                        // We don't always need it but if the value exists it has to be valid.
-                        (Some(Url::parse(rpc_env_var.as_str())?), chain_id)
-                    }
-                    Err(_) => {
-                        // Not having RPC is okay because we know chain ID.
-                        (None, chain_id)
-                    }
-                }
-            }
-            (Some(rpc_url), None) => {
-                // We can find out about chain ID from RPC.
-                let provider = RootProvider::<AnyNetwork>::new_http(rpc_url.clone());
-
-                (Some(rpc_url), provider.get_chain_id().await?)
-            }
-            (None, None) => {
-                eyre::bail!("either --rpc-url or --chain-id must be used")
-            }
+        let rpc_url = match (self.provider.rpc_url.clone(), self.provider.chain_id) {
+            (Some(rpc_url), _) => Some(rpc_url),
+            (None, Some(chain_id)) => std::env::var(format!("RPC_{chain_id}"))
+                .ok()
+                .map(|value| Url::parse(&value))
+                .transpose()?,
+            (None, None) => None,
         };
+        // An environment URL is a fallback for cache misses. Leave it idle on cache hits.
+        let rpc_chain_id = match self.provider.rpc_url.as_ref() {
+            Some(rpc_url) => {
+                let provider = RootProvider::<AnyNetwork>::new_http(rpc_url.clone());
+                Some(provider.get_chain_id().await?)
+            }
+            None => None,
+        };
+        let chain_id = resolve_chain_id(self.provider.chain_id, rpc_chain_id)?;
 
         let genesis = if let Some(genesis_path) = &self.genesis_path {
             let genesis_json = fs::read_to_string(genesis_path)
@@ -94,6 +78,7 @@ impl HostArgs {
         } else {
             chain_id.try_into()?
         };
+        validate_genesis_chain_id(&genesis, chain_id)?;
 
         let chain = Chain::from_id(chain_id);
 
@@ -103,7 +88,6 @@ impl HostArgs {
             rpc_url,
             cache_dir: self.cache_dir.clone(),
             stdin_dir: None,
-            custom_beneficiary: self.custom_beneficiary,
             prove_mode: self.prove.then_some(SP1ProofMode::Compressed),
             skip_client_execution: false,
             opcode_tracking: self.opcode_tracking,
@@ -112,6 +96,29 @@ impl HostArgs {
 
         Ok(config)
     }
+}
+
+fn resolve_chain_id(configured: Option<u64>, rpc: Option<u64>) -> eyre::Result<u64> {
+    match (configured, rpc) {
+        (Some(configured), Some(rpc)) if configured != rpc => {
+            eyre::bail!("chain ID mismatch: configured {configured}, RPC returned {rpc}")
+        }
+        (Some(configured), _) => Ok(configured),
+        (None, Some(rpc)) => Ok(rpc),
+        (None, None) => eyre::bail!("either --rpc-url or --chain-id must be used"),
+    }
+}
+
+fn validate_genesis_chain_id(genesis: &Genesis, chain_id: u64) -> eyre::Result<()> {
+    if let Genesis::Custom(config) = genesis {
+        eyre::ensure!(
+            config.chain_id == chain_id,
+            "chain ID mismatch: genesis contains {}, expected {chain_id}",
+            config.chain_id
+        );
+    }
+
+    Ok(())
 }
 
 /// The arguments for configuring the chain data provider.
@@ -124,4 +131,32 @@ pub struct ProviderArgs {
     /// The chain ID. If not provided, requires the rpc_url argument to be provided.
     #[clap(long)]
     pub chain_id: Option<u64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use alloy_genesis::ChainConfig;
+
+    use super::{resolve_chain_id, validate_genesis_chain_id, Genesis};
+
+    #[test]
+    fn rejects_rpc_chain_id_mismatch() {
+        let error = resolve_chain_id(Some(1), Some(11155111)).unwrap_err();
+
+        assert_eq!(error.to_string(), "chain ID mismatch: configured 1, RPC returned 11155111");
+    }
+
+    #[test]
+    fn permits_offline_cache_with_configured_chain_id() {
+        assert_eq!(resolve_chain_id(Some(1), None).unwrap(), 1);
+    }
+
+    #[test]
+    fn rejects_genesis_chain_id_mismatch() {
+        let genesis = Genesis::Custom(ChainConfig { chain_id: 11155111, ..Default::default() });
+
+        let error = validate_genesis_chain_id(&genesis, 1).unwrap_err();
+
+        assert_eq!(error.to_string(), "chain ID mismatch: genesis contains 11155111, expected 1");
+    }
 }

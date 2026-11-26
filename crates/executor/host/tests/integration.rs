@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
+use alloy_consensus::Header;
+use alloy_primitives::b256;
 use alloy_provider::{network::Ethereum, Network, RootProvider};
 use reth_chainspec::ChainSpec;
 use reth_evm::ConfigureEvm;
-use revm_primitives::{address, Address};
 use rsp_client_executor::{
     executor::{ClientExecutor, EthClientExecutor},
     io::ClientExecutorInput,
@@ -19,43 +20,32 @@ use url::Url;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_ethereum() {
-    run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864, None).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_linea() {
-    run_eth_e2e(
-        &Genesis::Linea,
-        "RPC_59144",
-        5600000,
-        Some(address!("8f81e2e3f8b46467523463835f965ffe476e1c9e")),
-    )
-    .await;
+    run_eth_e2e(&Genesis::Mainnet, "RPC_1", 18884864).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_e2e_sepolia() {
-    run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324, None).await;
+    run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 6804324).await;
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_e2e_holesky() {
-    run_eth_e2e(&Genesis::Holesky, "RPC_17000", 4596000, None).await;
+async fn test_e2e_sepolia_deposit() {
+    // This block contains one validator deposit. Post-execution validation checks its requests.
+    let header = run_eth_e2e(&Genesis::Sepolia, "RPC_11155111", 7_838_305).await;
+    assert_eq!(
+        header.hash_slow(),
+        b256!("ea358d1c41871011be3a5dd06c3a44df3ce9cb7456d3f916d96c085f938b365b")
+    );
 }
 
-async fn run_eth_e2e(
-    genesis: &Genesis,
-    env_var_key: &str,
-    block_number: u64,
-    custom_beneficiary: Option<Address>,
-) {
+async fn run_eth_e2e(genesis: &Genesis, env_var_key: &str, block_number: u64) -> Header {
     let chain_spec: Arc<ChainSpec> = Arc::new(genesis.try_into().unwrap());
 
     // Setup the host executor.
-    let host_executor = EthHostExecutor::eth(chain_spec.clone(), custom_beneficiary);
+    let host_executor = EthHostExecutor::eth(chain_spec.clone());
 
     // Setup the client executor.
-    let client_executor = EthClientExecutor::eth(chain_spec, custom_beneficiary);
+    let client_executor = EthClientExecutor::eth(chain_spec);
 
     run_e2e::<_, ChainSpec, Ethereum>(
         host_executor,
@@ -63,9 +53,8 @@ async fn run_eth_e2e(
         env_var_key,
         block_number,
         genesis,
-        custom_beneficiary,
     )
-    .await;
+    .await
 }
 
 async fn run_e2e<C, CS, N>(
@@ -74,8 +63,8 @@ async fn run_e2e<C, CS, N>(
     env_var_key: &str,
     block_number: u64,
     genesis: &Genesis,
-    custom_beneficiary: Option<Address>,
-) where
+) -> Header
+where
     C: ConfigureEvm,
     C::Primitives: FromInput
         + IntoPrimitives<N>
@@ -105,7 +94,6 @@ async fn run_e2e<C, CS, N>(
             block_number,
             &provider,
             genesis.clone(),
-            custom_beneficiary,
             false,
             rsp_host_executor::StateBackend::Proofs,
         )
@@ -113,11 +101,13 @@ async fn run_e2e<C, CS, N>(
         .expect("failed to execute host");
 
     // Execute the client.
-    client_executor.execute(client_input.clone()).expect("failed to execute client");
+    let header = client_executor.execute(client_input.clone()).expect("failed to execute client");
 
     // Save the client input to a buffer.
     let buffer = bincode::serialize(&client_input).unwrap();
 
     // Load the client input from a buffer.
     let _: ClientExecutorInput<C::Primitives> = bincode::deserialize(&buffer).unwrap();
+
+    header
 }

@@ -55,7 +55,7 @@ async fn main() -> eyre::Result<()> {
 
     let elf = include_elf!("rsp-client").to_vec();
     let block_execution_strategy_factory =
-        create_eth_block_execution_strategy_factory(&config.genesis, config.custom_beneficiary);
+        create_eth_block_execution_strategy_factory(&config.genesis);
     let provider = config.rpc_url.as_ref().map(|url| create_provider(url.clone()));
 
     let executor = build_executor::<EthExecutorComponents<_>, _>(
