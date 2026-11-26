@@ -1,5 +1,5 @@
+use alloy_primitives::{Address, U256};
 use alloy_transport::TransportError;
-use revm_primitives::{Address, U256};
 use rsp_mpt::FromProofError;
 
 /// Errors that can occur when interacting with the [RpcDb].

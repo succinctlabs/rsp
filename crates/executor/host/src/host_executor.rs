@@ -4,6 +4,7 @@ use alloy_consensus::{BlockHeader, Header, TxReceipt};
 use alloy_network::BlockResponse;
 use alloy_primitives::{Bloom, Sealable};
 use alloy_provider::{Network, Provider};
+use evm2::evm::{CacheDB, DatabaseRef, DbRef};
 use reth_chainspec::ChainSpec;
 use reth_evm::{
     execute::{BasicBlockExecutor, Executor},
@@ -12,12 +13,11 @@ use reth_evm::{
 use reth_evm_ethereum::EthEvmConfig;
 use reth_primitives_traits::{Block, BlockBody, NodePrimitives, SealedHeader};
 use reth_storage_errors::provider::ProviderError;
-use reth_trie::{HashedPostState, KeccakKeyHasher};
-use revm::{database::CacheDB, DatabaseRef};
 use revm_primitives::Address;
 use rsp_client_executor::{
     custom::CustomEvmFactory, io::ClientExecutorInput, BlockValidator, IntoInput, IntoPrimitives,
 };
+use rsp_mpt::StateTries;
 use rsp_primitives::genesis::Genesis;
 use rsp_rpc_db::RpcDb;
 
@@ -143,9 +143,9 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
     {
         let block_number = current_block.header().number();
 
-        let cache_db = CacheDB::new(&rpc_db);
+        let cache_db = CacheDB::new(DbRef::new(&rpc_db));
 
-        let block_executor = BasicBlockExecutor::new(self.evm_config.clone(), cache_db);
+        let mut block_executor = BasicBlockExecutor::new(self.evm_config.clone(), cache_db);
 
         // Execute the block and fetch all the necessary data along the way.
         tracing::info!(
@@ -168,7 +168,11 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             self.chain_spec.clone(),
         )?;
 
-        let execution_output = block_executor.execute(&block)?;
+        let result = block_executor.execute_one(&block)?;
+        let bal = block_executor.take_bal();
+        let bal_hash = bal.as_deref().map(alloy_eips::eip7928::compute_block_access_list_hash);
+        let execution_output =
+            reth_execution_types::BlockExecutionOutput::new(result, block_executor.into_state());
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
@@ -176,6 +180,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             &block,
             self.chain_spec.clone(),
             &execution_output,
+            bal_hash,
         )?;
 
         // Accumulate the logs bloom.
@@ -191,9 +196,7 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
         tracing::info!("verifying the state root");
         let state_root = {
             let mut mutated_state = state.clone();
-            mutated_state.update(&HashedPostState::from_bundle_state::<KeccakKeyHasher>(
-                &execution_output.state.state,
-            ));
+            mutated_state.update_from_bundle(&execution_output.state);
             mutated_state.state_root()
         };
         if state_root != current_block.header().state_root() {
@@ -228,8 +231,8 @@ impl<C: ConfigureEvm, CS> HostExecutor<C, CS> {
             excess_blob_gas: current_block.header().excess_blob_gas(),
             parent_beacon_block_root: current_block.header().parent_beacon_block_root(),
             requests_hash: current_block.header().requests_hash(),
-            block_access_list_hash: None,
-            slot_number: None,
+            block_access_list_hash: bal_hash,
+            slot_number: current_block.header().slot_number(),
         };
 
         let ancestor_headers = rpc_db.ancestor_headers().await?;

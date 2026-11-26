@@ -43,6 +43,7 @@ pub trait BlockValidator<CS>: NodePrimitives {
         block: &RecoveredBlock<Self::Block>,
         chain_spec: Arc<CS>,
         execution_output: &BlockExecutionOutput<Self::Receipt>,
+        block_access_list_hash: Option<alloy_primitives::B256>,
     ) -> Result<(), ConsensusError>;
 }
 
@@ -104,12 +105,14 @@ impl BlockValidator<ChainSpec> for EthPrimitives {
         block: &RecoveredBlock<Self::Block>,
         chain_spec: Arc<ChainSpec>,
         execution_output: &BlockExecutionOutput<Self::Receipt>,
+        block_access_list_hash: Option<alloy_primitives::B256>,
     ) -> Result<(), ConsensusError> {
         reth_ethereum_consensus::validate_block_post_execution(
             block,
             &chain_spec,
             &execution_output.result,
             None,
+            block_access_list_hash,
         )
     }
 }

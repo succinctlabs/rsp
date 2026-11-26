@@ -21,14 +21,12 @@ async-trait.workspace = true
 # reth
 reth-storage-errors.workspace = true
 
-# revm
-revm-database.workspace = true
-revm-database-interface.workspace = true
-revm-primitives.workspace = true
+# execution and guest input encoding
+evm2.workspace = true
 revm-state.workspace = true
 
 # alloy
-alloy-consensus = { workspace = true, optional = true }
+alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
@@ -38,7 +36,6 @@ alloy-trie = { workspace = true, optional = true, features = ["ethereum"] }
 [features]
 default = ["execution-witness"]
 execution-witness = [
-    "dep:alloy-consensus", 
     "dep:alloy-rlp",
     "dep:alloy-trie",
     "alloy-provider/debug-api"

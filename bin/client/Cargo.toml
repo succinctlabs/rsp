@@ -24,7 +24,15 @@ default = []
 # forwards this feature to the guest when they are built with their own `arena` feature.
 arena = ["rsp-client-executor/arena"]
 
+[patch."https://github.com/alloy-rs/evm2"]
+evm2 = { git = "https://github.com/DaniPopes/evm2", rev = "66687c18b34d3bdbb899f5eb7605070615c03475" }
+
 [patch.crates-io]
+# Use the evm2-compatible reth-core revision from Reth v2.11.0.
+reth-codecs = { git = "https://github.com/paradigmxyz/reth-core", rev = "275ce4cf5befeb9f1e8acd935ff2882d2d25fc61" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth-core", rev = "275ce4cf5befeb9f1e8acd935ff2882d2d25fc61" }
+reth-primitives-traits = { git = "https://github.com/paradigmxyz/reth-core", rev = "275ce4cf5befeb9f1e8acd935ff2882d2d25fc61" }
+
 # Precompile patches
 sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", tag = "patch-sha2-0.10.9-sp1-6.10.0", package = "sha2" }
 substrate-bn = { git = "https://github.com/sp1-patches/bn", tag = "patch-0.6.0-sp1-6.10.0-substrate-bn-r1" }

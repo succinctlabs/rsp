@@ -5,17 +5,18 @@ use std::{
 };
 
 use alloy_consensus::{BlockHeader, Header};
-use alloy_primitives::{map::HashMap, U256};
+use alloy_primitives::{map::HashMap, Address, B256, KECCAK256_EMPTY, U256};
 use alloy_provider::{
     network::{primitives::HeaderResponse, BlockResponse},
     Network, Provider,
 };
 use async_trait::async_trait;
+use evm2::{
+    block::bundle_state::BundleState,
+    bytecode::Bytecode,
+    evm::{AccountInfo, DatabaseRef},
+};
 use reth_storage_errors::{db::DatabaseError, provider::ProviderError};
-use revm_database::BundleState;
-use revm_database_interface::DatabaseRef;
-use revm_primitives::{Address, B256, KECCAK_EMPTY};
-use revm_state::{AccountInfo, Bytecode};
 use rsp_mpt::EthereumState;
 use rsp_primitives::account_proof::eip1186_proof_to_account_proof;
 use tracing::debug;
@@ -76,20 +77,12 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
             .map_err(|e| RpcDbError::GetCodeError(address, e.to_string()))?;
 
         // Construct the account info & write it to the log.
-        let bytecode = Bytecode::new_raw(code);
+        let bytecode = Bytecode::from_stored(code);
 
-        // Normalize code_hash for REVM compatibility:
-        // RPC response for getProof method for non-existing (unused) EOAs may contain B256::ZERO
-        // for code_hash, but REVM expects KECCAK_EMPTY
-        let code_hash = if proof.code_hash == B256::ZERO { KECCAK_EMPTY } else { proof.code_hash };
-
-        let account_info = AccountInfo {
-            nonce: proof.nonce,
-            balance: proof.balance,
-            code_hash,
-            account_id: None,
-            code: Some(bytecode.clone()),
-        };
+        // Some RPCs return zero instead of the empty-code hash for unused EOAs.
+        let code_hash =
+            if proof.code_hash == B256::ZERO { KECCAK256_EMPTY } else { proof.code_hash };
+        let account_info = AccountInfo::new(proof.balance, proof.nonce, code_hash, Some(bytecode));
 
         // Record the account info to the state.
         self.accounts
@@ -168,33 +161,50 @@ impl<P: Provider<N> + Clone, N: Network> BasicRpcDb<P, N> {
 impl<P: Provider<N> + Clone, N: Network> DatabaseRef for BasicRpcDb<P, N> {
     type Error = ProviderError;
 
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+    fn get_account(&self, address: &Address) -> Result<Option<AccountInfo>, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
         let result =
-            tokio::task::block_in_place(|| handle.block_on(self.fetch_account_info(address)));
+            tokio::task::block_in_place(|| handle.block_on(self.fetch_account_info(*address)));
         let account_info =
             result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
         Ok(Some(account_info))
     }
 
-    fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
-        unimplemented!()
+    fn get_code_by_hash(&self, code_hash: &B256) -> Result<Bytecode, Self::Error> {
+        if *code_hash == KECCAK256_EMPTY {
+            return Ok(Bytecode::default());
+        }
+        let accounts = self.accounts.read().map_err(|_| {
+            ProviderError::Database(DatabaseError::Other(RpcDbError::Poisoned.to_string()))
+        })?;
+        accounts
+            .values()
+            .filter_map(|account| account.code.as_ref())
+            .find(|code| code.hash_slow() == *code_hash)
+            .cloned()
+            .ok_or_else(|| {
+                ProviderError::TrieWitnessError(format!("Code not found for {code_hash}"))
+            })
     }
 
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn get_storage(&self, address: &Address, index: &U256) -> Result<U256, Self::Error> {
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
-        let result =
-            tokio::task::block_in_place(|| handle.block_on(self.fetch_storage_at(address, index)));
+        let result = tokio::task::block_in_place(|| {
+            handle.block_on(self.fetch_storage_at(*address, *index))
+        });
         let value =
             result.map_err(|e| ProviderError::Database(DatabaseError::Other(e.to_string())))?;
         Ok(value)
     }
 
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+    fn get_block_hash(&self, number: &U256) -> Result<B256, Self::Error> {
+        let number = u64::try_from(*number).map_err(|_| {
+            ProviderError::TrieWitnessError(format!("Invalid block number {number}"))
+        })?;
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
@@ -233,7 +243,7 @@ where
             let keys = used_keys
                 .iter()
                 .map(|key| B256::from(*key))
-                .chain(modified_keys.clone().into_iter())
+                .chain(modified_keys.clone())
                 .collect::<BTreeSet<_>>()
                 .into_iter()
                 .collect::<Vec<_>>();
@@ -259,16 +269,17 @@ where
         Ok(state)
     }
 
-    fn bytecodes(&self) -> Vec<Bytecode> {
+    fn bytecodes(&self) -> Vec<revm_state::Bytecode> {
         let accounts = self.accounts.read().unwrap();
 
         accounts
             .values()
-            .flat_map(|account| account.code.clone())
+            .filter_map(|account| account.code.as_ref())
             .map(|code| (code.hash_slow(), code))
             .collect::<BTreeMap<_, _>>()
             .into_values()
-            .collect::<Vec<_>>()
+            .map(crate::cached_bytecode)
+            .collect()
     }
 
     async fn ancestor_headers(&self) -> Result<Vec<Header>, RpcDbError> {
@@ -304,8 +315,8 @@ where
                 excess_blob_gas: block.header().excess_blob_gas(),
                 parent_beacon_block_root: block.header().parent_beacon_block_root(),
                 requests_hash: block.header().requests_hash(),
-                block_access_list_hash: None,
-                slot_number: None,
+                block_access_list_hash: block.header().block_access_list_hash(),
+                slot_number: block.header().slot_number(),
             });
         }
 

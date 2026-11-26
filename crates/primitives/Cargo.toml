@@ -12,7 +12,6 @@ repository.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-serde_with = "3.12.0"
 
 # reth
 reth-primitives-traits.workspace = true
@@ -22,6 +21,8 @@ reth-trie.workspace = true
 # alloy
 alloy-eips.workspace = true
 alloy-genesis.workspace = true
+alloy-primitives.workspace = true
+alloy-serde.workspace = true
 alloy-rpc-types.workspace = true
 
 [dev-dependencies]

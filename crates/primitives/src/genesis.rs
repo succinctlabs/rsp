@@ -12,23 +12,70 @@ use reth_chainspec::{
     BaseFeeParams, BaseFeeParamsKind, Chain, ChainSpec, EthereumHardfork,
     MAINNET_PRUNE_DELETE_LIMIT,
 };
-use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
+use serde::{Deserialize, Serialize, Serializer};
+
+mod legacy_config;
 
 use crate::error::ChainSpecError;
 
 pub const LINEA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/59144.json");
 pub const OP_SEPOLIA_GENESIS_JSON: &str = include_str!("../../../bin/host/genesis/11155420.json");
 
-#[serde_as]
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "StoredGenesis")]
 #[allow(clippy::large_enum_variant)]
 pub enum Genesis {
     Mainnet,
     Sepolia,
     Holesky,
     Linea,
-    Custom(#[serde_as(as = "alloy_genesis::serde_bincode_compat::ChainConfig")] ChainConfig),
+    Custom(ChainConfig),
+}
+
+// Preserve the existing bincode tags. The final variant carries fields added after Reth 2.2.
+#[derive(Serialize, Deserialize)]
+#[serde(rename = "Genesis")]
+#[allow(clippy::large_enum_variant)]
+enum StoredGenesis {
+    Mainnet,
+    Sepolia,
+    Holesky,
+    Linea,
+    Custom(#[serde(with = "legacy_config::LegacyConfig")] ChainConfig),
+    CustomJson(String),
+}
+
+impl Serialize for Genesis {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Mainnet => StoredGenesis::Mainnet,
+            Self::Sepolia => StoredGenesis::Sepolia,
+            Self::Holesky => StoredGenesis::Holesky,
+            Self::Linea => StoredGenesis::Linea,
+            Self::Custom(config) if config.bogota_time.is_none() => {
+                StoredGenesis::Custom(config.clone())
+            }
+            Self::Custom(config) => StoredGenesis::CustomJson(
+                serde_json::to_string(config).map_err(serde::ser::Error::custom)?,
+            ),
+        }
+        .serialize(serializer)
+    }
+}
+
+impl TryFrom<StoredGenesis> for Genesis {
+    type Error = ChainSpecError;
+
+    fn try_from(stored: StoredGenesis) -> Result<Self, Self::Error> {
+        match stored {
+            StoredGenesis::Mainnet => Ok(Self::Mainnet),
+            StoredGenesis::Sepolia => Ok(Self::Sepolia),
+            StoredGenesis::Holesky => Ok(Self::Holesky),
+            StoredGenesis::Linea => Ok(Self::Linea),
+            StoredGenesis::Custom(config) => Ok(Self::Custom(config)),
+            StoredGenesis::CustomJson(json) => Ok(Self::Custom(serde_json::from_str(&json)?)),
+        }
+    }
 }
 
 impl Hash for Genesis {
@@ -146,6 +193,14 @@ mod tests {
     use alloy_eips::eip7840::BlobParams;
 
     use crate::genesis::{genesis_from_json, Genesis, OP_SEPOLIA_GENESIS_JSON};
+
+    #[test]
+    fn preserves_bogota_time_in_custom_genesis() {
+        let genesis: Genesis = r#"{"chainId":424242,"bogotaTime":1234}"#.parse().unwrap();
+        let bytes = bincode::serialize(&genesis).unwrap();
+        assert_eq!(&bytes[..4], &5_u32.to_le_bytes());
+        assert_eq!(bincode::deserialize::<Genesis>(&bytes).unwrap(), genesis);
+    }
 
     #[test]
     fn test_custom_genesis_bincode_roundtrip() {

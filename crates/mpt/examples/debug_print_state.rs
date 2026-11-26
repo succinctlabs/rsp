@@ -25,7 +25,7 @@ fn main() {
     );
 
     // Add storage to create storage tries with multiple slots
-    let mut storage = HashedStorage::new(false);
+    let mut storage = HashedStorage::default();
     storage.storage.insert(B256::from([0x01; 32]), U256::from(100));
     storage.storage.insert(B256::from([0x02; 32]), U256::from(200));
     post_state.storages.insert(B256::from([0xAA; 32]), storage);
